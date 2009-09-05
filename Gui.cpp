@@ -317,7 +317,7 @@ BOOL CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             if (pre == -1) return 1;
             CONFIG tmp = conf;
             conf.ula_preset = (unsigned char)pre; load_ula_preset();
-            c1.frame = conf.frame, c1.intfq = conf.intfq, c1.intlen = conf.intlen, c1.t_line = conf.t_line,
+            c1.frame = /*conf.frame*/frametime/*Alone Coder*/, c1.intfq = conf.intfq, c1.intlen = conf.intlen, c1.t_line = conf.t_line,
             c1.paper = conf.paper, c1.even_M1 = conf.even_M1, c1.border_4T = conf.border_4T;
             c1.floatbus = conf.floatbus, c1.floatdos = conf.floatdos;
             conf = tmp;
@@ -833,6 +833,7 @@ BOOL CALLBACK SoundDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    if (msg == WM_INITDIALOG)
    {
       unsigned savemod = 0, reset = 0, fx_vol = 0, bass_vol = 0;
+//      unsigned here_soundfilter = 1; //Alone Coder 0.36.4
       #ifdef MOD_GS
       if (c1.gs_type)
       {
@@ -850,6 +851,8 @@ BOOL CALLBACK SoundDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          #endif
       }
       #endif
+
+//      EnableWindow(GetDlgItem(dlg, IDC_SOUNDFILTER), here_soundfilter); //Alone Coder 0.36.4
 
       EnableWindow(GetDlgItem(dlg, IDC_GSRESET), reset);
       EnableWindow(GetDlgItem(dlg, IDB_SAVEMOD), savemod);
@@ -901,10 +904,12 @@ upd:  for (int i = 0; i < sizeof slider/sizeof*slider; i++) {
          for (int i = 0; i < sizeof slider/sizeof*slider; i++)
             *slider[i].value = SendDlgItemMessage(dlg, slider[i].ID, TBM_GETPOS, 0, 0);
       c1.sound.gsreset = getcheck(IDC_GSRESET);
+      c1.soundfilter = getcheck(IDC_SOUNDFILTER); //Alone Coder 0.36.4
    }
    if (nm->code == PSN_SETACTIVE) {
       setcheck(IDC_NOSOUND, !c1.sound.enabled);
       setcheck(IDC_GSRESET, c1.sound.gsreset);
+      setcheck(IDC_SOUNDFILTER, c1.soundfilter); //Alone Coder 0.36.4
       lastpage = "SOUND";
       goto upd;
    }

@@ -1,5 +1,5 @@
 
-// input: ports 7FFD,1FFD,DFFD,FFF7,FF77, flags CF_TRDOS,CF_CACHEON
+// input: ports 7FFD,1FFD,DFFD,FFF7,FF77,EFF7, flags CF_TRDOS,CF_CACHEON
 void set_banks()
 {
    bankw[1] = bankr[1] = RAM_BASE_M + 5*PAGE;
@@ -22,6 +22,7 @@ void set_banks()
       case MM_PENTAGON:
          bank += ((comp.p7FFD & 0xC0) >> 3) + (comp.p7FFD & 0x20);
          bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
+		 if (comp.pEFF7 & EFF7_ROCACHE) bank0 = RAM_BASE_M + 0*PAGE; //Alone Coder 0.36.4
          break;
 
       case MM_PROFSCORP:
@@ -135,7 +136,7 @@ void set_banks()
       unsigned char *cpage = CACHE_M;
       if (conf.cache == 32 && !(comp.p7FFD & 0x10)) cpage += PAGE;
       bankr[0] = bankw[0] = cpage;
-      if (comp.pEFF7 & EFF7_ROCACHE) bankw[0] = TRASH_M;
+      // if (comp.pEFF7 & EFF7_ROCACHE) bankw[0] = TRASH_M; //Alone Coder 0.36.4
    }
 
    if (comp.pEFF7 & EFF7_LOCKMEM)

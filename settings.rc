@@ -226,6 +226,8 @@ BEGIN
                     TBS_NOTICKS | WS_TABSTOP,77,121,82,10
     CONTROL         "GS &Reset",IDC_GSRESET,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,164,121,43,10
+    CONTROL         "&Lowpass filter",IDC_SOUNDFILTER,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,115,7,79,10
 END
 
 IDD_TAPE DIALOG DISCARDABLE  0, 0, 210, 135
@@ -406,9 +408,9 @@ BEGIN
     LTEXT           "4x",IDC_VSCALE_TITLE3,167,141,8,8
 END
 
-IDD_EFF7 DIALOGEX 0, 0, 203, 126
+IDD_EFF7 DIALOG DISCARDABLE  0, 0, 203, 126
 STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Sans Serif"
 BEGIN
     GROUPBOX        "lock---------current state",IDC_STATIC,7,7,189,112
     CONTROL         "bit&0",IDC_LOCK0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
@@ -433,10 +435,10 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,45,32,142,8
     CONTROL         "&disable memory above 128K",IDC_BIT2,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,45,44,142,8
-    CONTROL         "&read/only cache",IDC_BIT3,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "&ram0 at 0000h",IDC_BIT3,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,56,142,8
-    CONTROL         "&GIGASCREEN (no multicolors yet)",IDC_BIT4,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,45,68,142,8
+    CONTROL         "&noturbo",IDC_BIT4,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,45,68,142,8
     CONTROL         "&hardware multicolor",IDC_BIT5,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,81,142,8
     CONTROL         "384x304 &video mode",IDC_BIT6,"Button",BS_AUTOCHECKBOX | 

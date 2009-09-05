@@ -54,6 +54,7 @@
 #define IDC_SND_MICIN                   1029
 #define IDC_SND_AY                      1030
 #define IDC_MEM                         1031
+#define IDC_SOUNDFILTER                 1031
 #define IDC_SND_COVOXFB                 1034
 #define IDC_SND_COVOXDD                 1035
 #define IDC_VIDEOFILTER                 1036

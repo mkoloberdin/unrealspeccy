@@ -13,7 +13,7 @@ void draw_screen()
 {
    if (comp.pEFF7 & EFF7_384) { draw_alco(); return; }
    if (conf.nopaper) { draw_border(); return; }
-   if (comp.pEFF7 & EFF7_GIGASCREEN) { draw_border(); draw_gigascreen_no_border(); return; }
+//   if (comp.pEFF7 & EFF7_GIGASCREEN) { draw_border(); draw_gigascreen_no_border(); return; } //Alone Coder
 
    unsigned char *dst = rbuf;
    unsigned br = comp.border_attr * 0x11001100;

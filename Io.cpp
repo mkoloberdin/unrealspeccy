@@ -151,7 +151,17 @@ set1FFD:
       covFB_vol = val*conf.sound.covoxFB/0x100;
       return;
    }
-   if (port == 0xEFF7) { comp.pEFF7 = (comp.pEFF7 & conf.EFF7_mask) | (val & ~conf.EFF7_mask); return; }
+   if (port == 0xEFF7) { 
+      unsigned char oldpEFF7 = comp.pEFF7; //Alone Coder 0.36.4
+	  comp.pEFF7 = (comp.pEFF7 & conf.EFF7_mask) | (val & ~conf.EFF7_mask);
+	  if ((comp.pEFF7 ^ oldpEFF7) & EFF7_GIGASCREEN) {
+		conf.frame = frametime;
+		if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
+		apply_sound(); 
+	  } //Alone Coder 0.36.4
+	  if ((comp.pEFF7 ^ oldpEFF7) & EFF7_ROCACHE) set_banks(); //Alone Coder 0.36.4
+	  return; 
+   }
    if (conf.cmos && (comp.pEFF7 & EFF7_CMOS)) {
       if (port == 0xDFF7) { comp.cmos_addr = val; return; }
       if (port == 0xBFF7) { cmos_write(val); return; }

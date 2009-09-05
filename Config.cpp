@@ -137,7 +137,7 @@ void load_ula_preset()
    static char defaults[] = "71680,17989,224,50,32,0,0";
    GetPrivateProfileString("ULA", name, defaults, line, sizeof line, ininame);
    unsigned t1, t2, t3, t4;
-   sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d,%d", &conf.frame, &conf.paper, &conf.t_line, &conf.intfq, &conf.intlen, &t1, &t2, &t3, &t4);
+   sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d,%d", &/*conf.frame*/frametime/*Alone Coder*/, &conf.paper, &conf.t_line, &conf.intfq, &conf.intlen, &t1, &t2, &t3, &t4);
    conf.even_M1 = (unsigned char)t1; conf.border_4T = (unsigned char)t2;
    conf.floatbus = (unsigned char)t3; conf.floatdos = (unsigned char)t4;
 }
@@ -265,7 +265,7 @@ void load_config(char *fname)
    conf.t_line = GetPrivateProfileInt(ula, "Line", 224, ininame);
    conf.intfq = GetPrivateProfileInt(ula, "int", 50, ininame);
    conf.intlen = GetPrivateProfileInt(ula, "intlen", 32, ininame);
-   conf.frame = GetPrivateProfileInt(ula, "Frame", 71680, ininame);
+   /*conf.frame*/frametime/*Alone Coder*/ = GetPrivateProfileInt(ula, "Frame", 71680, ininame);
    conf.border_4T = GetPrivateProfileInt(ula, "4TBorder", 0, ininame);
    conf.even_M1 = GetPrivateProfileInt(ula, "EvenM1", 0, ininame);
    conf.floatbus = GetPrivateProfileInt(ula, "FloatBus", 0, ininame);
@@ -399,6 +399,8 @@ void load_config(char *fname)
    if (!strnicmp(line, "BASS", 4)) conf.gs_type = 2;
    #endif
 #endif
+
+   conf.soundfilter = GetPrivateProfileInt(sound, "SoundFilter", 0, ininame); //Alone Coder 0.36.4
 
    conf.sound.beeper = GetPrivateProfileInt(sound, "Beeper", 4000, ininame);
    conf.sound.micout = GetPrivateProfileInt(sound, "MicOut", 1000, ininame);
@@ -628,6 +630,10 @@ void apply_memory()
 
 void applyconfig()
 {
+//Alone Coder 0.36.4
+   conf.frame = frametime;
+   if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
+//~Alone Coder
    temp.ticks_frame = (unsigned)(temp.cpufq/conf.intfq);
    loadzxkeys(&conf);
    apply_memory();

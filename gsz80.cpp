@@ -29,8 +29,13 @@ void apply_gs()
 
 inline void flush_gs_sound()
 {
+  unsigned l,r;         //!psb
+  l=gs_v[0]+gs_v[1];    //!psb
+  r=gs_v[2]+gs_v[3];    //!psb
+
    if (temp.sndblock) return;
-   sound.update(gscpu.t + (unsigned) (gs_t_states - gscpu_t_at_frame_start), gs_v[0] + gs_v[1], gs_v[2] + gs_v[3]);
+//   sound.update(gscpu.t + (unsigned) (gs_t_states - gscpu_t_at_frame_start), gs_v[0] + gs_v[1], gs_v[2] + gs_v[3]);
+   sound.update(gscpu.t + (unsigned) (gs_t_states - gscpu_t_at_frame_start), (l+r/2)/2, (r+l/2)/2);     //!psb
    for (int ch = 0; ch < 4; ch++) {
       gsleds[ch].level = led_gssum[ch] * gsvol[ch] / (led_gscnt[ch]*(0x100*0x40/16)+1);
       led_gssum[ch] = led_gscnt[ch] = 0;
@@ -69,7 +74,8 @@ void gs_byte_to_dac(unsigned addr, unsigned char byte)
    flush_gs_sound();
    unsigned chan = (addr>>8) & 3;
    gsbyte[chan] = byte;
-   gs_v[chan] = (gsbyte[chan] * gs_vfx[gsvol[chan]]) >> 8;
+//   gs_v[chan] = (gsbyte[chan] * gs_vfx[gsvol[chan]]) >> 8;
+   gs_v[chan] = ((signed char)(gsbyte[chan]-0x80) * (signed)gs_vfx[gsvol[chan]]) /256 + gs_vfx[33]; //!psb
    led_gssum[chan] += byte;
    led_gscnt[chan]++;
 }
@@ -118,7 +124,8 @@ void out(unsigned port, unsigned char val)
          flush_gs_sound();
          unsigned chan = (port & 0x0F)-6; val &= 0x3F;
          gsvol[chan] = val;
-         gs_v[chan] = (gsbyte[chan] * gs_vfx[gsvol[chan]]) >> 8;
+//         gs_v[chan] = (gsbyte[chan] * gs_vfx[gsvol[chan]]) >> 8;
+         gs_v[chan] = ((signed char)(gsbyte[chan]-0x80) * (signed)gs_vfx[gsvol[chan]]) /256 + gs_vfx[33]; //!psb
          return;
       }
       case 0x0A: gsstat = (gsstat & 0x7F) | (gspage << 7); return;

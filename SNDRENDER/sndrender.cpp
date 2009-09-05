@@ -119,10 +119,9 @@ void SNDRENDER::flush(unsigned endtick)
    } else {
       scale = filter_sum_full_u - filter_diff[(tick & (TICK_F-1)) + TICK_F];
 
-      /*
-	  unsigned sample_value = ((mix_l*scale + s2_l) >> 16) +
-                              ((mix_r*scale + s2_r) & 0xFFFF0000);
-	  /**/
+      unsigned sample_value;
+	  if(conf.soundfilter)
+	  {
       /*lame noise reduction by Alone Coder*/
       int templeft = mix_l*scale + s2_l;
 	  /*olduseleft = useleft;
@@ -134,8 +133,14 @@ void SNDRENDER::flush(unsigned endtick)
 	  if (firstsmp)useright=oldfrmright,firstsmp--;
 		  else*/ useright = ((long)tempright + (long)oldright)/2;
       oldright = tempright;
-      unsigned sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
+      sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
       /**/
+	  }
+	  else
+	  {
+			   sample_value = ((mix_l*scale + s2_l) >> 16) +
+                              ((mix_r*scale + s2_r) & 0xFFFF0000);
+	  }
       #ifdef SND_EXTERNAL_BUFFER
       SND_EXTERNAL_BUFFER[dstpos].sample += sample_value;
       dstpos = (dstpos+1) & (SND_EXTERNAL_BUFFER_SIZE-1);
@@ -155,10 +160,9 @@ void SNDRENDER::flush(unsigned endtick)
          unsigned val_l = mix_l * filter_sum_half_u;
          unsigned val_r = mix_r * filter_sum_half_u;
          do {
-            /*
-			unsigned sample_value = ((s2_l + val_l) >> 16) +
-			                        ((s2_r + val_r) & 0xFFFF0000); // save s2+val
-            /**/
+			unsigned sample_value;
+	        if(conf.soundfilter)
+			{
             /*lame noise reduction by Alone Coder*/
             int templeft = s2_l+val_l;
         	/*olduseleft = useleft;
@@ -170,8 +174,14 @@ void SNDRENDER::flush(unsigned endtick)
 	        if (firstsmp)useright=oldfrmright,firstsmp--;
 		       else*/ useright = ((long)tempright + (long)oldright)/2;
             oldright = tempright;
-            unsigned sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
+            sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
             /**/
+			}
+			else
+			{
+			         sample_value = ((s2_l + val_l) >> 16) +
+			                        ((s2_r + val_r) & 0xFFFF0000); // save s2+val
+			}
             #ifdef SND_EXTERNAL_BUFFER
             SND_EXTERNAL_BUFFER[dstpos].sample += sample_value;
             dstpos = (dstpos+1) & (SND_EXTERNAL_BUFFER_SIZE-1);

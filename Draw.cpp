@@ -725,11 +725,11 @@ __inline void init_frame()
 
    if (temp.vidblock) return;
 
-   // Alco384 - no border/paper rendering
+   // AlCo384 - no border/paper rendering
    if (comp.pEFF7 & EFF7_384) return;
 
-   // GIGASCRREN - no paper rendering
-   if (comp.pEFF7 & EFF7_GIGASCREEN) goto allow_border;
+   // GIGASCREEN - no paper rendering
+//   if (comp.pEFF7 & EFF7_GIGASCREEN) goto allow_border; //Alone Coder
 
    // disable multicolors, border still works
    if ((temp.rflags & RF_BORDER) || // chunk/etc filter
@@ -755,10 +755,10 @@ __inline void flush_frame()
          // paint until screen bottom, even if n_lines*t_line < cpu.t (=t_frame)
          unsigned t = cpu.t; cpu.t = 0x7FFF0000;
          update_screen(); cpu.t = t;
-         if (comp.pEFF7 & EFF7_GIGASCREEN) draw_gigascreen_no_border();
+//         if (comp.pEFF7 & EFF7_GIGASCREEN) draw_gigascreen_no_border(); //Alone Coder
       } else { // MCR on, but no screen updates in last frame - use fast painter
-         if (temp.base_2 || (comp.pEFF7 & EFF7_GIGASCREEN)) draw_screen();
-         else draw_border();
+         if (temp.base_2 /*|| (comp.pEFF7 & EFF7_GIGASCREEN)*/ /*Alone Coder*/) draw_screen();
+	     else draw_border();
       }
       return;
    }

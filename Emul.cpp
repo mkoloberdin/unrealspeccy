@@ -22,6 +22,7 @@ typedef signed char INT8;
 int fmsoundon0=4; //Alone Coder
 int tfmstatuson0=2; //Alone Coder
 char pressedit = 0; //Alone Coder
+unsigned frametime = 111111; //Alone Coder (GUI value for conf.frame)
 //~------- Alone Coder ---------
 
 #include "emul_2203.h" //Dexus

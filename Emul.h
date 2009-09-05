@@ -148,6 +148,7 @@ struct CONFIG
    unsigned char ide_skip_real;
    unsigned char cd_aspi;
 
+   unsigned char soundfilter; //Alone Coder (IDC_SOUNDFILTER)
    struct {
       unsigned fq, ayfq;
       int beeper, micout, micin, ay, aydig,
