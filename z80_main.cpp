@@ -56,9 +56,17 @@ __inline void step()
    //if ((cpu.pc & 0xFFFF) == 0x056B) tape_traps();
    if (comp.tape.play_pointer && !conf.sound.enabled) fast_tape();
 
+//todo if(comp.turbo)cpu.t-=tbias[cpu.dt]
    if (cpu.pch & temp.evenM1_C0) cpu.t += (cpu.t & 1);
+//~todo
+   unsigned oldt=cpu.t; //0.37
    unsigned char opcode = m1_cycle(&cpu);
    (normal_opcode[opcode])(&cpu);
+//todo if(comp.turbo)cpu.t-=tbias[cpu.t-oldt]
+   if( ((conf.mem_model == MM_PENTAGON)&&((comp.pEFF7 & EFF7_GIGASCREEN)==0))
+	 ||((conf.mem_model == MM_ATM710)&&(comp.pFF77 & 8))
+	 ) cpu.t -= (cpu.t-oldt)>>1; //0.37
+//~todo   
 #ifdef Z80_DBG
    if ((comp.flags & CF_PROFROM) && ((membits[0x104] | membits[0x108] | membits[0x10C]) & MEMBITS_R)) {
       if (membits[0x104] & MEMBITS_R) set_scorp_profrom(1);

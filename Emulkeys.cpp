@@ -246,10 +246,17 @@ void main_reset() { m_reset((ROM_MODE)conf.reset_rom); }
 
 void m_nmi(ROM_MODE page)
 {
+  if(cpu.pch & 0xc0) //0.37
+  {
    set_mode(page);
    sprintf(statusline, "NMI to %s", getrom(page)); statcnt = 50;
    cpu.sp -= 2; z80dbg::wm(cpu.sp, cpu.pcl); z80dbg::wm(cpu.sp+1, cpu.pch);
    cpu.pc = 0x66; cpu.iff1 = cpu.halted = 0;
+  }
+  else
+  {
+   sprintf(statusline, "NMI in ROM ignored"); statcnt = 50; //0.37
+  };
 }
 void main_nmi() { m_nmi(RM_NOCHANGE); }
 void main_nmidos() { m_nmi(RM_DOS); }

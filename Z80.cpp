@@ -31,7 +31,7 @@ void reset(ROM_MODE mode)
    comp.pEFF7 &= conf.EFF7_mask;
    {
                 conf.frame = frametime;
-                if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
+//                if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680; //removed 0.37
                 apply_sound(); 
    } //Alone Coder 0.36.4
    comp.t_states = 0; comp.frame_counter = 0;

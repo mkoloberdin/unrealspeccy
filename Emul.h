@@ -13,12 +13,17 @@
 #define MAX_MISC_PAGES 1        // trash page
 #define MAX_ROM_PAGES 64        // 1Mb
 
+#define GS2MB //0.37.0
 #ifdef MOD_GSZ80
-#define MAX_GSROM_PAGES 2       // 32K
-#define MAX_GSRAM_PAGES 30      // for gs512 (last 32k unusable)
+ #define MAX_GSROM_PAGES 2       // 32K
+ #ifdef GS2MB
+  #define MAX_GSRAM_PAGES 126      // for gs2mb (last 32k unusable)
+ #else
+  #define MAX_GSRAM_PAGES 30      // for gs512 (last 32k unusable)
+ #endif
 #else
-#define MAX_GSROM_PAGES 0
-#define MAX_GSRAM_PAGES 0
+ #define MAX_GSROM_PAGES 0
+ #define MAX_GSRAM_PAGES 0
 #endif
 
 #define MAX_PAGES (MAX_RAM_PAGES + MAX_CACHE_PAGES + MAX_MISC_PAGES + MAX_ROM_PAGES + MAX_GSROM_PAGES + MAX_GSRAM_PAGES)

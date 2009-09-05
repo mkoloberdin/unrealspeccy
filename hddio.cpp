@@ -361,7 +361,7 @@ int ATAPI_PASSER::SEND_ASPI_CMD(void *buf, int buf_sz)
    }
    if (senselen = SRB.SRB_SenseLen) memcpy(sense, SRB.SenseArea, senselen);
    if (temp.win9x) senselen = 0; //Alone Coder //makes possible to read one CD sector in win9x
-   if ((temp.win9x)&&(passed_length >= 0xffff)) passed_length = 2048; //Alone Coder //was >=65535 in win9x //makes possible to work in win9x (HDDoct, WDC, Time Gal)
+   if (/*(temp.win9x)&&*/(passed_length >= 0xffff)) passed_length = 2048; //Alone Coder //was >=65535 in win9x //makes possible to work in win9x (HDDoct, WDC, Time Gal) //XP fails too
 
 #ifdef DUMP_HDD_IO
 printf("sense=%d, data=%d/%d, ok%d\n", senselen, passed_length, buf_sz, SRB.SRB_Status);

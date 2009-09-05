@@ -1,4 +1,3 @@
-
 unsigned char active = 0, pause = 0;
 
 #define MAXWQSIZE 32

@@ -106,8 +106,12 @@ void out(unsigned port, unsigned char val)
 {
    switch (port & 0x0F) {
       case 0x00:
-         gspage = (val &= 0x0F);
-         if (val) {
+ #ifdef GS2MB
+         gspage = (val &= 0x3F);
+ #else
+          gspage = (val &= 0x0F);
+ #endif
+          if (val) {
             gsbankr[2] = gsbankw[2] = GSRAM_M + PAGE*2*(val-1);
             gsbankr[3] = gsbankw[3] = GSRAM_M + PAGE*2*(val-1) + PAGE;
          } else {

@@ -6,33 +6,33 @@
 --------------------Configuration: src - Win32 Release--------------------
 </h3>
 <h3>Command Lines</h3>
-Creating command line "rc.exe /l 0x419 /fo"Release/settings.res" /d "NDEBUG" /d "_AFXDLL" "C:\zx\us035\src\settings.rc"" 
-Creating temporary file "C:\WINDOWS\TEMP\RSP13A1.TMP" with contents
+Creating command line "rc.exe /l 0x419 /fo"Release/settings.res" /d "NDEBUG" /d "_AFXDLL" "G:\zx\us035\src\settings.rc"" 
+Creating temporary file "C:\DOCUME~1\alone\LOCALS~1\Temp\RSP9C.tmp" with contents
 [
 /nologo /MD /W3 /GX /O2 /Op /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D "_AFXDLL" /FR"Release/" /Fo"Release/" /Fd"Release/" /FD /c 
-"C:\zx\us035\src\Emul.cpp"
+"G:\zx\us035\src\Emul.cpp"
 ]
-Creating command line "cl.exe @C:\WINDOWS\TEMP\RSP13A1.TMP" 
+Creating command line "cl.exe @C:\DOCUME~1\alone\LOCALS~1\Temp\RSP9C.tmp" 
 Creating command line "link.exe /nologo /subsystem:console /incremental:no /pdb:"Release/unreal.pdb" /machine:I386 /out:"Release/unreal.exe"  .\Release\Emul.obj .\Release\settings.res "
 <h3>Output Window</h3>
 Compiling resources...
 Compiling...
 Emul.cpp
-C:\zx\us035\src\util.cpp(5) : warning C4035: 'rdtsc' : no return value
-C:\zx\us035\src\util.cpp(269) : warning C4163: '_byteswap_ulong' : not available as an intrinsic function
-C:\zx\us035\src\util.cpp(270) : warning C4163: '_byteswap_ushort' : not available as an intrinsic function
-C:\zx\us035\src\draw.cpp(747) : warning C4102: 'allow_border' : unreferenced label
+G:\zx\us035\src\util.cpp(5) : warning C4035: 'rdtsc' : no return value
+G:\zx\us035\src\util.cpp(269) : warning C4163: '_byteswap_ulong' : not available as an intrinsic function
+G:\zx\us035\src\util.cpp(270) : warning C4163: '_byteswap_ushort' : not available as an intrinsic function
+G:\zx\us035\src\draw.cpp(747) : warning C4102: 'allow_border' : unreferenced label
 Linking...
 Creating command line "bscmake.exe /nologo /o"Release/src.bsc"  .\Release\Emul.sbr"
 Creating browse info file...
 <h3>Output Window</h3>
-Creating temporary file "C:\WINDOWS\TEMP\RSP2394.BAT" with contents
+Creating temporary file "C:\DOCUME~1\alone\LOCALS~1\Temp\RSP9E.bat" with contents
 [
 @echo off
 del release\*.obj
 del release\*.idb
 ]
-Creating command line "C:\WINDOWS\TEMP\RSP2394.BAT"
+Creating command line "C:\DOCUME~1\alone\LOCALS~1\Temp\RSP9E.bat"
 del temp files
 
 
