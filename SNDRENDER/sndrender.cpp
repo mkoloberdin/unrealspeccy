@@ -27,14 +27,16 @@ void SNDRENDER::start_frame(bufptr_t dst_start)
 {
    SNDRENDER::dst_start = dstpos = dst_start;
    base_tick = tick;
+   firstsmp = 4; //Alone Coder
 }
 
 __inline void SNDRENDER::update(unsigned timestamp, unsigned l, unsigned r)
 {
    if (!((l ^ mix_l) | (r ^ mix_r))) return;
 
-   unsigned endtick = (timestamp * mult_const) >> MULT_C; // = timestamp * (sample_rate*TICK_F) / clock_rate
-   flush(base_tick + endtick);
+   unsigned endtick = (timestamp * mult_const) >> MULT_C;
+//   uint64_t endtick = (timestamp * (uint64_t)sample_rate * TICK_F) / clock_rate;
+   flush( (unsigned) (base_tick + endtick) );
    mix_l = l, mix_r = r;
 }
 
@@ -49,6 +51,9 @@ unsigned SNDRENDER::end_frame(unsigned clk_ticks)
    #ifdef SND_EXTERNAL_BUFFER
    if ((int)ready_samples < 0) ready_samples += SND_EXTERNAL_BUFFER_SIZE;
    #endif
+
+   oldfrmleft = ((long)useleft + (long)olduseleft)/2; //Alone Coder
+   oldfrmright = ((long)useright + (long)olduseright)/2; //Alone Coder
 
    tick -= (ready_samples << TICK_FF);
    passed_snd_ticks += (ready_samples << TICK_FF);
@@ -96,18 +101,16 @@ const double filter_sum_full = 1.0, filter_sum_half = 0.5;
 const unsigned filter_sum_full_u = (unsigned)(filter_sum_full * 0x10000),
                filter_sum_half_u = (unsigned)(filter_sum_half * 0x10000);
 
-
 void SNDRENDER::flush(unsigned endtick)
 {
    unsigned scale;
    if (!((endtick ^ tick) & ~(TICK_F-1))) {
-
+//same discrete as before
       scale = filter_diff[(endtick & (TICK_F-1)) + TICK_F] - filter_diff[(tick & (TICK_F-1)) + TICK_F];
       s2_l += mix_l * scale;
       s2_r += mix_r * scale;
 
       scale = filter_diff[endtick & (TICK_F-1)] - filter_diff[tick & (TICK_F-1)];
-      tick = endtick;
       s1_l += mix_l * scale;
       s1_r += mix_r * scale;
 
@@ -116,8 +119,23 @@ void SNDRENDER::flush(unsigned endtick)
    } else {
       scale = filter_sum_full_u - filter_diff[(tick & (TICK_F-1)) + TICK_F];
 
-      unsigned sample_value = ((mix_l*scale + s2_l) >> 16) +
-                                ((mix_r*scale + s2_r) & 0xFFFF0000);
+      /*
+	  unsigned sample_value = ((mix_l*scale + s2_l) >> 16) +
+                              ((mix_r*scale + s2_r) & 0xFFFF0000);
+	  /**/
+      /*lame noise reduction by Alone Coder*/
+      int templeft = mix_l*scale + s2_l;
+	  /*olduseleft = useleft;
+	  if (firstsmp)useleft=oldfrmleft,firstsmp--;
+		  else*/ useleft = ((long)templeft + (long)oldleft)/2;
+      oldleft = templeft;
+      int tempright = mix_r*scale + s2_r;
+	  /*olduseright = useright;
+	  if (firstsmp)useright=oldfrmright,firstsmp--;
+		  else*/ useright = ((long)tempright + (long)oldright)/2;
+      oldright = tempright;
+      unsigned sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
+      /**/
       #ifdef SND_EXTERNAL_BUFFER
       SND_EXTERNAL_BUFFER[dstpos].sample += sample_value;
       dstpos = (dstpos+1) & (SND_EXTERNAL_BUFFER_SIZE-1);
@@ -137,8 +155,23 @@ void SNDRENDER::flush(unsigned endtick)
          unsigned val_l = mix_l * filter_sum_half_u;
          unsigned val_r = mix_r * filter_sum_half_u;
          do {
-            unsigned sample_value = ((s2_l + val_l) >> 16) +
-                                      ((s2_r + val_r) & 0xFFFF0000); // save s2+val
+            /*
+			unsigned sample_value = ((s2_l + val_l) >> 16) +
+			                        ((s2_r + val_r) & 0xFFFF0000); // save s2+val
+            /**/
+            /*lame noise reduction by Alone Coder*/
+            int templeft = s2_l+val_l;
+        	/*olduseleft = useleft;
+	        if (firstsmp)useleft=oldfrmleft,firstsmp--;
+		       else*/ useleft = ((long)templeft + (long)oldleft)/2;
+            oldleft = templeft;
+            int tempright = s2_r+val_r;
+        	/*olduseright = useright;
+	        if (firstsmp)useright=oldfrmright,firstsmp--;
+		       else*/ useright = ((long)tempright + (long)oldright)/2;
+            oldright = tempright;
+            unsigned sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
+            /**/
             #ifdef SND_EXTERNAL_BUFFER
             SND_EXTERNAL_BUFFER[dstpos].sample += sample_value;
             dstpos = (dstpos+1) & (SND_EXTERNAL_BUFFER_SIZE-1);

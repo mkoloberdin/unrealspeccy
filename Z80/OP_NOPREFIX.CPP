@@ -12,9 +12,10 @@ Z80OPCODE op_01(Z80 *cpu) { // ld bc,nnnn
    cpu->t += 6;
 }
 Z80OPCODE op_02(Z80 *cpu) { // ld (bc),a
-   wm(cpu->bc, cpu->a);
+//   wm(cpu->bc, cpu->a);
    cpu->memh = cpu->a;
    cpu->t += 3;
+   wm(cpu->bc, cpu->a); //Alone Coder
 }
 #endif
 #ifdef Z80_COMMON
@@ -99,9 +100,10 @@ Z80OPCODE op_11(Z80 *cpu) { // ld de,nnnn
    cpu->t += 6;
 }
 Z80OPCODE op_12(Z80 *cpu) { // ld (de),a
-   wm(cpu->de, cpu->a);
+//   wm(cpu->de, cpu->a);
    cpu->memh = cpu->a;
    cpu->t += 3;
+   wm(cpu->de, cpu->a); //Alone Coder
 }
 #endif
 #ifdef Z80_COMMON
@@ -196,9 +198,14 @@ Z80OPCODE op_22(Z80 *cpu) { // ld (nnnn),hl
    unsigned adr = rm(cpu->pc++);
    adr += rm(cpu->pc++)*0x100;
    cpu->memptr = adr+1;
+//   wm(adr, cpu->l);
+//   wm(adr+1, cpu->h);
+//   cpu->t += 12;
+   cpu->t += 9;
    wm(adr, cpu->l);
+   cpu->t += 3;
    wm(adr+1, cpu->h);
-   cpu->t += 12;
+ //Alone Coder
 }
 #endif
 #ifdef Z80_COMMON
@@ -294,9 +301,10 @@ Z80OPCODE op_32(Z80 *cpu) { // ld (nnnn),a
    unsigned adr = rm(cpu->pc++);
    adr += rm(cpu->pc++)*0x100;
    cpu->memptr = ((adr+1) & 0xFF) + (cpu->a << 8);
-   wm(adr, cpu->a);
+//   wm(adr, cpu->a);
    cpu->memh = cpu->a;
    cpu->t += 9;
+   wm(adr, cpu->a); //Alone Coder
 }
 #endif
 #ifdef Z80_COMMON
@@ -309,18 +317,21 @@ Z80OPCODE op_33(Z80 *cpu) { // inc sp
 Z80OPCODE op_34(Z80 *cpu) { // inc (hl)
    unsigned char hl = rm(cpu->hl);
    inc8(cpu, hl);
-   wm(cpu->hl, hl);
+//   wm(cpu->hl, hl);
    cpu->t += 7;
+   wm(cpu->hl, hl); //Alone Coder
 }
 Z80OPCODE op_35(Z80 *cpu) { // dec (hl)
    unsigned char hl = rm(cpu->hl);
    dec8(cpu, hl);
-   wm(cpu->hl, hl);
+//   wm(cpu->hl, hl);
    cpu->t += 7;
+   wm(cpu->hl, hl); //Alone Coder
 }
 Z80OPCODE op_36(Z80 *cpu) { // ld (hl),nn
-   wm(cpu->hl, rm(cpu->pc++));
+//   wm(cpu->hl, rm(cpu->pc++));
    cpu->t += 6;
+   wm(cpu->hl, rm(cpu->pc++)); //Alone Coder
 }
 #endif
 #ifdef Z80_COMMON
@@ -548,28 +559,34 @@ Z80OPCODE op_6F(Z80 *cpu) { // ld l,a
 #endif
 #ifndef Z80_COMMON
 Z80OPCODE op_70(Z80 *cpu) { // ld (hl),b
-   wm(cpu->hl, cpu->b);
+//   wm(cpu->hl, cpu->b);
    cpu->t += 3;
+   wm(cpu->hl, cpu->b); //Alone Coder
 }
 Z80OPCODE op_71(Z80 *cpu) { // ld (hl),c
-   wm(cpu->hl, cpu->c);
+//   wm(cpu->hl, cpu->c);
    cpu->t += 3;
+   wm(cpu->hl, cpu->c); //Alone Coder
 }
 Z80OPCODE op_72(Z80 *cpu) { // ld (hl),d
-   wm(cpu->hl, cpu->d);
+//   wm(cpu->hl, cpu->d);
    cpu->t += 3;
+   wm(cpu->hl, cpu->d); //Alone Coder
 }
 Z80OPCODE op_73(Z80 *cpu) { // ld (hl),e
-   wm(cpu->hl, cpu->e);
+//   wm(cpu->hl, cpu->e);
    cpu->t += 3;
+   wm(cpu->hl, cpu->e); //Alone Coder
 }
 Z80OPCODE op_74(Z80 *cpu) { // ld (hl),h
-   wm(cpu->hl, cpu->h);
+//   wm(cpu->hl, cpu->h);
    cpu->t += 3;
+   wm(cpu->hl, cpu->h); //Alone Coder
 }
 Z80OPCODE op_75(Z80 *cpu) { // ld (hl),l
-   wm(cpu->hl, cpu->l);
+//   wm(cpu->hl, cpu->l);
    cpu->t += 3;
+   wm(cpu->hl, cpu->l); //Alone Coder
 }
 #endif
 #ifdef Z80_COMMON
@@ -580,8 +597,9 @@ Z80OPCODE op_76(Z80 *cpu) { // halt
 #endif
 #ifndef Z80_COMMON
 Z80OPCODE op_77(Z80 *cpu) { // ld (hl),a
-   wm(cpu->hl, cpu->a);
+//   wm(cpu->hl, cpu->a);
    cpu->t += 3;
+   wm(cpu->hl, cpu->a); //Alone Coder
 }
 #endif
 #ifdef Z80_COMMON
@@ -887,9 +905,12 @@ Z80OPCODE op_C4(Z80 *cpu) { // call nz,nnnn
    } else cpu->t += 6;
 }
 Z80OPCODE op_C5(Z80 *cpu) { // push bc
+//   wm(--cpu->sp, cpu->b);
+//   wm(--cpu->sp, cpu->c);
+   cpu->t += 7;
    wm(--cpu->sp, cpu->b);
    wm(--cpu->sp, cpu->c);
-   cpu->t += 7;
+ //Alone Coder
 }
 Z80OPCODE op_C6(Z80 *cpu) { // add a,nn
    add8(cpu, rm(cpu->pc++));
@@ -1002,9 +1023,12 @@ Z80OPCODE op_D4(Z80 *cpu) { // call nc,nnnn
    } else cpu->t += 6;
 }
 Z80OPCODE op_D5(Z80 *cpu) { // push de
+//   wm(--cpu->sp, cpu->d);
+//   wm(--cpu->sp, cpu->e);
+   cpu->t += 7;
    wm(--cpu->sp, cpu->d);
    wm(--cpu->sp, cpu->e);
-   cpu->t += 7;
+ //Alone Coder
 }
 Z80OPCODE op_D6(Z80 *cpu) { // sub nn
    sub8(cpu, rm(cpu->pc++));
@@ -1117,9 +1141,12 @@ Z80OPCODE op_E4(Z80 *cpu) { // call po,nnnn
    } else cpu->t += 6;
 }
 Z80OPCODE op_E5(Z80 *cpu) { // push hl
+//   wm(--cpu->sp, cpu->h);
+//   wm(--cpu->sp, cpu->l);
+   cpu->t += 7;
    wm(--cpu->sp, cpu->h);
    wm(--cpu->sp, cpu->l);
-   cpu->t += 7;
+ //Alone Coder
 }
 Z80OPCODE op_E6(Z80 *cpu) { // and nn
    and8(cpu, rm(cpu->pc++));
@@ -1232,9 +1259,12 @@ Z80OPCODE op_F4(Z80 *cpu) { // call p,nnnn
    } else cpu->t += 6;
 }
 Z80OPCODE op_F5(Z80 *cpu) { // push af
+//   wm(--cpu->sp, cpu->a);
+//   wm(--cpu->sp, cpu->f);
+   cpu->t += 7;
    wm(--cpu->sp, cpu->a);
    wm(--cpu->sp, cpu->f);
-   cpu->t += 7;
+ //Alone Coder
 }
 Z80OPCODE op_F6(Z80 *cpu) { // or nn
    or8(cpu, rm(cpu->pc++));

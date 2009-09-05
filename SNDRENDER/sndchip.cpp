@@ -85,7 +85,7 @@ void SNDCHIP::flush(unsigned chiptick) // todo: noaction at (temp.sndblock || !c
           nextfmtickfloat += ayticks_per_fmtick;
 		  nextfmtick = (int)nextfmtickfloat;
 		  if (++FMbufN == FMBUFSIZE) {
-            YM2203UpdateOne(Chip2203, FMbufs/*&FMbuf*/, FMBUFSIZE/*1*/); //todo сразу несколько
+            YM2203UpdateOne(Chip2203, FMbufs/*&FMbuf*/, FMBUFSIZE/*1*/);
 			FMbufN = 0;
 		  };
           if (fmsoundon0 == 0) {
@@ -227,7 +227,7 @@ void SNDCHIP::set_timings(unsigned system_clock_rate, unsigned chip_clock_rate, 
    nextfmtickfloat = 0.; //Alone Coder
    nextfmtick = 0; //Alone Coder
    ayticks_per_fmtick = (float)chip_clock_rate/conf.sound.fq /*44100*/; //Alone Coder
-   FMbufMUL=(UINT16)(((float)conf.sound.ay/8192 /* =0..1 */)*0.7f*65536); //Alone Coder
+   FMbufMUL=(UINT16)(((float)conf.sound.ay/8192 /* =0..1 */)*0.2f*65536); //Alone Coder
 
    apply_regs();
 }

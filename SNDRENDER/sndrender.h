@@ -61,6 +61,9 @@ class SNDRENDER
    unsigned tick, base_tick;
    unsigned s1_l, s1_r;
    unsigned s2_l, s2_r;
+   unsigned firstsmp; //Alone Coder
+   int oldleft,useleft,olduseleft,oldfrmleft; //Alone Coder
+   int oldright,useright,olduseright,oldfrmright; //Alone Coder
 
 //   unsigned clock_rate, sample_rate;
    uint64_t passed_clk_ticks, passed_snd_ticks;

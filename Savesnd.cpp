@@ -28,6 +28,7 @@ char vtxname[200], vtxauthor[200], vtxsoft[200], vtxtracker[200], vtxcomm[200];
 
 void savesnddialog()
 {
+   sound_stop(); //Alone Coder
    if (savesndtype) {
       if (savesndtype == 1) { // wave
          unsigned fsize = ftell(savesnd);
@@ -117,6 +118,7 @@ void savesnddialog()
       }
    }
    eat();
+   sound_play(); //Alone Coder
 }
 
 BOOL CALLBACK VtxDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
