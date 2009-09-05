@@ -92,7 +92,7 @@ void showbanks()
    for (int i = 0; i < 4; i++) {
       char ln[64]; sprintf(ln, "%d:", i);
       tprint(banks_x, banks_y+i+1, ln, W_OTHEROFF);
-      sprintf(ln, "?????", i);
+      strcpy(ln, "?????");
       if (bankr[i] < RAM_BASE_M+MAX_RAM_PAGES*PAGE) sprintf(ln, "RAM%2X", (bankr[i] - RAM_BASE_M)/PAGE);
       if ((unsigned)(bankr[i] - ROM_BASE_M) < PAGE*MAX_ROM_PAGES) sprintf(ln, "ROM%2X", (bankr[i] - ROM_BASE_M)/PAGE);
       if (bankr[i] == base_sos_rom) strcpy(ln, "BASIC");
@@ -113,6 +113,7 @@ void showports()
    sprintf(ln, "  FE:%02X", comp.pFE); tprint(ports_x, ports_y, ln, W_OTHER);
    sprintf(ln, "7FFD:%02X", comp.p7FFD); tprint(ports_x, ports_y+1, ln, W_OTHER);
    switch (conf.mem_model) {
+      case MM_KAY:
       case MM_SCORP:
       case MM_PROFSCORP:
          sprintf(ln, "1FFD:%02X", comp.p1FFD); break;

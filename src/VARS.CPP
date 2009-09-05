@@ -43,7 +43,6 @@ unsigned char *vtxbuf; unsigned vtxbufsize, vtxbuffilled;
 #define ROMLED_TIME 16
 unsigned char trdos_load, trdos_save, trdos_format; // for leds
 unsigned char needclr; // clear screenbuffer before rendering
-volatile unsigned char needrestart; // call applyconfig() and restart emulation loop
 
 HWND wnd; HINSTANCE hIn;
 

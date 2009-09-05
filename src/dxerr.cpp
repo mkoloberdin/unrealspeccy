@@ -51,6 +51,8 @@ void printrdi(char *pr, HRESULT r) {
       case DIERR_INVALIDPARAM: str = "DIERR_INVALIDPARAM"; break;
       case DIERR_NOTACQUIRED: str = "DIERR_NOTACQUIRED"; break;
       case DIERR_INPUTLOST: str = "DIERR_INPUTLOST"; break;
+      case DIERR_NOTINITIALIZED: str = "DIERR_NOTINITIALIZED"; break;
+      case DIERR_OTHERAPPHASPRIO: str = "DIERR_OTHERAPPHASPRIO"; break;
    }
    printf("%s: %s\n", pr, str);
 }

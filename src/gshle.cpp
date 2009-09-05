@@ -243,21 +243,22 @@ void GSHLE::start_fx(unsigned fx, unsigned ch, unsigned char vol, unsigned char 
 void GSHLE::mixchannel(CHANNEL *ch, unsigned left_ch)
 {
    unsigned vol = ch->volume; vol = (vol < 0x40)? gs_vfx[vol] : gs_vfx[0x3F];
-   if (busy || !ch->start) { // mix_silence(0x7F);
-      ch->sound_state.mix_l = (vol/2) & left_ch, ch->sound_state.mix_r = (vol/2) & ~left_ch;
-      ch->sound_state.flush(temp.snd_frame_ticks);
-   } else {
+   if (!busy && ch->start) {
       unsigned sample_pos = 0;
       while (sample_pos < temp.snd_frame_ticks) {
          unsigned val = ch->start[ch->ptr++] * vol / 0x100;
          if (ch->ptr >= ch->end) {
-            if (ch->end < ch->loop) { ch->start = 0; break; }
+            if (ch->end < ch->loop) { ch->start = 0; goto silence; }
             else ch->ptr = ch->loop;
          }
          ch->sound_state.mix_l = val & left_ch, ch->sound_state.mix_r = val & ~left_ch;
          sample_pos = min(sample_pos + ch->delta, temp.snd_frame_ticks);
          ch->sound_state.flush(sample_pos);
       }
+   } else { // mix_silence(0x7F);
+silence:
+      ch->sound_state.mix_l = (vol/2) & left_ch, ch->sound_state.mix_r = (vol/2) & ~left_ch;
+      ch->sound_state.flush(temp.snd_frame_ticks);
    }
 }
 

@@ -3,6 +3,7 @@
 
 #include "mods.h"
 
+#include "ddk.h"
 #include "resource.h"
 
 #include "emul.h"
@@ -39,24 +40,24 @@ void init_all(int argc, char **argv)
 {
    char *config = 0, legacy = 0;
    static const char vererror[] = "unsupported OS version";
-   #ifdef MOD_9X
-   static const char verwarning[] =
-      "detected windows version is not supported\r\n"
-      "by current version of UnrealSpeccy and untested.\r\n\r\n"
-      "you may click 'YES' to continue on your own risk.\r\n"
-      "in this case you will experience crashes under\r\n"
-      "some conditions. it's an OS-specific problem, please\r\n"
-      "don't report it and consider using NT-based system";
    for (int i = 0; i < argc; i++) {
       if (argv[i][0] != '/' && argv[i][0] != '-') continue;
       if (!stricmp(argv[i]+1, "i") && i+1 < argc)
          config = argv[i+1], i++;
+      #ifdef MOD_9X
       if (argv[i][1] == '9') legacy = 1;
+      #endif
    }
-   #endif
    if (GetVersion() >> 31) {
       if (!legacy) printf(vererror), exit();
       #ifdef MOD_9X
+      static const char verwarning[] =
+         "detected windows version is not supported\r\n"
+         "by current version of UnrealSpeccy and untested.\r\n\r\n"
+         "you may click 'YES' to continue on your own risk.\r\n"
+         "in this case you will experience crashes under\r\n"
+         "some conditions. it's an OS-specific problem, please\r\n"
+         "don't report it and consider using NT-based system";
       if (MessageBox(0, verwarning, vererror, MB_ICONERROR | MB_YESNO | MB_DEFBUTTON2) == IDNO) exit();
       #endif
    }
@@ -71,7 +72,7 @@ void init_all(int argc, char **argv)
    init_leds();
    init_dos();
    init_tape();
-   init_hdd();
+   init_hdd_cd();
    start_dx();
    applyconfig();
    main_reset();
@@ -129,8 +130,9 @@ LONG __stdcall filter(EXCEPTION_POINTERS *pp)
 
 void __declspec(noreturn) __cdecl main(int argc, char **argv)
 {
-   Sleep(20); DWORD tstarted = GetTickCount();
-   __int64 started; gettime(started);
+   Sleep(20); DWORD ticks = GetTickCount();
+   unsigned __int64 clocks = rdtsc();
+
    CONSOLE_SCREEN_BUFFER_INFO csbi;
    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
    nowait = *(unsigned*)&csbi.dwCursorPosition;
@@ -140,67 +142,25 @@ void __declspec(noreturn) __cdecl main(int argc, char **argv)
 
    SetUnhandledExceptionFilter(filter);
    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
-   char idstr[64]; unsigned cpuver;
-   __asm {
-      pushad
-      push 1
-      pop eax
-      cpuid
-      mov [cpuver],eax
-      shr edx, 23
-      and edx, 1
-      mov [temp.mmx], dl
-      xor eax,eax
-      cpuid
-      mov dword ptr [idstr],ebx
-      mov dword ptr [idstr+4],edx
-      mov dword ptr [idstr+8],ecx
-      mov [idstr+12],0
-      add ebx,edx
-      add ebx,ecx
-      cmp ebx,16362509h         // hash for 'AuthenticAMD'
-      jnz noamd
-      mov eax,80000001h
-      mov esi,eax
-      cpuid
-      mov [cpuver],eax
-      lea eax,[esi+1]
-      cpuid
-      mov dword ptr [idstr],eax
-      mov dword ptr [idstr+4],ebx
-      mov dword ptr [idstr+8],ecx
-      mov dword ptr [idstr+12],edx
-      lea eax,[esi+2]
-      cpuid
-      mov dword ptr [idstr+16],eax
-      mov dword ptr [idstr+20],ebx
-      mov dword ptr [idstr+24],ecx
-      mov dword ptr [idstr+28],edx
-      lea eax,[esi+3]
-      cpuid
-      mov dword ptr [idstr+32],eax
-      mov dword ptr [idstr+36],ebx
-      mov dword ptr [idstr+40],ecx
-      mov dword ptr [idstr+44],edx
-      mov [idstr+48],0
-noamd:
-      popad
-   }
+
+   char idstr[64]; fillCpuString(idstr); trim(idstr);
+   unsigned cpuver = cpuid(1,0);
+   temp.mmx = (cpuid(1,1) >> 23) & 1;
+
    init_all(argc-1, argv+1);
 
-   Sleep(20); tstarted = GetTickCount() - tstarted;
-   __int64 init_done; gettime(init_done);
-   conf.cpufq = (unsigned)((init_done - started)*1000/tstarted);
+   Sleep(20);
+   ticks = GetTickCount() - ticks;
+   clocks = rdtsc() - clocks;
+   conf.cpufq = (unsigned)(clocks*1000/ticks);
+
    printf("cpu: %s %d.%d.%d [%sMMX] at %d MHz\n",
-      idstr, (cpuver>>8)&0x0F, (cpuver>>4)&0x0F, cpuver&0x0F,
+      idstr,
+      (cpuver>>8) & 0x0F, (cpuver>>4) & 0x0F, cpuver & 0x0F,
       temp.mmx ? nil : "non-",
       (unsigned)(conf.cpufq/1000000));
 
-   for (;;) {
-      applyconfig();
-      sound_play();
-      needrestart = 0;
-      if (temp.rflags & RF_VSYNC) rsmloop();
-      else mainloop();
-   }
+   applyconfig();
+   sound_play();
+   mainloop();
 }

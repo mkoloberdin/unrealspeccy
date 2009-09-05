@@ -1,5 +1,7 @@
 RENDER_FUNC auto_ch = 0;
-void __fastcall _render_ch_ax(unsigned char *dst, unsigned pitch, RENDER_FUNC c2, RENDER_FUNC c4) {
+
+void __fastcall _render_ch_ax(unsigned char *dst, unsigned pitch, RENDER_FUNC c2, RENDER_FUNC c4)
+{
    if (conf.ch_size == 2) { c2(dst, pitch); return; }
    if (conf.ch_size == 4) { c4(dst, pitch); return; }
    static unsigned counter;
@@ -112,39 +114,36 @@ void __fastcall _render_c4x16(unsigned char *dst, unsigned pitch) {
    }
 }
 
-void __fastcall render_ch_ov(unsigned char *dst, unsigned pitch) {
+void __fastcall render_ch_ov(unsigned char *dst, unsigned pitch)
+{
    _render_ch_ax(dst, pitch, _render_c2x16, _render_c4x16);
 }
 
-void _render_blt(unsigned char *src, unsigned dp) {
-   DDSURFACEDESC desc; desc.dwSize = sizeof desc;
-   HRESULT r = surf1->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_WRITEONLY, 0);
-   if (r != DD_OK) {
-      if (!active) return;
-      printrdd("IDirectDrawSurface2::Lock() [buffer]", r); exit();
-   }
-   unsigned char *dst = (unsigned char*)desc.lpSurface;
+void _render_blt(unsigned char *dst, unsigned pitch, unsigned char *src, unsigned dp)
+{
    for (unsigned y = 0; y < temp.oy; y++) {
       for (unsigned x = 0; x < temp.ox; x++)
          *(unsigned*)(dst+4*x) = *(unsigned*)(src+4*x);
-      dst += desc.lPitch; src += dp;
+      dst += pitch; src += dp;
    }
-   surf1->Unlock(desc.lpSurface);
-   r = surf0->Blt(&temp.client, surf1, 0, DDBLT_WAIT, 0);
-   if (r != DD_OK) { printrdd("IDirectDrawSurface2::Blt()", r); exit(); }
 }
 
-void __fastcall  _render_c2hw(unsigned char *dst, unsigned pitch) {
+void __fastcall  _render_c2hw(unsigned char *dst, unsigned pitch)
+{
    get_c2_32();
-   if (!(temp.rflags & RF_128x96)) temp.rflags = (temp.rflags & ~RF_64x48) | RF_128x96, set_vidmode();
-   _render_blt((unsigned char*)t.bs2h, sizeof t.bs2h[0]);
+   if (!(temp.rflags & RF_128x96)) { temp.rflags = (temp.rflags & ~RF_64x48) | RF_128x96, set_vidmode(); return; }
+   _render_blt(dst, pitch, (unsigned char*)t.bs2h, sizeof t.bs2h[0]);
 }
-void __fastcall  _render_c4hw(unsigned char *dst, unsigned pitch) {
+
+void __fastcall  _render_c4hw(unsigned char *dst, unsigned pitch)
+{
    get_c4_32();
-   if (!(temp.rflags & RF_64x48)) temp.rflags = (temp.rflags & ~RF_128x96) | RF_64x48, set_vidmode();
-   _render_blt((unsigned char*)t.bs4h, sizeof t.bs4h[0]);
+   if (!(temp.rflags & RF_64x48)) { temp.rflags = (temp.rflags & ~RF_128x96) | RF_64x48, set_vidmode(); return; }
+   _render_blt(dst, pitch, (unsigned char*)t.bs4h, sizeof t.bs4h[0]);
 }
-void __fastcall render_ch_hw(unsigned char *dst, unsigned pitch) {
+
+void __fastcall render_ch_hw(unsigned char *dst, unsigned pitch)
+{
    _render_ch_ax(dst, pitch, _render_c2hw, _render_c4hw);
 }
 

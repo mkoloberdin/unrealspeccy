@@ -158,6 +158,8 @@ unsigned getYUY2(unsigned r, unsigned g, unsigned b)
 
 void create_palette()
 {
+   if ((temp.rflags & RF_8BPCH) && temp.obpp == 8) temp.rflags |= RF_GRAY, conf.flashcolor = 0;
+
    PALETTE_OPTIONS *pl = &pals[conf.pal];
    unsigned char brights[4] = { pl->ZZ, pl->ZN, pl->NN, pl->BB };
    unsigned char brtab[16] =
@@ -169,7 +171,9 @@ void create_palette()
 
    for (unsigned i = 0; i < 0x100; i++) {
       unsigned r0, g0, b0;
-      if (temp.rflags & RF_PALB) { // palette index: gg0rr0bb
+      if (temp.rflags & RF_GRAY) { // grayscale palette
+         r0 = g0 = b0 = i;
+      } else if (temp.rflags & RF_PALB) { // palette index: gg0rr0bb
          b0 = brights[i & 3];
          r0 = brights[(i >> 3) & 3];
          g0 = brights[(i >> 6) & 3];
@@ -178,6 +182,7 @@ void create_palette()
          r0 = brtab[((i>>1)&1)+((i>>2)&2)+((i>>3)&4)+((i>>4)&8)]; // brtab[yrYR]
          g0 = brtab[((i>>2)&1)+((i>>2)&2)+((i>>4)&4)+((i>>4)&8)]; // brtab[ygYG]
       }
+
       // transform with current settings
       unsigned r = 0xFF & ((r0 * pl->r11 + g0 * pl->r12 + b0 * pl->r13) / 0x100);
       unsigned g = 0xFF & ((r0 * pl->r21 + g0 * pl->r22 + b0 * pl->r23) / 0x100);
@@ -215,7 +220,10 @@ void attr_tables(unsigned char attrtab[])
       unsigned char ink = (a & 0x0F), paper = (a >> 4);
       if (flashcolor) paper = (paper & 7) + (ink & 8); // paper_bright from ink
 
-      if (temp.rflags & RF_ATMPAL) { //------ for ATM palette - direct values from palette registers
+      if (temp.rflags & RF_GRAY) { // grayscale palette
+         attrtab[a] = paper*16;
+         attrtab[a+0x100] = ink*16;
+      } else if (temp.rflags & RF_ATMPAL) { //------ for ATM palette - direct values from palette registers
          attrtab[a] = comp.atm_pal[a >> 4];
          attrtab[a+0x100] = comp.atm_pal[a & 0x0F];
       } else if (temp.rflags & RF_PALB) { //----------------------------- for bilinear
@@ -335,28 +343,29 @@ void calc_noflic_16_32()
    }
 }
 
+// pal.index => raw video data, shadowed with current pass
+// mode==3 for 32-bit color or temp.hi15 for 16-bit color
+unsigned raw_data(unsigned index, unsigned pass, unsigned char mode)
+{
+   unsigned r = pal0[index].peRed, g = pal0[index].peGreen, b = pal0[index].peBlue;
+   if (pass) r = r*conf.scanbright/100, g = g*conf.scanbright/100, b = b*conf.scanbright/100;
+
+   if (mode==0) return ((b/8) + ((g/4)<<5) + ((r/8)<<11)) * 0x10001;
+   if (mode==1) return ((b/8) + ((g/8)<<5) + ((r/8)<<10)) * 0x10001;
+   if (mode==2) return getYUY2(r,g,b);
+
+   // else (temp.obpp == 32)
+   return WORD4(b,g,r,0);
+}
+
 void pixel_tables()
 {
    unsigned char attrtab[0x200]; // pc attribute + 1 pixel -> palette index
    attr_tables(attrtab);
    for (unsigned pass = 0; pass < 2; pass++) {
-      unsigned pixels[0x100];
-      if (temp.obpp > 8)
-         for (unsigned i = 0; i < 0x100; i++) {
-            unsigned res;
-            unsigned r = pal0[i].peRed, g = pal0[i].peGreen, b = pal0[i].peBlue;
-            if (pass) r = r*conf.scanbright/100, g = g*conf.scanbright/100, b = b*conf.scanbright/100;
-            if (temp.obpp == 16) {
-               if (temp.hi15==0) res = ((b/8) + ((g/4)<<5) + ((r/8)<<11)) * 0x10001;
-               if (temp.hi15==1) res = ((b/8) + ((g/8)<<5) + ((r/8)<<10)) * 0x10001;
-               if (temp.hi15==2) res = getYUY2(r,g,b);
-            } else /* if (temp.obpp == 32) */ res = WORD4(b,g,r,0);
-            pixels[i] = res;
-         }
       for (unsigned at = 0; at < 0x100; at++)
       {
          unsigned char px0 = attrtab[at], px1 = attrtab[at+0x100];
-         unsigned p0 = pixels[px0], p1 = pixels[px1];
          if (temp.obpp == 8) {
             if (pass) {
                if (!conf.scanbright) px0 = px1 = 0;
@@ -380,22 +389,26 @@ void pixel_tables()
                unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
                t.sctab8d[pass][j+at*4] = (mask & (px1 * 0x01010101)) + (~mask & (px0 * 0x01010101));
             }
-         }
-         if (temp.obpp == 16) {
-            t.sctab16d[pass][at] = p0, t.sctab16d[pass][at+0x100] = p1;
-            for (unsigned j = 0; j < 4; j++) {
-               unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
-               t.sctab16[pass][j+at*4] = (mask & p1) + (~mask & p0);
+         } else { // 16,32 bit (resampler requires sctab32 in both 16- and 32-bit modes)
+
+            unsigned p0 = raw_data(px0, pass, 3), p1 = raw_data(px1, pass, 3);
+            t.sctab32[pass][at] = p0, t.sctab32[pass][at+0x100] = p1;
+
+            if (temp.obpp == 16) {
+               p0 = raw_data(px0, pass, temp.hi15), p1 = raw_data(px1, pass, temp.hi15);
+               t.sctab16d[pass][at] = p0, t.sctab16d[pass][at+0x100] = p1;
+               for (unsigned j = 0; j < 4; j++) {
+                  unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
+                  t.sctab16[pass][j+at*4] = (mask & p1) + (~mask & p0);
+               }
             }
          }
-         if (temp.obpp == 32) t.sctab32[pass][at] = p0, t.sctab32[pass][at+0x100] = p1;
       }
    }
    if (temp.obpp > 8 && conf.noflic) calc_noflic_16_32();
    if ((temp.rflags & (RF_DRIVER|RF_512|RF_USEFONT))==(RF_DRIVER|RF_512) && // render="double"
        (conf.mem_model == MM_ATM710 || conf.mem_model == MM_PROFI))
       hires_sc_tables();
-   if (temp.rflags & RF_VSYNC) calc_rsm_tables();
 }
 
 void video_color_tables()
@@ -524,8 +537,9 @@ void apply_video()
       temp.rflags |= RF_ATMPAL | RF_PALB;
       if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_512 | RF_USEFONT)) == (RF_DRIVER | RF_512)) conf.noflic = 0;
    }
-   if (temp.rflags & RF_VSYNC) conf.flip = 1;
+   if (renders[conf.render].func == render_rsm) conf.flip = 1; // todo: revert back after returning from frame resampler
    set_video();
+   calc_rsm_tables();
    video_timing_tables();
 }
 

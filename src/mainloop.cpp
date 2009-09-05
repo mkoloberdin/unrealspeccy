@@ -46,6 +46,7 @@ void spectrum_frame()
    comp.frame_counter++;
 }
 
+/* // version before frame resampler
 void mainloop()
 {
    unsigned char skipped = 0;
@@ -59,8 +60,34 @@ void mainloop()
 
       // message handling before flip (they paint to rbuf)
       if (!temp.inputblock) dispatch(conf.atm.xt_kbd? ac_main_xt : ac_main);
-      if (needrestart) break;
       if (!temp.vidblock) flip();
       if (!temp.sndblock) do_sound();
    }
 }
+*/
+
+void mainloop()
+{
+   unsigned char skipped = 0;
+   for (;;)
+   {
+      if (skipped < temp.frameskip) skipped++, temp.vidblock = 1;
+      else skipped = temp.vidblock = 0;
+
+      if (!temp.vidblock) flip();
+      for (unsigned f = rsm.needframes[rsm.frame]; f; f--) {
+         temp.sndblock = !conf.sound.enabled;
+         temp.inputblock = temp.vidblock;
+         spectrum_frame();
+         if (!temp.inputblock) dispatch(conf.atm.xt_kbd? ac_main_xt : ac_main);
+         if (!temp.sndblock) do_sound();
+         if (rsm.mix_frames > 1) {
+            memcpy(rbuf_s + rsm.rbuf_dst * rb2_offs, rbuf, temp.scx*temp.scy/4);
+            if (++rsm.rbuf_dst == rsm.mix_frames) rsm.rbuf_dst = 0;
+         }
+      }
+
+      if (++rsm.frame == rsm.period) rsm.frame = 0;
+   }
+}
+

@@ -12,6 +12,54 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
+// Russian resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_RUS)
+#ifdef _WIN32
+LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
+#pragma code_page(1251)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_FILTER_DIALOG DIALOGEX 0, 0, 186, 95
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION |
+    WS_SYSMENU
+CAPTION "Select video filter"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,129,4000,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,129,4000,50,14
+    LISTBOX         IDC_LISTBOX,0,0,185,94,LBS_NOINTEGRALHEIGHT | WS_TABSTOP
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_FILTER_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 179
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 88
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Russian resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
 // English (U.S.) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
@@ -650,7 +698,8 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON,15,35,137,10
     CONTROL         "fir + low-pass filter for &3-color noflic",IDC_FIR2,
                     "Button",BS_AUTORADIOBUTTON,15,45,123,10
-    GROUPBOX        "frames used for interpolation",IDC_FRAMES_BOX,7,62,154,36
+    GROUPBOX        "frames used for interpolation",IDC_FRAMES_BOX,7,62,154,
+                    36
     CONTROL         "",IDC_FRAMES,"msctls_trackbar32",TBS_AUTOTICKS |
                     WS_TABSTOP,11,70,148,17
     LTEXT           "2",IDC_STATIC,17,87,8,8

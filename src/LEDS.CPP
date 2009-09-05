@@ -91,7 +91,7 @@ void ay_led()
       for (unsigned c = 0; c < 4; c++) {
          GSHLE::CHANNEL *ch = gs.chan+c;
          // adjust volume with play progress
-         unsigned v = (ch->end)? (ch->volume*(ch->end - ch->ptr)/ch->end)/4 : 0;
+         unsigned v = (ch->end && ch->start)? (ch->volume*(ch->end - ch->ptr)/ch->end)/4 : 0;
          paint_led(v, 0x0F);
          paint_led(v, 0x0F);
          paint_led(0, 0);
@@ -102,8 +102,7 @@ void ay_led()
    #ifdef MOD_GSZ80
    if (conf.gs_type == 1) {
       for (unsigned ch = 0; ch < 4; ch++) {
-         unsigned v = (z80gs::gsvol[ch] * temp.led.gssum[ch]) / (temp.led.gscnt[ch]*0x100*4+1);
-         v = v*z80gs::gsvol[ch] / 0x40;
+         unsigned v = temp.led.gssum[ch]*z80gs::gsvol[ch] / (temp.led.gscnt[ch]*(0x100*0x40/16)+1);
          temp.led.gssum[ch] = temp.led.gscnt[ch] = 0;
          paint_led(v, 0x0F);
          paint_led(v, 0x0F);
@@ -284,22 +283,6 @@ void done_leds()
       CloseHandle(hndKbdDev); hndKbdDev = 0;
    }
 }
-
-
-
-
-#define IOCTL_KEYBOARD_SET_INDICATORS        CTL_CODE(FILE_DEVICE_KEYBOARD, 0x0002, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_KEYBOARD_QUERY_TYPEMATIC       CTL_CODE(FILE_DEVICE_KEYBOARD, 0x0008, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define IOCTL_KEYBOARD_QUERY_INDICATORS      CTL_CODE(FILE_DEVICE_KEYBOARD, 0x0010, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-typedef struct _KEYBOARD_INDICATOR_PARAMETERS {
-    USHORT UnitId;              // Unit identifier.
-    USHORT LedFlags;            // LED indicator state.
-} KEYBOARD_INDICATOR_PARAMETERS, *PKEYBOARD_INDICATOR_PARAMETERS;
-
-#define KEYBOARD_CAPS_LOCK_ON     4
-#define KEYBOARD_NUM_LOCK_ON      2
-#define KEYBOARD_SCROLL_LOCK_ON   1
 
 void ay_kbd()
 {

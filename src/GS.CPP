@@ -108,7 +108,7 @@ void flush_gs_frame()
 #endif
 
 #ifdef MOD_GSBASS
-   if (conf.sound.gs==2) { gs.mix_fx(); return; }
+   if (conf.gs_type==2) { gs.mix_fx(); return; }
 #endif
 }
 

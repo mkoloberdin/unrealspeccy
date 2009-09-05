@@ -156,8 +156,10 @@ void debugflip() {
       for (y = 16*frames[i].y; y < (frames[i].y+frames[i].dy)*16; y++) bptr[y*640+x] = a1;
    }
 
+   gdibmp.header.bmiHeader.biBitCount = 8;
    if (needclr) gdi_frame();
    SetDIBitsToDevice(temp.gdidc, temp.gx, temp.gy, 640, 480, 0, 0, 0, 480, bptr, &gdibmp.header, DIB_RGB_COLORS);
+   gdibmp.header.bmiHeader.biBitCount = temp.obpp;
    #undef bptr
 }
 

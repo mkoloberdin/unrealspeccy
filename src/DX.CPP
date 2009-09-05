@@ -54,12 +54,13 @@ RENDER renders[] =
    { "Chunky 16bit, low-res, flt",render_c16bl,         "ch_bl", RF_16 | RF_BORDER | RF_USEC32 },
    { "Chunky 16bit, hi-res, flt", render_c16b,          "ch_b", RF_16 | RF_512 | RF_BORDER | RF_USEC32 },
    { "Ch4x4 true color (fullscr)",render_c4x32b,        "ch4true", RF_32 | RF_512 | RF_BORDER | RF_USEC32 },
-   { "Frame resampler"           ,render_rsm,           "resampler", RF_32 | RF_VSYNC },
+   { "Frame resampler"           ,render_rsm,           "resampler", RF_DRIVER | RF_8BPCH },
 
    { 0,0,0,0 }
 };
 
-RENDER drivers[] = {
+RENDER drivers[] =
+{
    { "video memory",              0, "ddraw", 0 },
    { "gdi device context",        0, "gdi", RF_GDI },
    { "overlay",                   0, "ovr", RF_OVR },
@@ -80,10 +81,15 @@ void flip()
 {
    switch_video();
 
-   if (temp.rflags & RF_GDI) {
-      if (conf.flip) dd->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, 0);
+
+   if (conf.flip && (temp.rflags & (RF_GDI|RF_CLIP)))
+      dd->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, 0);
+
+   if (temp.rflags & RF_GDI)
+   {
       if (needclr) { needclr--; gdi_frame(); }
-      renders[conf.render].func(0,0);
+      renders[conf.render].func(gdibuf, temp.ox*temp.obpp/8);
+      SetDIBitsToDevice(temp.gdidc, temp.gx, temp.gy, temp.ox, temp.oy, 0, 0, 0, temp.oy, gdibuf, &gdibmp.header, DIB_RGB_COLORS);
       return;
    }
 
@@ -92,9 +98,20 @@ void flip()
    if (surf0->IsLost() == DDERR_SURFACELOST) surf0->Restore();
    if (surf1 && surf1->IsLost() == DDERR_SURFACELOST) surf1->Restore();
 
-   if (temp.rflags & RF_CLIP) {
-      if (conf.flip) dd->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, 0);
-      renders[conf.render].func(0,0); // render_blt or render_ch_hw
+   if (temp.rflags & RF_CLIP)
+   {
+      DDSURFACEDESC desc; desc.dwSize = sizeof desc;
+      HRESULT r = surf1->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_WRITEONLY, 0);
+      if (r != DD_OK) {
+         if (!active) return;
+         printrdd("IDirectDrawSurface2::Lock() [buffer]", r); exit();
+      }
+
+      renders[conf.render].func((unsigned char*)desc.lpSurface, desc.lPitch);
+
+      surf1->Unlock(desc.lpSurface);
+      r = surf0->Blt(&temp.client, surf1, 0, DDBLT_WAIT, 0);
+      if (r != DD_OK) { printrdd("IDirectDrawSurface2::Blt()", r); exit(); }
       return;
    }
 
@@ -108,7 +125,7 @@ void flip()
    if (needclr) { needclr--; _render_black((unsigned char*)desc.lpSurface, desc.lPitch); }
    renders[conf.render].func((unsigned char*)desc.lpSurface + desc.lPitch*temp.ody + temp.odx, desc.lPitch);
    drawsurf->Unlock(desc.lpSurface);
-   // show frame
+
    if (conf.flip) {
       r = surf0->Flip(0, DDFLIP_WAIT);
       if (r != DD_OK) { printrdd("IDirectDrawSurface2::Flip()", r); exit(); }
@@ -124,11 +141,11 @@ void __fastcall do_sound_none()
 {
    static __int64 last_cpu;
    for (;;) {
-      __int64 cpu; gettime(cpu);
+      unsigned __int64 cpu = rdtsc();
       if ((cpu-last_cpu) >= conf.ticks_frame) break;
       if (conf.sleepidle) Sleep(SLEEP_DELAY);
    }
-   gettime(last_cpu);
+   last_cpu = rdtsc();
 }
 
 void __fastcall do_sound_wave()
@@ -399,11 +416,13 @@ void set_vidmode()
    DDSURFACEDESC desc; desc.dwSize = sizeof desc;
    r = dd->GetDisplayMode(&desc);
    if (r != DD_OK) { printrdd("IDirectDraw2::GetDisplayMode()", r); exit(); }
-   // temp.ofq = desc.??
+   temp.ofq = desc.dwRefreshRate; // nt only?
+   if (!temp.ofq) temp.ofq = conf.refresh;
 
+   // select fullscreen, set window style
    if (temp.rflags & RF_DRIVER) temp.rflags |= drivers[conf.driver].flags;
    if (!(temp.rflags & (RF_GDI | RF_OVR | RF_CLIP))) conf.fullscr = 1;
-   if ((temp.rflags & RF_32) && desc.ddpfPixelFormat.dwRGBBitCount != 32) conf.fullscr = 1;
+   if ((temp.rflags & RF_32) && desc.ddpfPixelFormat.dwRGBBitCount != 32) conf.fullscr = 1; // for chunks via blitter
 
    static RECT rc;
    DWORD oldstyle = GetWindowLong(wnd, GWL_STYLE);
@@ -411,14 +430,16 @@ void set_vidmode()
    unsigned style = conf.fullscr ? WS_VISIBLE | WS_POPUP : WS_VISIBLE | WS_OVERLAPPEDWINDOW;
    if ((oldstyle ^ style) & WS_CAPTION) SetWindowLong(wnd, GWL_STYLE, style);
 
-   char excl = conf.fullscr || ((temp.rflags & RF_CLIP) && (desc.ddpfPixelFormat.dwRGBBitCount==8));
-   if (temp.rflags & (RF_GDI | RF_OVR)) excl = 0;
+   // select exclusive
+   char excl = conf.fullscr;
+   if ((temp.rflags & RF_CLIP) && (desc.ddpfPixelFormat.dwRGBBitCount==8)) excl = 1;
 
    if (!(temp.rflags & RF_MON)) {
       r = dd->SetCooperativeLevel(wnd, excl ? DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN : DDSCL_ALLOWREBOOT | DDSCL_NORMAL);
       if (r != DD_OK) { printrdd("IDirectDraw2::SetCooperativeLevel()", r); exit(); }
    }
 
+   // select resolution
    static size_x[3] = { 256,320,384 }, size_y[3] = { 192,240,300 };
    temp.ox = temp.scx = size_x[conf.bordersize];
    temp.oy = temp.scy = size_y[conf.bordersize];
@@ -429,29 +450,53 @@ void set_vidmode()
    if (temp.rflags & RF_64x48) temp.ox = 64, temp.oy = 48;
    if (temp.rflags & RF_128x96) temp.ox = 128, temp.oy = 96;
    if (temp.rflags & RF_MON) temp.ox = 640, temp.oy = 480;
+
+   // select color depth
    temp.obpp = 8;
    if (temp.rflags & RF_CLIP) temp.obpp = desc.ddpfPixelFormat.dwRGBBitCount;
    if (temp.rflags & (RF_16 | RF_OVR)) temp.obpp = 16;
    if (temp.rflags & RF_32) temp.obpp = 32;
-   if (conf.fullscr || ((temp.rflags & RF_MON) && desc.dwHeight < 480)) {
+   if ((temp.rflags & (RF_GDI|RF_8BPCH)) == (RF_GDI|RF_8BPCH)) temp.obpp = 32;
+
+   if (conf.fullscr || ((temp.rflags & RF_MON) && desc.dwHeight < 480))
+   {
+      // select minimal screen mode
       unsigned newx = 100000, newy = 100000, newfq = conf.refresh, newb = temp.obpp;
-      for (unsigned i = 0; i < max_modes; i++) {
-         if (modes[i].b == temp.obpp && modes[i].y >= temp.oy && modes[i].x >= temp.ox &&
-             (modes[i].x < newx || modes[i].y < newy) && modes[i].y >= conf.minres)
+      unsigned minx = temp.ox, miny = temp.oy, needb = temp.obpp;
+
+      if (temp.rflags & (RF_64x48 | RF_128x96))
+      {
+         needb = (temp.rflags & RF_16)? 16:32;
+         minx = desc.dwWidth; if (minx < 640) minx = 640;
+         miny = desc.dwHeight; if (miny < 480) miny = 480;
+      }
+      // if (temp.rflags & RF_MON) // - ox=640, oy=480 - set above
+
+      for (unsigned i = 0; i < max_modes; i++)
+      {
+         if (modes[i].y < miny || modes[i].x < minx) continue;
+         if (!(temp.rflags & RF_MON) && modes[i].b != temp.obpp) continue;
+         if (modes[i].y < conf.minres) continue;
+
+         if (modes[i].x < newx || modes[i].y < newy)
          {
             newx = modes[i].x, newy = modes[i].y;
             if (!conf.refresh && modes[i].f > newfq) newfq = modes[i].f;
          }
       }
+
       if (newx==100000) { printf("can't find situable mode for %d x %d * %d bits\n", temp.ox, temp.oy, temp.obpp); exit(); }
-      if (temp.rflags & RF_MON) {
-         if (desc.dwWidth>=640 && desc.dwHeight>=480) newx = desc.dwWidth, newy = desc.dwHeight;
-         else newx = 640, newy = 480;
-      } else if (temp.rflags & (RF_OVR | RF_GDI | RF_CLIP)) {
-         if (!(temp.rflags & (RF_16 | RF_32))) newb = desc.ddpfPixelFormat.dwRGBBitCount;
+
+      // use minimal or current mode
+
+      if (temp.rflags & (RF_OVR | RF_GDI | RF_CLIP)) {
+         // leave screen size, if enough width/height
          newx = desc.dwWidth, newy = desc.dwHeight;
+         if (newx < minx || newy < miny) newx = minx, newy = miny;
+         // leave color depth, until specified directly
+         if (!(temp.rflags & (RF_16 | RF_32))) newb = desc.ddpfPixelFormat.dwRGBBitCount;
       }
-      if ((temp.rflags & (RF_64x48 | RF_128x96)) && newx < 640) newx=640, newy=480, newb=(temp.rflags & RF_16)?16:32;
+
       if ((desc.dwWidth - newx) | (desc.dwHeight - newy) | (desc.ddpfPixelFormat.dwRGBBitCount - newb))
       {
          if ((r = dd->SetDisplayMode(newx, newy, newb, newfq, 0)) != DD_OK)
@@ -463,6 +508,7 @@ void set_vidmode()
       temp.rsx = newx, temp.rsy = newy;
       ShowWindow(wnd, SW_SHOWMAXIMIZED);
    } else {
+      // restore window position to last saved position in non-fullscreen mode
       ShowWindow(wnd, SW_SHOWNORMAL);
       if (temp.rflags & RF_GDI) {
          RECT rcw, cli; GetWindowRect(wnd, &rcw); GetClientRect(wnd, &cli);
@@ -487,7 +533,7 @@ void set_vidmode()
 
       gdibmp.header.bmiHeader.biWidth = temp.ox;
       gdibmp.header.bmiHeader.biHeight = -(int)temp.oy;
-      //gdibmp.header.bmiHeader.biBitCount = temp.obpp; // always 8
+      gdibmp.header.bmiHeader.biBitCount = temp.obpp;
 
    } else if (temp.rflags & RF_OVR) {
 
@@ -498,11 +544,16 @@ void set_vidmode()
       desc.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
       desc.ddsCaps.dwCaps = DDSCAPS_OVERLAY | DDSCAPS_VIDEOMEMORY;
       desc.dwWidth = temp.ox, desc.dwHeight = temp.oy;
+
+      conf.flip = 0; // overlay always synchronized without Flip()!
+                     // todo: check on other DX/videocards
+
       if (conf.flip) {
          desc.dwBackBufferCount = 1;
          desc.dwFlags |= DDSD_BACKBUFFERCOUNT;
          desc.ddsCaps.dwCaps |= DDSCAPS_FLIP | DDSCAPS_COMPLEX;
       }
+
       static DDPIXELFORMAT ddpfOverlayFormat16 = { sizeof(DDPIXELFORMAT), DDPF_RGB,
              0, 16,  0xF800, 0x07E0, 0x001F, 0 };
       static DDPIXELFORMAT ddpfOverlayFormat15 = { sizeof(DDPIXELFORMAT), DDPF_RGB,

@@ -50,20 +50,6 @@ void ISA_MODEM::close()
    open_port = 0;
 }
 
-void dump1(BYTE *p, unsigned sz)
-{
-   while (sz) {
-      printf("\t");
-      unsigned chunk = (sz > 16)? 16 : sz;
-      for (unsigned i = 0; i < chunk; i++) printf("%02X ", p[i]);
-      for (; i < 16; i++) printf("   ");
-      for (i = 0; i < chunk; i++) printf("%c", (p[i] < 0x20)? '.' : p[i]);
-      printf("\n");
-      sz -= chunk, p += chunk;
-   }
-   printf("\n");
-}
-
 void ISA_MODEM::io()
 {
    if (!hPort || hPort == INVALID_HANDLE_VALUE) return;
@@ -112,29 +98,85 @@ void ISA_MODEM::setup_int()
 
 void ISA_MODEM::write(unsigned nreg, unsigned char value)
 {
+   DCB dcb;
+
    if ((1<<nreg) & ((1<<2)|(1<<5)|(1<<6))) return; // R/O registers
-   if (nreg < 2 && (reg[3] & 0x80)) { div[nreg] = value; return; }
-   if (nreg) { reg[nreg] = value; return; }
-   reg[5] &= ~0x60;
-   if (((whead+1) & (BSIZE-1)) == wtail) {
-      reg[5] |= 2;
-   } else {
-      wbuf[whead++] = value, whead &= (BSIZE-1);
-      if (((whead+1) & (BSIZE-1)) != wtail) reg[5] |= 0x60;
+
+   if (nreg < 2 && (reg[3] & 0x80)) {
+     div[nreg] = value;
+     if (GetCommState(hPort, &dcb)) {
+       if (!divfq) divfq = 1;
+       dcb.BaudRate = 115200 / divfq;
+       SetCommState(hPort, &dcb);
+     }
+     return;
    }
-   setup_int();
+
+   if (nreg == 0) { // write char to output buffer
+      reg[5] &= ~0x60;
+      if (((whead+1) & (BSIZE-1)) == wtail) {
+         reg[5] |= 2;
+      } else {
+         wbuf[whead++] = value, whead &= (BSIZE-1);
+         if (((whead+1) & (BSIZE-1)) != wtail) reg[5] |= 0x60;
+      }
+      setup_int();
+      return;
+   }
+
+   reg[nreg] = value;
+
+   // Thu 28 Jul 2005. transfer mode control (code by Alex/AT)
+
+   if (nreg == 3) {
+      // LCR set, renew modem config
+      if (!GetCommState(hPort, &dcb)) return;
+
+      dcb.fBinary = TRUE;
+      dcb.fParity = (reg[3] & 8)? TRUE : FALSE;
+      dcb.fOutxCtsFlow = FALSE;
+      dcb.fOutxDsrFlow = FALSE;
+      dcb.fDtrControl = DTR_CONTROL_DISABLE;
+      dcb.fDsrSensitivity = FALSE;
+      dcb.fTXContinueOnXoff = FALSE;
+      dcb.fOutX = FALSE;
+      dcb.fInX = FALSE;
+      dcb.fErrorChar = FALSE;
+      dcb.fNull = FALSE;
+      dcb.fRtsControl = RTS_CONTROL_DISABLE;
+      dcb.fAbortOnError = FALSE;
+      dcb.ByteSize = 6 + (reg[3] & 2) - (reg[3] & 1);
+
+      static const BYTE parity[] = { ODDPARITY, EVENPARITY, MARKPARITY, SPACEPARITY };
+      dcb.Parity = (reg[3] & 8)? parity[(reg[3]>>4) & 3] : NOPARITY;
+
+      if (!(reg[3] & 4)) dcb.StopBits = ONESTOPBIT;
+      else dcb.StopBits = ((reg[3] & 3) == 1)? ONE5STOPBITS : TWOSTOPBITS;
+
+      SetCommState(hPort, &dcb);
+      return;
+   }
+
+   if (nreg == 4) {
+      // MCR set, renew DTR/CTS
+      EscapeCommFunction(hPort, (reg[4] & 1)? SETDTR : CLRDTR);
+      EscapeCommFunction(hPort, (reg[4] & 2)? SETRTS : CLRRTS);
+   }
 }
 
 unsigned char ISA_MODEM::read(unsigned nreg)
 {
+   if (nreg < 2 && (reg[3] & 0x80)) return div[nreg];
+
    unsigned char result = reg[nreg];
-   if (nreg < 2) {
-     if (reg[3] & 0x80) result = div[nreg];
-     else if (!nreg) {
-        reg[5] &= ~1;
-        if (rhead != rtail) result = reg[0] = rcbuf[rtail++], rtail &= (BSIZE-1), reg[5] |= 1;
-        setup_int();
-     }
-   } else if (nreg == 5) reg[5] &= ~0x0E, setup_int();
+
+   if (nreg == 0) { // read char from buffer
+      if (rhead != rtail) result = reg[0] = rcbuf[rtail++], rtail &= (BSIZE-1);
+      if (rhead != rtail) reg[5] |= 1; else reg[5] &= ~1;
+      setup_int();
+   }
+
+   if (nreg == 5) reg[5] &= ~0x0E, setup_int();
+
    return result;
 }

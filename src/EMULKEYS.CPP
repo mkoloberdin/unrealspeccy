@@ -94,7 +94,8 @@ void main_decfix() { chfix(-mul0); }
 void main_incfix10() { chfix(mul1); }
 void main_decfix10() { chfix(-mul1); }
 
-void main_leds() {
+void main_leds()
+{
    conf.led.enabled ^= 1;
    sprintf(statusline, "leds %s", conf.led.enabled ? "on" : "off"); statcnt = 50;
 }
@@ -107,18 +108,94 @@ void main_maxspeed()
    sprintf(statusline, "Max speed: %s", conf.sound.enabled ? "NO" : "YES"); statcnt = 50;
 }
 
-void selvideo(int dx)
+// select filter / driver through gui dialog ----------------------------
+
+BOOL CALLBACK filterdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
-   for (unsigned nm = 0; renders[nm].func; nm++);
-   conf.render += dx;
-   if ((int)conf.render < 0) conf.render = nm-1;
-   if (conf.render >= nm) conf.render = 0;
-   sprintf(statusline, "Video: %s", renders[conf.render].name); statcnt = 50;
-   needrestart = 1;
+   if (msg == WM_INITDIALOG) {
+      HWND box = GetDlgItem(dlg, IDC_LISTBOX); int i;
+
+      if (lp) {
+         for (i = 0; drivers[i].name; i++)
+            SendMessage(box, LB_ADDSTRING, 0, (LPARAM)drivers[i].name);
+         SendMessage(box, LB_SETCURSEL, conf.driver, 0);
+         SetWindowText(dlg, "Select driver for rendering");
+      } else {
+         for (i = 0; renders[i].name; i++)
+            SendMessage(box, LB_ADDSTRING, 0, (LPARAM)renders[i].name);
+         SendMessage(box, LB_SETCURSEL, conf.render, 0);
+      }
+
+      RECT rcw, cli; GetWindowRect(box, &rcw); GetClientRect(box, &cli);
+      RECT rcd; GetWindowRect(dlg, &rcd);
+
+      int nc_width = (rcw.right - rcw.left) - (cli.right - cli.left);
+      int nc_height = (rcw.bottom - rcw.top) - (cli.bottom - cli.top);
+      int dlg_w = (rcd.right - rcd.left) - (rcw.right - rcw.left);
+      int dlg_h = (rcd.bottom - rcd.top) - (rcw.bottom - rcw.top);
+      nc_width += 300;
+      nc_height += i*SendMessage(box, LB_GETITEMHEIGHT, 0, 0);
+      dlg_w += nc_width; dlg_h += nc_height;
+      SetWindowPos(box, 0, 0, 0, nc_width, nc_height, SWP_NOZORDER | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+
+      GetWindowRect(wnd, &rcw);
+      SetWindowPos(dlg, 0,
+         rcw.left + ((rcw.right-rcw.left)-dlg_w)/2,
+         rcw.top + ((rcw.bottom-rcw.top)-dlg_h)/2,
+         dlg_w, dlg_h, SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+
+      SetFocus(box);
+      return 0;
+   }
+
+   if ((msg == WM_COMMAND && wp == IDCANCEL) ||
+       (msg == WM_SYSCOMMAND && wp == SC_CLOSE)) EndDialog(dlg, -1);
+
+   if (msg == WM_COMMAND) {
+      int control = LOWORD(wp);
+      if (control == IDOK || (control == IDC_LISTBOX && HIWORD(wp) == LBN_DBLCLK))
+         EndDialog(dlg, SendDlgItemMessage(dlg, IDC_LISTBOX, LB_GETCURSEL, 0, 0));
+   }
+   return 0;
 }
-void main_nextvideo() { selvideo(1); }
-void main_prevvideo() { selvideo(-1); }
-void main_poke() { DialogBox(hIn, MAKEINTRESOURCE(IDD_POKE), wnd, pokedlg), eat(); }
+
+void main_selectfilter()
+{
+   sound_stop();
+   int index = DialogBoxParam(hIn, MAKEINTRESOURCE(IDD_FILTER_DIALOG), wnd, filterdlg, 0);
+   eat(); sound_play(); if (index < 0) return;
+
+   conf.render = index;
+   sprintf(statusline, "Video: %s", renders[index].name); statcnt = 50;
+   apply_video(); eat();
+}
+
+void main_selectdriver()
+{
+   if (!(temp.rflags & RF_DRIVER)) {
+     strcpy(statusline, "Not available for this filter"); statcnt = 50;
+     return;
+   }
+
+   sound_stop();
+   int index = DialogBoxParam(hIn, MAKEINTRESOURCE(IDD_FILTER_DIALOG), wnd, filterdlg, 1);
+   eat(); sound_play(); if (index < 0) return;
+
+   conf.driver = index;
+   sprintf(statusline, "Render to: %s", drivers[index].name); statcnt = 50;
+   apply_video(); eat();
+}
+
+// ----------------------------------------------------------------------
+
+void main_poke()
+{
+   sound_stop();
+   DialogBox(hIn, MAKEINTRESOURCE(IDD_POKE), wnd, pokedlg);
+   eat();
+   sound_play();
+}
+
 void main_starttape() {
    //if (comp.tape.play_pointer) stop_tape(); else start_tape();
    (comp.tape.play_pointer) ? stop_tape() : start_tape();

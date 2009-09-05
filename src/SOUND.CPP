@@ -218,6 +218,13 @@ __inline void flush_snd_frame()
    if (conf.gs_type == 1)
       save_ticks = min(save_ticks, z80gs::sound.ready_samples());
    #endif
+/* // fx player always gives enough samples
+   #ifdef MOD_GSBASS
+   if (conf.gs_type == 2)
+      for (int i = 0; i < 4; i++)
+         save_ticks = min(save_ticks, gs.chan[i].sound_state.ready_samples());
+   #endif
+*/
    SOUND_STREAM::copy_to_sndplaybuf(save_ticks);
 }
 

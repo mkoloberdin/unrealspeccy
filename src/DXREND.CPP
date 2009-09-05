@@ -1,5 +1,5 @@
 
-void __fastcall rend_small(unsigned char *dst, unsigned pitch)
+void __fastcall render_small(unsigned char *dst, unsigned pitch)
 {
    if (conf.noflic) {
       if (temp.obpp == 8)  { rend_copy8_nf (dst, pitch); }
@@ -13,42 +13,7 @@ void __fastcall rend_small(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_blt_small()
-{
-   DDSURFACEDESC desc; desc.dwSize = sizeof desc;
-   HRESULT r = surf1->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_WRITEONLY, 0);
-   if (r != DD_OK) {
-      if (!active) return;
-      printrdd("IDirectDrawSurface2::Lock() [buffer]", r); exit();
-   }
-   rend_small((unsigned char*)desc.lpSurface, desc.lPitch);
-   surf1->Unlock(desc.lpSurface);
-   r = surf0->Blt(&temp.client, surf1, 0, DDBLT_WAIT, 0);
-   if (r != DD_OK) { printrdd("IDirectDrawSurface2::Blt()", r); exit(); }
-}
-
-
-void __fastcall render_small(unsigned char *dst, unsigned pitch)
-{
-   switch (conf.driver)
-   {
-      case DRIVER_DDRAW:
-      case DRIVER_DDRAW16:
-      case DRIVER_DDRAW32:
-      case DRIVER_OVR:
-         rend_small(dst, pitch);
-         return;
-      case DRIVER_GDI:
-         rend_small(gdibuf, temp.ox*temp.obpp/8);
-         SetDIBitsToDevice(temp.gdidc, temp.gx, temp.gy, temp.ox, temp.oy, 0, 0, 0, temp.oy, gdibuf, &gdibmp.header, DIB_RGB_COLORS);
-         return;
-      case DRIVER_BLT:
-         rend_blt_small();
-         return;
-   }
-}
-
-void rend_double(unsigned char *dst, unsigned pitch)
+void rend_dbl(unsigned char *dst, unsigned pitch)
 {
    if (temp.oy > temp.scy && conf.fast_sl) pitch *= 2;
    if (conf.noflic) {
@@ -63,84 +28,14 @@ void rend_double(unsigned char *dst, unsigned pitch)
    }
 }
 
-void __fastcall rend_dbl(unsigned char *dst, unsigned pitch)
-{
-   if (comp.pEFF7 & EFF7_512) { rend_512(dst, pitch); return; }
-   if ((comp.pDFFD & 0x80) && conf.mem_model == MM_PROFI) { rend_profi(dst, pitch); return; }
-   if (conf.mem_model == MM_ATM710) { rend_atm(dst, pitch); return; } // todo: add ini option to show zx-screen with palette or with MC
-   rend_double(dst, pitch);
-}
-
-void rend_blt_dbl()
-{
-   DDSURFACEDESC desc; desc.dwSize = sizeof desc;
-   HRESULT r = surf1->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_WRITEONLY, 0);
-   if (r != DD_OK) {
-      if (!active) return;
-      printrdd("IDirectDrawSurface2::Lock() [buffer]", r); exit();
-   }
-   rend_dbl((unsigned char*)desc.lpSurface, desc.lPitch);
-   surf1->Unlock(desc.lpSurface);
-   r = surf0->Blt(&temp.client, surf1, 0, DDBLT_WAIT, 0);
-   if (r != DD_OK) { printrdd("IDirectDrawSurface2::Blt()", r); exit(); }
-}
-
 void __fastcall render_dbl(unsigned char *dst, unsigned pitch)
 {
-   switch (conf.driver)
-   {
-      case DRIVER_DDRAW16:
-      case DRIVER_DDRAW32:
-      case DRIVER_DDRAW:
-         rend_dbl(dst, pitch);
-         return;
-      case DRIVER_GDI:
-         rend_dbl(gdibuf, temp.ox*temp.obpp/8);
-         SetDIBitsToDevice(temp.gdidc, temp.gx, temp.gy, temp.ox, temp.oy, 0, 0, 0, temp.oy, gdibuf, &gdibmp.header, DIB_RGB_COLORS);
-         return;
-      case DRIVER_OVR:
-         rend_dbl(dst, pitch);
-         return;
-      case DRIVER_BLT:
-         rend_blt_dbl();
-         return;
-   }
-}
+   // todo: add ini option to show zx-screen with palette or with MC
+   if (comp.pEFF7 & EFF7_512) { rend_512(dst, pitch); return; }
+   if ((comp.pDFFD & 0x80) && conf.mem_model == MM_PROFI) { rend_profi(dst, pitch); return; }
+   if (conf.mem_model == MM_ATM710) { rend_atm(dst, pitch); return; }
 
-void rend_blt_text()
-{
-   DDSURFACEDESC desc; desc.dwSize = sizeof desc;
-   HRESULT r = surf1->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_WRITEONLY, 0);
-   if (r != DD_OK) {
-      if (!active) return;
-      printrdd("IDirectDrawSurface2::Lock() [buffer]", r); exit();
-   }
-   rend_text((unsigned char*)desc.lpSurface, desc.lPitch);
-   surf1->Unlock(desc.lpSurface);
-   r = surf0->Blt(&temp.client, surf1, 0, DDBLT_WAIT, 0);
-   if (r != DD_OK) { printrdd("IDirectDrawSurface2::Blt()", r); exit(); }
-}
-
-void __fastcall render_text(unsigned char *dst, unsigned pitch)
-{
-   switch (conf.driver)
-   {
-      case DRIVER_DDRAW16:
-      case DRIVER_DDRAW32:
-      case DRIVER_DDRAW:
-         rend_text(dst, pitch);
-         return;
-      case DRIVER_GDI:
-         rend_text(gdibuf, temp.ox*temp.obpp/8);
-         SetDIBitsToDevice(temp.gdidc, temp.gx, temp.gy, temp.ox, temp.oy, 0, 0, 0, temp.oy, gdibuf, &gdibmp.header, DIB_RGB_COLORS);
-         return;
-      case DRIVER_OVR:
-         rend_text(dst, pitch);
-         return;
-      case DRIVER_BLT:
-         rend_blt_text();
-         return;
-   }
+   rend_dbl(dst, pitch);
 }
 
 void __fastcall render_scale(unsigned char *dst, unsigned pitch)
@@ -263,7 +158,7 @@ m2:   movq  mm0, [edx]
 
 void __fastcall render_bil(unsigned char *dst, unsigned pitch)
 {
-   rend_small(snbuf, MAX_WIDTH);
+   render_small(snbuf, MAX_WIDTH);
 
    unsigned char *src = snbuf;
    unsigned char l1[MAX_WIDTH*4];
@@ -312,7 +207,7 @@ void __fastcall render_tv(unsigned char *dst, unsigned pitch)
    for (unsigned i = temp.scy; i; i--) {
       *(unsigned*)line = *(unsigned*)(line+4) = WORD4(0,0x80,0,0x80);
 
-      if (conf.noflic) line16_nf(line+8, src, t.sctab16[0]);
+      if (conf.noflic) line16_nf(line+8, src, t.sctab16_nf[0]);
       else line16(line+8, src, t.sctab16[0]);
 
       src += delta;

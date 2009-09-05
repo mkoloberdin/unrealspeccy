@@ -32,6 +32,7 @@
 #define IDD_HDD                         134
 #define IDD_LABELS                      135
 #define IDD_FIR                         136
+#define IDD_FILTER_DIALOG               137
 #define IDE_FRAME                       1013
 #define IDE_LINE                        1014
 #define IDE_PAPER                       1015
@@ -288,16 +289,18 @@
 #define IDC_FRAMES                      1242
 #define IDC_FRAMES_3                    1243
 #define IDC_FRAMES_4                    1243
+#define IDC_LIST1                       1243
+#define IDC_LISTBOX                     1243
 #define IDC_FRAMES_6                    1244
 #define IDC_FRAMES_8                    1245
 
 // Next default values for new objects
-//
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        136
+#define _APS_NEXT_RESOURCE_VALUE        138
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1243
+#define _APS_NEXT_CONTROL_VALUE         1244
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

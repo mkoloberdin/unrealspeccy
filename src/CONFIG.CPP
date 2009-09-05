@@ -184,6 +184,7 @@ void load_config(char *fname)
    GetPrivateProfileString(rom, "SCORP", nil, conf.scorp_rom_path, sizeof conf.scorp_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFROM", nil, conf.prof_rom_path, sizeof conf.prof_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFI", nil, conf.profi_rom_path, sizeof conf.profi_rom_path, ininame);
+   GetPrivateProfileString(rom, "KAY", nil, conf.kay_rom_path, sizeof conf.kay_rom_path, ininame);
    #ifdef MOD_GSZ80
    GetPrivateProfileString(rom, "GS", nil, conf.gs_rom_path, sizeof conf.gs_rom_path, ininame);
    addpath(conf.gs_rom_path);
@@ -192,6 +193,7 @@ void load_config(char *fname)
    addpath(conf.scorp_rom_path);
    addpath(conf.prof_rom_path);
    addpath(conf.profi_rom_path);
+   addpath(conf.kay_rom_path);
 
    GetPrivateProfileString(rom, "ROMSET", "default", line, sizeof line, ininame);
    if (*line) load_romset(&conf, line), conf.use_romset = 1; else conf.use_romset = 0;
@@ -215,6 +217,8 @@ void load_config(char *fname)
       conf.ramsize = 128, printf("invalid RAM size for PENTAGON model\n");
    if ((conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && conf.ramsize != 256 && conf.ramsize != 1024)
       conf.ramsize = 256, printf("invalid RAM size for SCORPION model\n");
+   if (conf.mem_model == MM_KAY && conf.ramsize != 256 && conf.ramsize != 1024)
+      conf.ramsize = 256, printf("invalid RAM size for KAY model\n");
    if (conf.mem_model == MM_PROFI && conf.ramsize != 1024)
       conf.ramsize = 1024, printf("invalid RAM size for PROFI model\n");
    if (conf.mem_model == MM_ATM450 && conf.ramsize != 512 && conf.ramsize != 1024)
@@ -527,6 +531,7 @@ void apply_memory()
          char *romname = 0;
          if (conf.mem_model == MM_PROFI) romname = conf.profi_rom_path;
          if (conf.mem_model == MM_SCORP) romname = conf.scorp_rom_path;
+         if (conf.mem_model == MM_KAY) romname = conf.kay_rom_path;
          if (!romname) printf("error: ROMSET should be defined for this memory model\n"), exit();
 
          romsize = load_rom(romname, ROM_BASE_M, 64);

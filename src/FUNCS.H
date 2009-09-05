@@ -28,7 +28,6 @@ void savesnddialog();
 void load_labels(char *filename, unsigned char *base, unsigned size);
 unsigned char isbrk();
 
-void rend_double(unsigned char *dst, unsigned pitch);
 void prepare_chunks();
 void prepare_chunks32();
 
@@ -48,3 +47,6 @@ void flip();
 void spectrum_frame();
 
 void reset(ROM_MODE mode);
+
+void __fastcall render_rsm(unsigned char*, unsigned);
+void rend_dbl(unsigned char *dst, unsigned pitch);

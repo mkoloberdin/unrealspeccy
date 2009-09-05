@@ -79,6 +79,14 @@ void out(unsigned port, unsigned char val)
 
       if (!(port & 0x8000)) { // zx128 port
 
+         if ((port & 0xC003) == (0x1FFD & 0xC003) && conf.mem_model == MM_KAY) goto set1FFD;
+
+         if ((port & 0xD00F) == (0x1FFD & 0xD00F) && (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP)) {
+set1FFD:
+            comp.p1FFD = val;
+            set_banks(); return;
+         }
+
          if (port == 0x1FFD && (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP)) {
             comp.p1FFD = val;
             set_banks(); return;
@@ -169,6 +177,9 @@ __inline unsigned char in1(unsigned port)
             if ((port & 0xA044) == (0xDFBA & 0xA044)) return cmos_read(); // clock
             if ((port & 0xA044) == (0xFFBA & 0xA044)) return comp.nvram.out; // SMUC system port
             if ((port & 0xA044) == (0x7FBA & 0xA044)) return comp.p7FBA | 0x3F;
+            if ((port & 0xA044) == (0x5FBA & 0xA044)) return 0x3F;
+            if ((port & 0xA044) == (0x5FBE & 0xA044)) return 0x57;
+            if ((port & 0xA044) == (0x7FBE & 0xA044)) return 0x57;
          }
          if ((port & 0x8044) == (0xFFBE & 0x8044) && conf.ide_scheme == IDE_SMUC) {
             if (!(port & 0x2000)) return comp.ide_read;

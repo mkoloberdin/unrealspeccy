@@ -38,6 +38,23 @@ void set_banks()
          if (conf.mem_model == MM_PROFSCORP) { if (bank0==base_sys_rom /* && !(comp.p7FFD & 1)*/ ) comp.flags |= CF_PROFROM; else comp.flags &= ~CF_PROFROM; }
          break;
 
+      case MM_KAY:
+      {
+         bank += ((comp.p1FFD & 0x10) >> 1) + ((comp.p1FFD & 0x80) >> 3) + ((comp.p7FFD & 0x80) >> 2);
+         bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
+         unsigned char rom1 = (comp.p1FFD >> 2) & 2;
+         if (comp.flags & CF_TRDOS) rom1 ^= 2;
+         switch (rom1+((comp.p7FFD & 0x10) >> 4)) {
+            case 0: bank0 = base_128_rom; break;
+            case 1: bank0 = base_sos_rom; break;
+            case 2: bank0 = base_sys_rom; break;
+            case 3: bank0 = base_dos_rom; break;
+            default: __assume(0);
+         }
+         if (comp.p1FFD & 1) bank0 = RAM_BASE_M + 0*PAGE;
+         break;
+      }
+
       case MM_PROFI:
          bank += ((comp.pDFFD & 0x07) << 3); bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
          if (comp.pDFFD & 0x08) bankr[1] = bankw[1] = bank3, bank3 = RAM_BASE_M+7*PAGE;
@@ -89,10 +106,13 @@ void set_banks()
    if (bankr[2] >= ROM_BASE_M) bankw[2] = TRASH_M;
    if (bankr[3] >= ROM_BASE_M) bankw[3] = TRASH_M;
 
-   if ((comp.p7FFD & 0x10) && !(comp.flags & CF_TRDOS) &&
-         (conf.mem_model != MM_ATM710 || bankr[0] >= RAM_BASE_M+PAGE*MAX_RAM_PAGES) && // for ATM, TR-DOS not started on executing RAM 3Dxx
-         conf.trdos_present)
-      comp.flags |= CF_SETDOSROM; else comp.flags &= ~CF_SETDOSROM;
+   comp.flags &= ~CF_SETDOSROM;
+   // CF_SETDOSROM flag used to enter tr-dos on executing 3Dxx
+   if ((comp.p7FFD & 0x10) && !(comp.flags & CF_TRDOS) && conf.trdos_present) { // B-48, inactive DOS, DOS present
+      // for ATM and KAY, TR-DOS not started on executing RAM 3Dxx
+      if (!((conf.mem_model == MM_ATM710 || conf.mem_model == MM_KAY) && bankr[0] < RAM_BASE_M+PAGE*MAX_RAM_PAGES))
+         comp.flags |= CF_SETDOSROM;
+   }
 
    if (comp.flags & CF_CACHEON) {
       unsigned char *cpage = CACHE_M;
@@ -151,27 +171,27 @@ void set_mode(ROM_MODE mode)
 {
    if (mode == RM_NOCHANGE) return;
    if (mode == RM_CACHE) { comp.flags |= CF_CACHEON; set_banks(); return; }
-   // no RAM/cache
-   comp.p1FFD &= ~3;
+   // no RAM/cache/SERVICE
+   comp.p1FFD &= ~7;
    comp.pDFFD &= ~0x10;
    comp.flags &= ~CF_CACHEON;
    // comp.aFF77 |= 0x100; // enable ATM memory
    switch (mode) {
-      case RM_SOS:
-         comp.flags &= ~(CF_TRDOS | CF_SYSTEMROM);
-         comp.p7FFD |= 0x10;
-         break;
       case RM_128:
          comp.flags &= ~(CF_TRDOS | CF_SYSTEMROM);
          comp.p7FFD &= ~0x10;
          break;
-      case RM_DOS:
-         comp.flags = (comp.flags | CF_TRDOS) & ~CF_SYSTEMROM;
+      case RM_SOS:
+         comp.flags &= ~(CF_TRDOS | CF_SYSTEMROM);
          comp.p7FFD |= 0x10;
          break;
       case RM_SYS:
          comp.flags = (comp.flags | CF_TRDOS | CF_SYSTEMROM);
          comp.p7FFD &= ~0x10;
+         break;
+      case RM_DOS:
+         comp.flags = (comp.flags | CF_TRDOS) & ~CF_SYSTEMROM;
+         comp.p7FFD |=  0x10;
          break;
    }
    set_banks();

@@ -33,6 +33,7 @@ namespace z80dbg
 void reset(ROM_MODE mode)
 {
    unsigned char oldEFF7 = comp.pEFF7;
+   unsigned char oldFE = comp.pFE, oldboder = comp.border_attr;
    cpu.int_flags = cpu.ir_ = cpu.pc = 0; cpu.im = 0;
 
    memset(&comp, 0, sizeof comp);
@@ -45,6 +46,7 @@ void reset(ROM_MODE mode)
    input.atm51.reset();
 
    comp.pEFF7 = oldEFF7 & conf.EFF7_mask;
+   comp.pFE = oldFE, comp.border_attr = oldboder;
 
    if ((!conf.trdos_present && mode == RM_DOS) ||
         (!conf.cache && mode == RM_CACHE)) mode = RM_SOS;

@@ -1,12 +1,82 @@
-#define gettime(timer)              \
-   __asm rdtsc                      \
-   __asm mov dword ptr [timer], eax \
-   __asm mov dword ptr [timer+4],edx\
 
 __declspec(naked) unsigned __int64 __fastcall rdtsc()
 {
    __asm rdtsc
    __asm retn
+}
+
+void __cdecl fillCpuString(char *dst)
+{
+   __asm {
+      push esi
+      push edi
+      push ebx
+      mov esi, [dst]
+      mov edi, 80000000h
+      mov eax, edi
+      mov byte ptr [esi], al
+      mov byte ptr [esi+12], al
+      mov byte ptr [esi+48], al
+      cpuid
+      cmp eax, 80000004h
+      jb simple
+      lea eax,[edi+2]
+      cpuid
+      mov dword ptr [esi+0],eax
+      mov dword ptr [esi+4],ebx
+      mov dword ptr [esi+8],ecx
+      mov dword ptr [esi+12],edx
+      lea eax,[edi+3]
+      cpuid
+      mov dword ptr [esi+16],eax
+      mov dword ptr [esi+20],ebx
+      mov dword ptr [esi+24],ecx
+      mov dword ptr [esi+28],edx
+      lea eax,[edi+4]
+      cpuid
+      mov dword ptr [esi+32],eax
+      mov dword ptr [esi+36],ebx
+      mov dword ptr [esi+40],ecx
+      mov dword ptr [esi+44],edx
+      jmp done
+  simple:
+      xor eax,eax
+      cpuid
+      mov dword ptr [esi+0],ebx
+      mov dword ptr [esi+4],ecx
+      mov dword ptr [esi+8],edx
+  done:
+      pop ebx
+      pop edi
+      pop esi
+   }
+}
+
+unsigned cpuid(unsigned _eax, int ext)
+{
+   __asm {
+      push ebx
+      mov eax, _eax
+      cpuid
+      pop ebx
+      cmp [ext],0
+      jz noext
+      mov eax, edx
+   noext:
+      mov _eax, eax
+   }
+   return _eax;
+}
+
+void trim(char *dst)
+{
+   unsigned i = strlen(dst);
+   // trim right spaces
+   while (i && (!dst[i-1] || dst[i-1] == ' ')) i--;
+   dst[i] = 0;
+   // trim left spaces
+   for (i = 0; dst[i] == ' '; i++);
+   strcpy(dst, dst+i);
 }
 
 
@@ -96,3 +166,18 @@ bool wcmatch(char *string, char *wc)
       if (tolower(*string) != tolower(*wc)) return 0;
    }
 }
+
+void dump1(BYTE *p, unsigned sz)
+{
+   while (sz) {
+      printf("\t");
+      unsigned chunk = (sz > 16)? 16 : sz;
+      for (unsigned i = 0; i < chunk; i++) printf("%02X ", p[i]);
+      for (; i < 16; i++) printf("   ");
+      for (i = 0; i < chunk; i++) printf("%c", (p[i] < 0x20)? '.' : p[i]);
+      printf("\n");
+      sz -= chunk, p += chunk;
+   }
+   printf("\n");
+}
+

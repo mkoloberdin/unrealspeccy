@@ -144,11 +144,11 @@ void alloc_infocell()
    appendable = 0;
 }
 
-void named_cell(void *nm, unsigned sz = 0)
+void named_cell(const void *nm, unsigned sz = 0)
 {
    alloc_infocell();
    if (sz) memcpy(tapeinfo[tape_infosize].desc, nm, sz), tapeinfo[tape_infosize].desc[sz] = 0;
-   else strcpy(tapeinfo[tape_infosize].desc, (char*)nm);
+   else strcpy(tapeinfo[tape_infosize].desc, (const char*)nm);
    tape_infosize++;
 }
 

@@ -161,7 +161,11 @@ enum IDE_SCHEME { IDE_NONE = 0, IDE_ATM, IDE_NEMO, IDE_NEMO_A8, IDE_SMUC };
 enum MEM_MODEL
 {
    MM_PENTAGON = 0, MM_MYPENT,
-   MM_SCORP, MM_PROFSCORP, MM_PROFI, MM_ATM450, MM_ATM710,
+   MM_SCORP, MM_PROFSCORP,
+   MM_PROFI,
+   MM_ATM450, MM_ATM710,
+   MM_KAY,
+
    N_MM_MODELS
 };
 
@@ -178,7 +182,8 @@ struct
                 { "ZS SCORPION + PROF ROM", "PROFSCORP" },
                 { "PROFI", "PROFI" },
                 { "ATM 4.50 (himem only)", "ATM450" },
-                { "ATM-TURBO 2+ v7.10", "ATM710" }
+                { "ATM-TURBO 2+ v7.10", "ATM710" },
+                { "Nemo's KAY", "KAY" }
 };
 
 typedef void (__fastcall *VOID_FUNC)(void);
@@ -307,6 +312,7 @@ struct CONFIG
    char scorp_rom_path[0x200];
    char prof_rom_path[0x200];
    char profi_rom_path[0x200];
+   char kay_rom_path[0x200];
 
    #ifdef MOD_GSZ80
    char gs_rom_path[0x200];
@@ -568,30 +574,32 @@ struct action {
 
 // flags for video filters
                                 // misc options
-#define RF_DBL     0x00000001   // double size for border
-#define RF_BORDER  0x00000002   // no multicolor painter, read directly from spectrum memory
-#define RF_MON     0x00000004   // not-flippable surface, show mouse cursor
-#define RF_DRIVER  0x00000008   // use options from driver
-#define RF_VSYNC   0x00000010   // force VSYNC
-#define RF_GDI     0x00000020   // output to window
-#define RF_CLIP    0x00000040   // use DirectDraw clipper for windowed mode
-#define RF_OVR     0x00000080   // output to overlay
+#define RF_DBL      0x00000001   // double size for border
+#define RF_BORDER   0x00000002   // no multicolor painter, read directly from spectrum memory
+#define RF_MON      0x00000004   // not-flippable surface, show mouse cursor
+#define RF_DRIVER   0x00000008   // use options from driver
+//#define RF_VSYNC    0x00000010   // force VSYNC
+#define RF_GDI      0x00000020   // output to window
+#define RF_CLIP     0x00000040   // use DirectDraw clipper for windowed mode
+#define RF_OVR      0x00000080   // output to overlay
 
                                 // main area size
-#define RF_256     0x00000000   // 256x192 (default)
-#define RF_384     0x00000100   // 384x300
-#define RF_512     0x00000200   // 512x384
-#define RF_64x48   0x00000400   // 64x48  (for chunky 4x4)
-#define RF_128x96  0x00000800   // 128x96 (for chunky 2x2)
-#define RF_8       0x00000000   // 8 bit (default)
-#define RF_YUY2    0x00002000   // pixel format: 16bit, YUY2
-#define RF_16      0x00004000   // hicolor mode (RGB555/RGB565)
-#define RF_32      0x00008000   // true color
+#define RF_256      0x00000000   // 256x192 (default)
+#define RF_384      0x00000100   // 384x300
+#define RF_512      0x00000200   // 512x384
+#define RF_64x48    0x00000400   // 64x48  (for chunky 4x4)
+#define RF_128x96   0x00000800   // 128x96 (for chunky 2x2)
+#define RF_8        0x00000000   // 8 bit (default)
+#define RF_8BPCH    0x00001000   // 8-bit per color channel. GDI mode => 32-bit surface. 8-bit mode => grayscale palette
+#define RF_YUY2     0x00002000   // pixel format: 16bit, YUY2
+#define RF_16       0x00004000   // hicolor mode (RGB555/RGB565)
+#define RF_32       0x00008000   // true color
 
-#define RF_USEC32  0x00010000  // use c32tab
-#define RF_USE32AS16 0x020000  // c32tab contain hi-color WORDS
-#define RF_USEFONT 0x00040000  // use font_tables
-#define RF_PALB    0x00080000  // palette for bilinear filter
-#define RF_ATMPAL  0x00100000  // use palette from ATM palette registers
+#define RF_USEC32   0x00010000  // use c32tab
+#define RF_USE32AS16 0x0020000  // c32tab contain hi-color WORDS
+#define RF_USEFONT  0x00040000  // use font_tables
+#define RF_PALB     0x00080000  // palette for bilinear filter
+#define RF_ATMPAL   0x00100000  // use palette from ATM palette registers
+#define RF_GRAY     0x00200000  // grayscale palette
 
 #define RF_MONITOR (RF_MON | RF_GDI | RF_512)

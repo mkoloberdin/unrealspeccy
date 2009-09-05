@@ -57,6 +57,7 @@ char *MemDlg_get_bigrom()
    if (c1.mem_model == MM_PROFI) return c1.profi_rom_path;
    if (c1.mem_model == MM_SCORP) return c1.scorp_rom_path;
    if (c1.mem_model == MM_PROFSCORP) return c1.prof_rom_path;
+   if (c1.mem_model == MM_KAY) return c1.kay_rom_path;
    return 0;
 }
 
@@ -97,7 +98,7 @@ void change_rombank(int dx, int reload)
    if (!sz || (sz & 0xFFFF)) { err: MessageBox(dlg, "Invalid ROM size", "error", MB_ICONERROR | MB_OK); return; }
    sz /= 1024;
 
-   if ((c1.mem_model == MM_SCORP || c1.mem_model == MM_PROFI) && sz != 64) goto err;
+   if ((c1.mem_model == MM_SCORP || c1.mem_model == MM_PROFI || c1.mem_model == MM_KAY) && sz != 64) goto err;
    if (c1.mem_model == MM_ATM710 && sz != 64 && sz != 128 && sz != 256 && sz != 512 && sz != 1024) goto err;
    if (c1.mem_model == MM_PROFSCORP && sz != 128 && sz != 256 && sz != 512 && sz != 1024) goto err;
 
@@ -140,7 +141,7 @@ void MemDlg_set_visible()
 void mem_set_sizes()
 {
    unsigned mems = 15, best = 0, ok = 1; // pentagon, atm7.10
-   if (c1.mem_model == MM_SCORP || c1.mem_model == MM_PROFSCORP) mems = 10, best = 1;
+   if (c1.mem_model == MM_SCORP || c1.mem_model == MM_PROFSCORP || c1.mem_model == MM_KAY) mems = 10, best = 1;
    if (c1.mem_model == MM_PROFI) mems = 8, best = 4;
    if (c1.mem_model == MM_ATM450) mems = 12, best = 4;
 
@@ -383,11 +384,12 @@ void HddDlg_show_info(int device)
    if (!*c1.ide[device].image) readonly = 1;
    if (*c1.ide[device].image == '<') {
       unsigned drive = find_hdd_device(c1.ide[device].image);
-      if (drive < MAX_PHYS_DRIVES) {
-         c = ((unsigned short*)hdd_id[drive])[1];
-         h = ((unsigned short*)hdd_id[drive])[3];
-         s = ((unsigned short*)hdd_id[drive])[6];
-         l = hdd_size[drive];
+      if (drive < MAX_PHYS_HD_DRIVES + MAX_PHYS_CD_DRIVES) {
+         c = ((unsigned short*)phys.hdd_id[drive])[1];
+         h = ((unsigned short*)phys.hdd_id[drive])[3];
+         s = ((unsigned short*)phys.hdd_id[drive])[6];
+         l = *(unsigned*)(phys.hdd_id[drive]+0x78);
+         if (!l) l = c*h*s;
          readonly = 1;
       }
    }
@@ -409,28 +411,39 @@ void HddDlg_select_image(int device)
    HMENU selmenu = CreatePopupMenu();
    AppendMenu(selmenu, MF_STRING, 1, "Select image file...");
    AppendMenu(selmenu, MF_STRING, 2, "Remove device");
-   char max = 0; char textbuf[512];
-   for (int drive = 0; drive < MAX_PHYS_DRIVES; drive++) {
-      if (!hdd_size[drive]) continue;
+   int max, drive; char textbuf[512];
+   for (max = drive = 0; drive < MAX_PHYS_HD_DRIVES; drive++) {
+      if (!phys.hdd_size[drive]) continue;
       print_device_name(textbuf, drive);
-      sprintf(textbuf + strlen(textbuf), ", %d Mb", hdd_size[drive] / (2*1024));
+      sprintf(textbuf + strlen(textbuf), ", %d Mb", phys.hdd_size[drive] / (2*1024));
       if (!max) AppendMenu(selmenu, MF_SEPARATOR, 0, 0);
       max++, AppendMenu(selmenu, MF_STRING, drive+8, textbuf);
    }
+   for (max = 0; drive < MAX_PHYS_HD_DRIVES+MAX_PHYS_CD_DRIVES; drive++) {
+      if (!phys.hdd_id[drive][0]) continue;
+      print_device_name(textbuf, drive);
+      if (!max) AppendMenu(selmenu, MF_SEPARATOR, 0, 0);
+      max++, AppendMenu(selmenu, MF_STRING, drive+8, textbuf);
+   }
+
    RECT rc; GetWindowRect(GetDlgItem(dlg, device? IDB_HDD1 : IDB_HDD0), &rc);
    int code = TrackPopupMenu(selmenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, rc.left, rc.bottom, 0, dlg, 0);
    DestroyMenu(selmenu);
    if (!code) return;
-   if (code == 2) {
+
+   if (code == 2) { // remove
       *c1.ide[device].image = 0;
       HddDlg_show_info(device);
       return;
    }
-   if (code >= 8) {
+
+   if (code >= 8) { // physical device
       print_device_name(c1.ide[device].image, code-8);
       HddDlg_show_info(device);
       return;
    }
+
+   // open HDD image
    OPENFILENAME fn = { sizeof OPENFILENAME };
    strcpy(textbuf, c1.ide[device].image);
    if (textbuf[0] == '<') *textbuf = 0;
@@ -677,7 +690,10 @@ BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       if ((id == IDC_NOFLIC || id == IDC_FAST_SL) && code == BN_CLICKED) goto filter_changed;
       if (code == CBN_SELCHANGE && id == IDC_VIDEOFILTER) {
    filter_changed:
-         DWORD f = renders[SendDlgItemMessage(dlg, IDC_VIDEOFILTER, CB_GETCURSEL, 0, 0)].flags;
+         unsigned filt_n = SendDlgItemMessage(dlg, IDC_VIDEOFILTER, CB_GETCURSEL, 0, 0);
+         DWORD f = renders[filt_n].flags;
+         RENDER_FUNC rend = renders[filt_n].func;
+
          DWORD sh = (f & (RF_USE32AS16 | RF_USEC32)) ? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_CH_TITLE), sh);
          ShowWindow(GetDlgItem(dlg, IDC_CH2), sh);
@@ -688,21 +704,30 @@ BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          ShowWindow(GetDlgItem(dlg, IDC_B0), sh);
          ShowWindow(GetDlgItem(dlg, IDC_B1), sh);
          ShowWindow(GetDlgItem(dlg, IDC_B2), sh);
+
          sh = (f & RF_BORDER)? SW_HIDE : SW_SHOW;
          ShowWindow(GetDlgItem(dlg, IDC_FLASH), sh);
-         sh = (!(f & RF_DRIVER) || (f & (RF_USEFONT | RF_PALB | RF_BORDER)))? SW_HIDE : SW_SHOW;
+
+         sh = (f & RF_DRIVER)? SW_SHOW : SW_HIDE;
+         if (rend == render_tv) sh = SW_SHOW;
+         if (rend == render_text || rend == render_rsm) sh = SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_NOFLIC), sh);
+
          if (!(f & RF_512) || getcheck(IDC_FAST_SL) || !getcheck(IDC_NOFLIC)) sh = SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_ALT_NOFLIC), sh);
+
          sh = (f & (RF_USEFONT)) ? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_FNTTITLE), sh);
          ShowWindow(GetDlgItem(dlg, IDC_FONTHEIGHT), sh);
          ShowWindow(GetDlgItem(dlg, IDC_FONT), sh);
+
          sh = (f & RF_DRIVER)? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_REND_TITLE), sh);
          ShowWindow(GetDlgItem(dlg, IDC_RENDER), sh);
-         sh = (f & RF_VSYNC)? SW_SHOW : SW_HIDE;
+
+         sh = (rend == render_rsm)? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_FIR), sh);
+
          sh = (f & RF_512) && (f & (RF_DRIVER | RF_USEC32))? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_FAST_SL), sh);
       }
@@ -1282,9 +1307,10 @@ void setup_dlg()
    c1 = conf;
    PropertySheet(&psh);
 
-   if (dlgok) conf = c1, needrestart++;
+   if (dlgok) conf = c1;
    eat();
    SendMessage(wnd, WM_SETFOCUS, (WPARAM)wnd, 0); // show cursor for 'kempston on mouse'
+   applyconfig();
    sound_play();
 }
 

@@ -21,7 +21,7 @@ void rend_atm(unsigned char *dst, unsigned pitch)
          rend_atm2(dst, pitch);
          break;
       case 3:
-         rend_double(dst, pitch);
+         rend_dbl(dst, pitch);
          break;
       case 6:
          rend_atm6(dst, pitch);
