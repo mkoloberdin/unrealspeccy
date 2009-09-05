@@ -1,6 +1,7 @@
 #include "std.h"
 #pragma hdrstop
 
+#define USE_SND_EXTERNAL_BUFFER
 #include "mods.h"
 
 #include "9x.h"
@@ -24,6 +25,8 @@
 #include "wd93trk.cpp"
 #include "wd93dat.cpp"
 #include "wd93cmd.cpp"
+#include "hddaspi.cpp"
+#include "hddio.cpp"
 #include "hdd.cpp"
 #include "input.cpp"
 #include "modem.cpp"

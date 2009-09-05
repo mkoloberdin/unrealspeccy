@@ -338,7 +338,7 @@ BOOL CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       c1.border_4T = getcheck(IDC_4TBORDER);
       c1.floatbus = getcheck(IDC_FLOAT_BUS);
       c1.floatdos = getcheck(IDC_FLOAT_DOS);
-      if (c1.mem_model == MM_ATM710) {
+      if (c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM450) {
          c1.atm.mem_swap = getcheck(IDC_ATM_SWAP);
          c1.atm.use_pal = getcheck(IDC_ATMPAL);
       }
@@ -358,10 +358,11 @@ refresh:
       setcheck(IDC_FLOAT_BUS, c1.floatbus);
       setcheck(IDC_FLOAT_DOS, c1.floatdos);
 
-      EnableWindow(GetDlgItem(dlg, IDC_ATM_SWAP), (c1.mem_model == MM_ATM710));
-      EnableWindow(GetDlgItem(dlg, IDC_ATMPAL), (c1.mem_model == MM_ATM710));
-      setcheck(IDC_ATM_SWAP, (c1.mem_model == MM_ATM710)? c1.atm.mem_swap : 0);
-      setcheck(IDC_ATMPAL, (c1.mem_model == MM_ATM710)? c1.atm.use_pal : 0);
+      unsigned en =  (c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM450);
+      EnableWindow(GetDlgItem(dlg, IDC_ATM_SWAP), en);
+      EnableWindow(GetDlgItem(dlg, IDC_ATMPAL), en);
+      setcheck(IDC_ATM_SWAP, en? c1.atm.mem_swap : 0);
+      setcheck(IDC_ATMPAL, en? c1.atm.use_pal : 0);
 
       block=0;
       lastpage = "ULA";
@@ -394,10 +395,10 @@ void HddDlg_show_info(int device)
    if (*c1.ide[device].image == '<') {
       unsigned drive = find_hdd_device(c1.ide[device].image);
       if (drive < MAX_PHYS_HD_DRIVES + MAX_PHYS_CD_DRIVES) {
-         c = ((unsigned short*)phys.hdd_id[drive])[1];
-         h = ((unsigned short*)phys.hdd_id[drive])[3];
-         s = ((unsigned short*)phys.hdd_id[drive])[6];
-         l = *(unsigned*)(phys.hdd_id[drive]+0x78);
+         c = ((unsigned short*)phys[drive].idsector)[1];
+         h = ((unsigned short*)phys[drive].idsector)[3];
+         s = ((unsigned short*)phys[drive].idsector)[6];
+         l = *(unsigned*)(phys[drive].idsector+0x78);
          if (!l) l = c*h*s;
          readonly = 1;
       }
@@ -421,16 +422,19 @@ void HddDlg_select_image(int device)
    AppendMenu(selmenu, MF_STRING, 1, "Select image file...");
    AppendMenu(selmenu, MF_STRING, 2, "Remove device");
    int max, drive; char textbuf[512];
-   for (max = drive = 0; drive < MAX_PHYS_HD_DRIVES; drive++) {
-      if (!phys.hdd_size[drive]) continue;
-      print_device_name(textbuf, drive);
-      sprintf(textbuf + strlen(textbuf), ", %d Mb", phys.hdd_size[drive] / (2*1024));
-      if (!max) AppendMenu(selmenu, MF_SEPARATOR, 0, 0);
-      max++, AppendMenu(selmenu, MF_STRING, drive+8, textbuf);
-   }
-   for (max = 0; drive < MAX_PHYS_HD_DRIVES+MAX_PHYS_CD_DRIVES; drive++) {
-      if (!phys.hdd_id[drive][0]) continue;
-      print_device_name(textbuf, drive);
+   for (max = drive = 0; drive < n_phys; drive++) {
+
+      if (phys[drive].type == ATA_NTHDD)
+         sprintf(textbuf, "HDD %d: %s, %d Mb", phys[drive].spti_id, phys[drive].viewname, phys[drive].hdd_size / (2*1024));
+
+      else if (phys[drive].type == ATA_SPTI_CD)
+         sprintf(textbuf, "CD-ROM %d: %s", phys[drive].spti_id, phys[drive].viewname);
+
+      else if (phys[drive].type == ATA_ASPI_CD)
+         sprintf(textbuf, "CD-ROM %d.%d: %s", phys[drive].adapterid, phys[drive].targetid, phys[drive].viewname);
+
+      else continue;
+
       if (!max) AppendMenu(selmenu, MF_SEPARATOR, 0, 0);
       max++, AppendMenu(selmenu, MF_STRING, drive+8, textbuf);
    }
@@ -447,7 +451,7 @@ void HddDlg_select_image(int device)
    }
 
    if (code >= 8) { // physical device
-      print_device_name(c1.ide[device].image, code-8);
+      strcpy(c1.ide[device].image, phys[code-8].viewname);
       HddDlg_show_info(device);
       return;
    }
@@ -589,11 +593,11 @@ BOOL CALLBACK ChipDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       unsigned i; HWND aybox;
 
       aybox = GetDlgItem(dlg, IDC_CHIP_BUS);
-      for (i = 0; i < AY::CHIP_MAX; i++)
-         SendMessage(aybox, CB_ADDSTRING, 0, (LPARAM)ay_chips[i]);
+      for (i = 0; i < SNDCHIP::CHIP_MAX; i++)
+         SendMessage(aybox, CB_ADDSTRING, 0, (LPARAM)SNDCHIP::get_chipname((SNDCHIP::CHIP_TYPE)i));
 
       aybox = GetDlgItem(dlg, IDC_CHIP_SCHEME);
-      for (i = 0; i < AY::SCHEME_MAX; i++)
+      for (i = 0; i < AY_SCHEME_MAX; i++)
          SendMessage(aybox, CB_ADDSTRING, 0, (LPARAM)ay_schemes[i]);
 
       aybox = GetDlgItem(dlg, IDC_CHIP_VOL);

@@ -62,6 +62,20 @@ CACHE_ALIGNED struct {
       unsigned p4bpp16_nf[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
       unsigned p4bpp32_nf[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
    };
+   CACHE_ALIGNED union {
+      struct {
+         unsigned zctab8[2][16*0x100];  // 4 bits data+zx-attribute -> 4 palette pixels
+         unsigned zctab8ad[2][4*0x100]; // 2 bits data+zx-attribute -> 2 palette pixels (doubled)
+      };
+      struct {
+         unsigned zctab16[2][4*0x100];  // 2 bits data+pc-attribute -> 2 pixels
+         unsigned zctab16ad[2][2*0x100];// 1 bits data+pc-attribute -> 1 pixel (doubled)
+      };
+      struct {
+         unsigned zctab32[2][2*0x100];  // 1 bit  data+pc-attribute -> 1 pixel
+         unsigned zctab32ad[2][2*0x100];// 1 bit  data+pc-attribute -> 1 pixel
+      };
+   };
 
    union {
       struct {
@@ -71,20 +85,6 @@ CACHE_ALIGNED struct {
       unsigned bs2h[96][129];      // temp buffer for chunks 2x2 flt
       unsigned bs4h[48][65];       // temp buffer for chunks 4x4 flt
       unsigned font_tables[MAX_FONT_TABLES / sizeof(unsigned)]; // for anti-text64
-      union {
-         struct {
-            unsigned zctab8[2][16*0x100];  // 4 bits data+zx-attribute -> 4 palette pixels
-            unsigned zctab8ad[2][4*0x100]; // 2 bits data+zx-attribute -> 2 palette pixels (doubled)
-         };
-         struct {
-            unsigned zctab16[2][4*0x100];  // 2 bits data+pc-attribute -> 2 pixels
-            unsigned zctab16ad[2][2*0x100];// 1 bits data+pc-attribute -> 1 pixel (doubled)
-         };
-         struct {
-            unsigned zctab32[2][2*0x100];  // 1 bit  data+pc-attribute -> 1 pixel
-            unsigned zctab32ad[2][2*0x100];// 1 bit  data+pc-attribute -> 1 pixel
-         };
-      };
    };
    // pre-calculated
    unsigned settab[0x100];         // for chunks 4x4

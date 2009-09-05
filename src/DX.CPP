@@ -340,7 +340,7 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
          unsigned xx = LOWORD(lparam)*3/(rc.right - rc.left);
          unsigned yy = HIWORD(lparam)*3/(rc.bottom - rc.top);
          unsigned nn = yy*3 + xx;
-         SetCursor(crs[nn]);
+         SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG)crs[nn]);
          input.mousejoy = (input.mousejoy & 0x10) | mousedirs[nn];
          input.kjoy = (input.kjoy & 0x10) | mousedirs[nn];
          return 0;

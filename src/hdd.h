@@ -1,7 +1,6 @@
 
 struct ATA_DEVICE
 {
-   HANDLE hDevice;
    unsigned c,h,s,lba;
    union {
       unsigned char regs[12];
@@ -104,20 +103,14 @@ struct ATA_DEVICE
    HD_STATE state;
    unsigned transptr, transcount;
    unsigned phys_dev;
+   unsigned char transbf[0xFFFF]; // ATAPI is able to tranfer 0xFFFF bytes. passing more leads to error
 
-   CDB cdb;
-   unsigned passed_length;
-
-   int pass_through(void *buf2, int bufsize);
-   int read_atapi_id();
    void handle_atapi_packet();
    void exec_mode_select();
 
-   unsigned char sense[0x40]; unsigned senselen;
-   unsigned char transbf[0xFFFF]; // ATAPI is able to tranfer 0xFFFF bytes. passing more leads to error
-
-   ATA_DEVICE() { hDevice = INVALID_HANDLE_VALUE; }
-   ~ATA_DEVICE() { if (hDevice != INVALID_HANDLE_VALUE) CloseHandle(hDevice); }
+   ATA_PASSER ata_p;
+   ATAPI_PASSER atapi_p;
+   bool loaded() { return ata_p.loaded() || atapi_p.loaded(); }
 };
 
 struct ATA_PORT

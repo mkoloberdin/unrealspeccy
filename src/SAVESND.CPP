@@ -125,7 +125,7 @@ BOOL CALLBACK VtxDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       static char chips[] = "ABC AY\0ABC YM\0ACB AY\0ACB YM\0MONO AY\0MONO YM\0";
       for (char *str = chips; *str; str += strlen(str)+1)
          SendDlgItemMessage(dlg, IDC_VTXCHIP, CB_ADDSTRING, 0, (LPARAM)str);
-      unsigned c = ((voltab[8] == voltab[9])?0:1) /* + (conf.ay_preset>2?0:conf.ay_preset*2) */;
+      unsigned c = ((conf.sound.ay_voltab[8] == conf.sound.ay_voltab[9])?0:1) /* + (conf.ay_preset>2?0:conf.ay_preset*2) */;
       SendDlgItemMessage(dlg, IDC_VTXCHIP, CB_SETCURSEL, c, 0);
       SetFocus(GetDlgItem(dlg, IDE_VTXNAME));
       return 1;

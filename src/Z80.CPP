@@ -41,8 +41,8 @@ void reset(ROM_MODE mode)
 
    cpu.reset();
    reset_tape();
-   comp.ay[0].reset();
-   comp.ay[1].reset();
+   ay[0].reset();
+   ay[1].reset();
 
    #ifdef MOD_GS
    if (conf.sound.gsreset) reset_gs();

@@ -1,10 +1,15 @@
 
+void GSHLE::set_busy(unsigned char newval)
+{
+   busy = chan[0].busy = chan[1].busy = chan[2].busy = chan[3].busy = newval;
+}
+
 void GSHLE::reset()
 {
    fxvol = modvol = 0x3F;
    make_gs_volume(fxvol);
    to_ptr = data_in; mod_playing = 0;
-   used = 0; mod = 0; modsize = 0; busy = 0;
+   used = 0; mod = 0; modsize = 0; set_busy(0);
    resetmod(); total_fx = 1;
    memset(sample, 0, sizeof sample);
    memset(chan,  0, sizeof chan);
@@ -14,9 +19,9 @@ void GSHLE::reset()
 void GSHLE::applyconfig()
 {
    double period = 6848, mx = 0.943874312682; // mx=1/root(2,12)
-   double tmp = temp.snd_frame_ticks*conf.intfq/(7093789.0/2);
+   double basefq = 7093789.0/2;
    for (int i = 0; i < 96; i++, period *= mx)
-      note2rate[i] = (unsigned)(tmp*period);
+      note2rate[i] = (unsigned)(basefq/period);
    for (; i < 0x100; i++) note2rate[i] = note2rate[i-1];
    if (hBass) setmodvol(modvol);
 }
@@ -68,9 +73,9 @@ void GSHLE::out(unsigned char port, unsigned char byte)
          reset_gs();
          break;
       case 0xF5:
-         busy = 1; break;
+         set_busy(1); break;
       case 0xF6:
-         busy = 0; break;
+         set_busy(0); break;
       case 0x20: // get total memory
          *(unsigned*)gstmp = 32768*15-16384;
          resmode = 2; gsstat = 0xFE;
@@ -105,7 +110,7 @@ void GSHLE::out(unsigned char port, unsigned char byte)
          *gstmp = 1; load_stream = 1;
          break;
       case 0x31: // play MOD
-         restart_mod(0);
+         restart_mod(0,0);
          break;
       case 0x32: // stop MOD
          mod_playing = 0;
@@ -167,7 +172,7 @@ void GSHLE::out(unsigned char port, unsigned char byte)
         resmode = 3; gsstat = 0xFE;
         break;
      case 0x65: // jmp to pos
-        restart_mod(*data_in);
+        restart_mod(*data_in,0);
         break;
      case 0x80: // direct play 1
      case 0x81:
@@ -237,36 +242,24 @@ void GSHLE::start_fx(unsigned fx, unsigned ch, unsigned char vol, unsigned char 
    chan[ch].loop = sample[fx].loop;
    chan[ch].end = sample[fx].end;
    chan[ch].ptr = 0;
-   chan[ch].delta = note2rate[note];
+   chan[ch].freq = note2rate[note];
+   // ch0,1 - left, ch2,3 - right
+   startfx(&chan[ch], (ch & 2)? 100 : -100);
 }
 
-void GSHLE::mixchannel(CHANNEL *ch, unsigned left_ch)
+DWORD CALLBACK gs_render(HSTREAM handle, void *buffer, DWORD length, DWORD user)
 {
-   unsigned vol = ch->volume; vol = (vol < 0x40)? gs_vfx[vol] : gs_vfx[0x3F];
-   if (!busy && ch->start) {
-      unsigned sample_pos = 0;
-      while (sample_pos < temp.snd_frame_ticks) {
-         unsigned val = ch->start[ch->ptr++] * vol / 0x100;
-         if (ch->ptr >= ch->end) {
-            if (ch->end < ch->loop) { ch->start = 0; goto silence; }
-            else ch->ptr = ch->loop;
-         }
-         ch->sound_state.mix_l = val & left_ch, ch->sound_state.mix_r = val & ~left_ch;
-         sample_pos = min(sample_pos + ch->delta, temp.snd_frame_ticks);
-         ch->sound_state.flush(sample_pos);
+   GSHLE::CHANNEL *ch = (GSHLE::CHANNEL*)user;
+
+   if (!ch->start) return BASS_STREAMPROC_END;
+   if (ch->busy) { memset(buffer, 0, length); return length; }
+   unsigned sample_pos = 0;
+   for (unsigned i = 0; i < length; i++) {
+      ((BYTE*)buffer)[i] = ch->start[ch->ptr++];
+      if (ch->ptr >= ch->end) {
+         if (ch->end < ch->loop) { ch->start = 0; return i + BASS_STREAMPROC_END; }
+         else ch->ptr = ch->loop;
       }
-   } else { // mix_silence(0x7F);
-silence:
-      ch->sound_state.mix_l = (vol/2) & left_ch, ch->sound_state.mix_r = (vol/2) & ~left_ch;
-      ch->sound_state.flush(temp.snd_frame_ticks);
    }
-}
-
-void GSHLE::mix_fx()
-{
-   if (temp.sndblock) return;
-   mixchannel(&chan[0], -1);
-   mixchannel(&chan[1], -1);
-   mixchannel(&chan[2], 0);
-   mixchannel(&chan[3], 0);
+   return length;
 }

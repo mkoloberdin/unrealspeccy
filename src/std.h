@@ -38,6 +38,3 @@
 
 #define CACHE_LINE 64
 #define CACHE_ALIGNED __declspec(align(CACHE_LINE))
-
-#define INLINE __forceinline
-#define Z80INLINE __forceinline // time-critical inlines

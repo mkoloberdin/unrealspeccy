@@ -1,77 +1,10 @@
 
-#define MAX_PHYS_HD_DRIVES 8
-#define MAX_PHYS_CD_DRIVES 8
-struct {
-   unsigned char hdd_id[MAX_PHYS_HD_DRIVES+MAX_PHYS_CD_DRIVES][512];
-   unsigned hdd_size[MAX_PHYS_HD_DRIVES];
-} phys;
+const MAX_DEVICES = MAX_PHYS_HD_DRIVES+2*MAX_PHYS_CD_DRIVES;
 
-// #define DUMP_HDD_IO
+PHYS_DEVICE phys[MAX_DEVICES];
+int n_phys = 0;
 
-void swap_bytes(char *dst, BYTE *src, unsigned n_words)
-{
-   for (unsigned i = 0; i < n_words; i++) {
-      char c1 = src[2*i], c2 = src[2*i+1];
-      dst[2*i] = c2, dst[2*i+1] = c1;
-   }
-   dst[2*i] = 0; trim(dst);
-}
-
-void delstr_spaces(char *dst, char *src)
-{
-   for (; *src; src++)
-      if (*src != ' ') *dst++ = *src;
-   *dst = 0;
-}
-
-void make_ata_string(unsigned char *dst, unsigned n_words, char *src)
-{
-   for (unsigned i = 0; i < n_words*2 && src[i]; i++) dst[i] = src[i];
-   while (i < n_words*2) dst[i++] = ' ';
-   unsigned char tmp;
-   for (i = 0; i < n_words*2; i += 2)
-      tmp = dst[i], dst[i] = dst[i+1], dst[i+1] = tmp;
-}
-
-int ATA_DEVICE::pass_through(void *databuf, int bufsize)
-{
-   memset(databuf, 0, bufsize);
-
-   struct {
-      SCSI_PASS_THROUGH_DIRECT p;
-      unsigned char sense[0x40];
-   } srb = { 0 }, dst;
-
-   srb.p.Length = sizeof(SCSI_PASS_THROUGH_DIRECT);
-   *(CDB*)&srb.p.Cdb = cdb;
-   srb.p.CdbLength = sizeof(CDB);
-   srb.p.DataIn = SCSI_IOCTL_DATA_IN;
-   srb.p.TimeOutValue = 10;
-   srb.p.DataBuffer = databuf;
-   srb.p.DataTransferLength = bufsize;
-   srb.p.SenseInfoLength = sizeof(srb.sense);
-   srb.p.SenseInfoOffset = sizeof(SCSI_PASS_THROUGH_DIRECT);
-
-   DWORD outsize;
-   int r = DeviceIoControl(hDevice, IOCTL_SCSI_PASS_THROUGH_DIRECT,
-                           &srb.p, sizeof(srb.p),
-                           &dst, sizeof(dst),
-                           &outsize, 0);
-
-   if (!r) return 0;
-
-   passed_length = dst.p.DataTransferLength;
-   if (senselen = dst.p.SenseInfoLength) memcpy(sense, dst.sense, senselen);
-
-#ifdef DUMP_HDD_IO
-printf("sense=%d, data=%d, srbsz=%d/%d, dir=%d\n", senselen, passed_length, outsize, sizeof(srb.p), dst.p.DataIn);
-printf("srb:"); dump1((BYTE*)&dst, outsize);
-printf("data:"); dump1((BYTE*)databuf, 0x40);
-#endif
-
-   return 1;
-}
-
+/*
 // this function is untested
 void ATA_DEVICE::exec_mode_select()
 {
@@ -103,140 +36,32 @@ void ATA_DEVICE::exec_mode_select()
    if (senselen = dst.p.SenseInfoLength) memcpy(sense, dst.sense, senselen);
    return;
 }
-
-
-int ATA_DEVICE::read_atapi_id()
-{
-   memset(&cdb, 0, sizeof(CDB));
-   memset(&transbf, 0, sizeof(transbf));
-
-   INQUIRYDATA inq;
-   cdb.CDB6INQUIRY.OperationCode = 0x12; // INQUIRY
-   cdb.CDB6INQUIRY.AllocationLength = sizeof(inq);
-   if (!pass_through(&inq, sizeof(inq))) return 0;
-
-   char vendor[10], product[18], revision[6], id[22], ata_name[26];
-
-   memcpy(vendor, inq.VendorId, sizeof(inq.VendorId)); vendor[sizeof(inq.VendorId)] = 0;
-   memcpy(product, inq.ProductId, sizeof(inq.ProductId)); product[sizeof(inq.ProductId)] = 0;
-   memcpy(revision, inq.ProductRevisionLevel, sizeof(inq.ProductRevisionLevel)); revision[sizeof(inq.ProductRevisionLevel)] = 0;
-   memcpy(id, inq.VendorSpecific, sizeof(inq.VendorSpecific)); id[sizeof(inq.VendorSpecific)] = 0;
-
-   trim(vendor); trim(product); trim(revision); trim(id);
-   sprintf(ata_name, "%s %s", vendor, product);
-
-   transbf[0] = 0xC0; // removable, accelerated DRQ, 12-byte packet
-   transbf[1] = 0x85; // protocol: ATAPI, device type: CD-ROM
-
-   make_ata_string(transbf+54, 20, ata_name);
-   make_ata_string(transbf+20, 10, id);
-   make_ata_string(transbf+46,  4, revision);
-
-   transbf[0x63] = 0x0B; // caps: IORDY,LBA,DMA
-   transbf[0x67] = 4; // PIO timing
-   transbf[0x69] = 2; // DMA timing
-
-   color(CONSCLR_HARDINFO);
-   printf("%-40s %-20s  ", ata_name, id);
-   color(CONSCLR_HARDITEM);
-   printf("rev.%-4s\n", revision);
-   return 1;
-}
+*/
 
 void init_hdd_cd()
 {
    memset(&phys, 0, sizeof phys);
    if (conf.ide_skip_real) return;
 
-   unsigned found = 0, drive;
-   for (drive = 0; drive < MAX_PHYS_HD_DRIVES; drive++) {
-      char devname[0x200]; sprintf(devname, "\\\\.\\PhysicalDrive%d", drive);
-      HANDLE hDevice = CreateFile(devname,
-                               GENERIC_READ | GENERIC_WRITE, // R/W required!
-                               FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                               0, OPEN_EXISTING, 0, 0);
+   n_phys = 0;
+   n_phys = ATA_PASSER::identify(phys + n_phys, MAX_DEVICES - n_phys);
+   n_phys += ATAPI_PASSER::identify(phys + n_phys, MAX_DEVICES - n_phys);
 
-      DWORD errcode = GetLastError();
-      if (hDevice == INVALID_HANDLE_VALUE && errcode == ERROR_FILE_NOT_FOUND) continue;
-      color(CONSCLR_HARDITEM); printf("hd%d: ", drive);
-      if (hDevice == INVALID_HANDLE_VALUE) { color(CONSCLR_ERROR), printf("access failed\n"); err_win32(errcode); continue; }
-
-      SENDCMDINPARAMS in = { 512 };
-      in.irDriveRegs.bCommandReg = ID_CMD;
-      struct { SENDCMDOUTPARAMS out; char xx[512]; } res_buffer;
-      res_buffer.out.cBufferSize = 512; DWORD sz;
-
-      DISK_GEOMETRY geo;
-      int res1 = DeviceIoControl(hDevice, SMART_RCV_DRIVE_DATA, &in, sizeof in, &res_buffer, sizeof res_buffer, &sz, 0);
-      int res2 = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, 0, 0, &geo, sizeof geo, &sz, 0);
-      if (geo.BytesPerSector != 512) { color(CONSCLR_ERROR); printf("unsupported sector size (%d bytes)\n", geo.BytesPerSector); continue; }
-      CloseHandle(hDevice);
-
-      if (!res1) { color(CONSCLR_ERROR), printf("identification failed\n"); continue; }
-
-      memcpy(phys.hdd_id[drive], res_buffer.out.bBuffer, 512);
-      char model[42], serial[22];
-      swap_bytes(model, res_buffer.out.bBuffer+54, 20);
-      swap_bytes(serial, res_buffer.out.bBuffer+20, 10);
-
-      unsigned drivesize = geo.Cylinders.LowPart * geo.SectorsPerTrack * geo.TracksPerCylinder;
-      phys.hdd_size[drive] = drivesize;
-
-      unsigned shortsize = drivesize / 2; char mult = 'K';
-      if (shortsize >= 100000) {
-         shortsize /= 1024, mult = 'M';
-         if (shortsize >= 100000) shortsize /= 1024, mult = 'G';
-      }
-
-      color(CONSCLR_HARDINFO);
-      printf("%-40s %-20s ", model, serial);
-      color(CONSCLR_HARDITEM);
-      printf("%8d %cb\n", shortsize, mult);
-      if (drivesize > 0xFFFFFFF) color(CONSCLR_WARNING), printf("     warning! LBA48 is not supported. only first 128GB visible\n", drive);
-
-      found++;
-   }
-
-   ATA_DEVICE dev;
-
-   for (drive = 0; drive < MAX_PHYS_CD_DRIVES; drive++) {
-      char devname[0x200]; sprintf(devname, "\\\\.\\CdRom%d", drive);
-      HANDLE hDevice = CreateFile(devname,
-                               GENERIC_READ | GENERIC_WRITE, // R/W required!
-                               FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                               0, OPEN_EXISTING, 0, 0);
-
-      DWORD errcode = GetLastError();
-      if (hDevice == INVALID_HANDLE_VALUE && errcode == ERROR_FILE_NOT_FOUND) continue;
-      color(CONSCLR_HARDITEM); printf("cd%d: ", drive);
-      if (hDevice == INVALID_HANDLE_VALUE) { color(CONSCLR_ERROR), printf("access failed\n"); err_win32(errcode); continue; }
-
-      dev.hDevice = hDevice;
-      int res = dev.read_atapi_id();
-      CloseHandle(hDevice); dev.hDevice = INVALID_HANDLE_VALUE;
-      if (!res) { color(CONSCLR_ERROR), printf("identification failed\n"); continue; }
-      memcpy(phys.hdd_id[MAX_PHYS_HD_DRIVES+drive], dev.transbf, 512);
-      found++;
-   }
-
-   if (!found) errmsg("HDD/CD emulator can't access physical drives");
+   if (!n_phys) errmsg("HDD/CD emulator can't access physical drives");
 }
 
-void print_device_name(char *dst, int drive)
+void delstr_spaces(char *dst, char *src)
 {
-   unsigned char *idsec = phys.hdd_id[drive];
-   char model[42], serial[22];
-   swap_bytes(model, idsec+54, 20);
-   swap_bytes(serial, idsec+20, 10);
-   sprintf(dst, "<%s,%s>", model, serial);
+   for (; *src; src++)
+      if (*src != ' ') *dst++ = *src;
+   *dst = 0;
 }
 
 unsigned find_hdd_device(char *name)
 {
-   for (unsigned drive = 0; drive < MAX_PHYS_HD_DRIVES+MAX_PHYS_CD_DRIVES; drive++) {
-      if (!phys.hdd_id[drive][0]) continue;
-      char combo[128]; print_device_name(combo, drive);
-      char s1[512], s2[512]; delstr_spaces(s1, combo), delstr_spaces(s2, name);
+   char s2[512]; delstr_spaces(s2, name);
+   for (int drive = 0; drive < n_phys; drive++) {
+      char s1[512]; delstr_spaces(s1, phys[drive].viewname);
       if (!stricmp(s1,s2)) return drive;
    }
    return -1;
@@ -244,39 +69,38 @@ unsigned find_hdd_device(char *name)
 
 void ATA_DEVICE::configure(IDE_CONFIG *cfg)
 {
-   if (hDevice != INVALID_HANDLE_VALUE) CloseHandle(hDevice), hDevice = INVALID_HANDLE_VALUE;
+   atapi_p.close(); ata_p.close();
+
    c = cfg->c, h = cfg->h, s = cfg->s, lba = cfg->lba; readonly = cfg->readonly;
-   phys_dev = -1; atapi = 0;
+
+   phys_dev = -1;
    if (!*cfg->image) return;
-   char *devname = cfg->image; char xx[32]; DWORD open_mode;
-   if (devname[0] == '<') { // find physical drive
-      unsigned drive = find_hdd_device(devname);
-      if (drive < MAX_PHYS_HD_DRIVES) {
-         sprintf(devname = xx, "\\\\.\\PhysicalDrive%d", drive);
+
+   PHYS_DEVICE filedev, *dev;
+   unsigned drive = find_hdd_device(cfg->image);
+   if (drive == -1) {
+      if (cfg->image[0] == '<') { errmsg("no physical device %s", cfg->image); *cfg->image = 0; return; }
+      strcpy(filedev.filename, cfg->image);
+      filedev.type = ATA_FILEHDD;
+      dev = &filedev;
+   } else {
+      dev = phys + drive;
+      if (dev->type == ATA_NTHDD) {
          // read geometry from id sector
-         c = *(unsigned short*)(phys.hdd_id[drive]+2);
-         h = *(unsigned short*)(phys.hdd_id[drive]+6);
-         s = *(unsigned short*)(phys.hdd_id[drive]+12);
-         lba = *(unsigned*)(phys.hdd_id[drive]+0x78);
+         c = *(unsigned short*)(phys[drive].idsector+2);
+         h = *(unsigned short*)(phys[drive].idsector+6);
+         s = *(unsigned short*)(phys[drive].idsector+12);
+         lba = *(unsigned*)(phys[drive].idsector+0x78);
          if (!lba) lba = c*h*s;
-      } else if (drive < MAX_PHYS_HD_DRIVES + MAX_PHYS_CD_DRIVES) {
-         sprintf(devname = xx, "\\\\.\\CdRom%d", drive - MAX_PHYS_HD_DRIVES);
-         atapi = 1;
-      } else { errmsg("no physical device %s", cfg->image); *cfg->image = 0; return; }
-
-      phys_dev = drive; open_mode = OPEN_EXISTING;
-   } else
-      open_mode = OPEN_ALWAYS;
-
-   hDevice = CreateFile(devname,
-                          GENERIC_READ | GENERIC_WRITE,
-                          FILE_SHARE_READ | FILE_SHARE_WRITE,
-                          0, open_mode, 0, 0);
-   if (hDevice == INVALID_HANDLE_VALUE) {
-      errmsg("failed to open %s", cfg->image);
-      err_win32();
-      *cfg->image = 0;
+      }
    }
+   DWORD errcode;
+   if (dev->type == ATA_NTHDD || dev->type == ATA_FILEHDD) errcode = ata_p.open(dev), atapi = 0;
+   if (dev->type == ATA_SPTI_CD || dev->type == ATA_ASPI_CD) errcode = atapi_p.open(dev), atapi = 1;
+   if (errcode == NO_ERROR) return;
+   errmsg("failed to open %s", cfg->image);
+   err_win32(errcode);
+   *cfg->image = 0;
 }
 
 void ATA_PORT::reset()
@@ -354,13 +178,13 @@ void ATA_DEVICE::command_ok()
 
 unsigned char ATA_DEVICE::read_intrq()
 {
-   if (hDevice == INVALID_HANDLE_VALUE || ((reg.devhead ^ device_id) & 0x10) || (reg.control & CONTROL_nIEN)) return 0xFF;
+   if (!loaded() || ((reg.devhead ^ device_id) & 0x10) || (reg.control & CONTROL_nIEN)) return 0xFF;
    return intrq? 0xFF : 0x00;
 }
 
 unsigned char ATA_DEVICE::read(unsigned n_reg)
 {
-   if (hDevice == INVALID_HANDLE_VALUE) return 0xFF;
+   if (!loaded()) return 0xFF;
    if ((reg.devhead ^ device_id) & 0x10) return 0xFF;
    if (n_reg == 7) intrq = 0;
    if (n_reg == 8) n_reg = 7; // read alt.status -> read status
@@ -373,7 +197,7 @@ unsigned char ATA_DEVICE::read(unsigned n_reg)
 
 unsigned ATA_DEVICE::read_data()
 {
-   if (hDevice == INVALID_HANDLE_VALUE) return 0xFFFFFFFF;
+   if (!loaded()) return 0xFFFFFFFF;
    if ((reg.devhead ^ device_id) & 0x10) return 0xFFFFFFFF;
    if (/* (reg.status & (STATUS_DRQ | STATUS_BSY)) != STATUS_DRQ ||*/ transptr >= transcount) return 0xFFFFFFFF;
    // DRQ=1, BSY=0, data present
@@ -406,7 +230,7 @@ char ATA_DEVICE::exec_ata_cmd(unsigned char cmd)
    if (cmd == 0xEC) { prepare_id(); return 1; }
 
    if (cmd == 0xE7) { // FLUSH CACHE
-      if (FlushFileBuffers(hDevice)) command_ok(), intrq = 1;
+      if (ata_p.flush()) command_ok(), intrq = 1;
       else reg.status = STATUS_DRDY | STATUS_DWF | STATUS_DSC | STATUS_ERR; // 0x71
       return 1;
    }
@@ -450,7 +274,7 @@ char ATA_DEVICE::exec_atapi_cmd(unsigned char cmd)
 
 void ATA_DEVICE::write(unsigned n_reg, unsigned char data)
 {
-   if (hDevice == INVALID_HANDLE_VALUE) return;
+   if (!loaded()) return;
    if (n_reg == 1) { reg.feat = data; return; }
    if (n_reg != 7) {
       regs[n_reg] = data;
@@ -474,7 +298,7 @@ void ATA_DEVICE::write(unsigned n_reg, unsigned char data)
 
 void ATA_DEVICE::write_data(unsigned data)
 {
-   if (hDevice == INVALID_HANDLE_VALUE) return;
+   if (!loaded()) return;
    if ((reg.devhead ^ device_id) & 0x10) return;
    if (/* (reg.status & (STATUS_DRQ | STATUS_BSY)) != STATUS_DRQ ||*/ transptr >= transcount) return;
    *(unsigned short*)(transbf + transptr*2) = (unsigned short)data; transptr++;
@@ -482,7 +306,7 @@ void ATA_DEVICE::write_data(unsigned data)
    // look to state, prepare next block
    if (state == S_WRITE_SECTORS) { write_sectors(); return; }
    if (state == S_RECV_PACKET) { handle_atapi_packet(); return; }
-   if (state == S_MODE_SELECT) { exec_mode_select(); return; }
+/*   if (state == S_MODE_SELECT) { exec_mode_select(); return; } */
 }
 
 char ATA_DEVICE::seek()
@@ -496,13 +320,11 @@ char ATA_DEVICE::seek()
       pos = (reg.cyl * h + (reg.devhead & 0x0F)) * s + reg.sec - 1;
 //printf("\nchs %4d/%02d/%02d: %8d ", *(unsigned short*)(regs+4), (reg.devhead & 0x0F), reg.sec, pos);
    };
-   LARGE_INTEGER offset; offset.QuadPart = ((__int64)pos) << 9;
-//printf("[seek %I64d]", offset.QuadPart);
-   DWORD code = SetFilePointer(hDevice, offset.LowPart, &offset.HighPart, FILE_BEGIN);
-   if (code == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
-      intrq = 1;
+//printf("[seek %I64d]", ((__int64)pos) << 9);
+   if (!ata_p.seek(pos)) {
       reg.status = STATUS_ERR | STATUS_DWF | STATUS_DRDY;
       reg.err = ERR_IDNF;
+      intrq = 1;
       return 0;
    }
    return 1;
@@ -510,9 +332,9 @@ char ATA_DEVICE::seek()
 
 void ATA_DEVICE::write_sectors()
 {
-   intrq = 1; DWORD sz;
+   intrq = 1;
 //printf(" [write] ");
-   if (!WriteFile(hDevice, transbf, 512, &sz, 0) || sz != 512) {
+   if (!ata_p.write_sector(transbf)) {
       reg.status = STATUS_DRDY | STATUS_DSC | STATUS_ERR;
       reg.err = ERR_UNC;
       state = S_IDLE;
@@ -531,11 +353,10 @@ void ATA_DEVICE::read_sectors()
    intrq = 1;
    if (!seek()) return;
    DWORD sz = 0;
-   if (!ReadFile(hDevice, transbf, 512, &sz, 0)) {
+   if (!ata_p.read_sector(transbf)) {
       reg.status = 0x51; reg.err = ERR_UNC; state = S_IDLE;
       return;
    }
-   if (sz != 512) memset(transbf+sz, 0, 512-sz); // on EOF, or truncated file, read 00
    transptr = 0, transcount = 0x100;
    state = S_READ_SECTORS;
    reg.err = 0;
@@ -561,35 +382,35 @@ void ATA_DEVICE::handle_atapi_packet()
 #ifdef DUMP_HDD_IO
 {printf(" [packet"); for (int i = 0; i < 12; i++) printf("-%02X", transbf[i]); printf("]\n");}
 #endif
-   memcpy(&cdb, transbf, 12);
+   memcpy(&atapi_p.cdb, transbf, 12);
 
    intrq = 1;
 
-   if (cdb.MODE_SELECT10.OperationCode == 0x55) { // MODE SELECT requires additional data from host
+   if (atapi_p.cdb.MODE_SELECT10.OperationCode == 0x55) { // MODE SELECT requires additional data from host
 
       state = S_MODE_SELECT;
       reg.status = STATUS_DRQ;
       reg.intreason = 0;
       transptr = 0;
-      transcount = cdb.MODE_SELECT10.ParameterListLength[0]*0x100 + cdb.MODE_SELECT10.ParameterListLength[1];
+      transcount = atapi_p.cdb.MODE_SELECT10.ParameterListLength[0]*0x100 + atapi_p.cdb.MODE_SELECT10.ParameterListLength[1];
       return;
    }
 
-   if (cdb.CDB6READWRITE.OperationCode == 0x03 && senselen) { // REQ.SENSE - read cached
-      memcpy(transbf, sense, senselen);
-      passed_length = senselen; senselen = 0; // next time read from device
+   if (atapi_p.cdb.CDB6READWRITE.OperationCode == 0x03 && atapi_p.senselen) { // REQ.SENSE - read cached
+      memcpy(transbf, atapi_p.sense, atapi_p.senselen);
+      atapi_p.passed_length = atapi_p.senselen; atapi_p.senselen = 0; // next time read from device
       goto ok;
    }
 
-   if (pass_through(transbf, sizeof transbf)) {
-      if (senselen) { reg.err = sense[2] << 4; goto err; } // err = sense key
+   if (atapi_p.pass_through(transbf, sizeof transbf)) {
+      if (atapi_p.senselen) { reg.err = atapi_p.sense[2] << 4; goto err; } // err = sense key
     ok:
-      if (!cdb.CDB6READWRITE.OperationCode) passed_length = 0; // bugfix in cdrom driver: TEST UNIT READY has no data
-      if (!passed_length /* || passed_length == sizeof transbf */ ) { command_ok(); return; }
-      reg.atapi_count = passed_length;
+      if (!atapi_p.cdb.CDB6READWRITE.OperationCode) atapi_p.passed_length = 0; // bugfix in cdrom driver: TEST UNIT READY has no data
+      if (!atapi_p.passed_length /* || atapi_p.passed_length == sizeof transbf */ ) { command_ok(); return; }
+      reg.atapi_count = atapi_p.passed_length;
       reg.intreason = INT_IO;
       reg.status = STATUS_DRQ;
-      transcount = (passed_length+1)/2;
+      transcount = (atapi_p.passed_length+1)/2;
       transptr = 0;
       state = S_READ_ATAPI;
    } else { // bus error
@@ -626,7 +447,7 @@ void ATA_DEVICE::prepare_id()
       for (unsigned i = 0; i < 511; i++) cs += transbf[i];
       transbf[511] = 0-cs;
    } else { // copy as is...
-      memcpy(transbf, phys.hdd_id[phys_dev], 512);
+      memcpy(transbf, phys[phys_dev].idsector, 512);
    }
 
    state = S_READ_ID;

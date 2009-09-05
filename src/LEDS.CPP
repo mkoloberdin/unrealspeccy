@@ -46,20 +46,22 @@ void ay_led()
    aypos = temp.led.ay;
    unsigned char sum=0;
 
-   int max_ay = (conf.sound.ay_scheme > AY::SCHEME_PSEUDO)? 2 : 1;
-   for (int ay = 0; ay < max_ay; ay++) {
+   int max_ay = (conf.sound.ay_scheme > AY_SCHEME_PSEUDO)? 2 : 1;
+   for (int n_ay = 0; n_ay < max_ay; n_ay++) {
       for (int i = 0; i < 3; i++) {
-         unsigned char tone = (comp.ay[ay].r_mix >> i) & 1,
-                       noise = (comp.ay[ay].r_mix >> (i+3)) & 1;
+         unsigned char r_mix = ay[n_ay].get_reg(7);
+         unsigned char tone = (r_mix >> i) & 1,
+                       noise = (r_mix >> (i+3)) & 1;
          unsigned char c1 = 0, c2 = 0;
-         unsigned char v = comp.ay[ay].reg[i+8];
+         unsigned char v = ay[n_ay].get_reg(i+8);
          if (!tone) c1 = c2 = 0x0F;
          if (!noise) c2 = 0x0E;
          if (v & 0x10) {
-            if (comp.ay[ay].r_envT < 0x400) {
-               v = (3-(comp.ay[ay].r_envT>>3)) & 0x0F;
+            unsigned r_envT = ay[n_ay].get_reg(11) + 0x100*ay[n_ay].get_reg(12);
+            if (r_envT < 0x400) {
+               v = (3-(r_envT>>3)) & 0x0F;
                if (!v) v = 6;
-            } else v = comp.ay[ay].env/2;
+            } else v = ay[n_ay].get_env()/2;
             c1 = 0x0C;
          } else v &= 0x0F;
          if (!c1) c1 = c2;
@@ -75,42 +77,12 @@ void ay_led()
    #ifdef MOD_GS
    if (sum || !conf.gs_type) return; // else show GS indicators
    aypos = temp.led.ay; // reset y-pos, if nothing above
-
-   #ifdef MOD_GSBASS
-   if (conf.gs_type == 2) {
-      if (gs.mod_playing) {
-         DWORD bass_vols = gs.BASS_ChannelGetLevel(gs.hmod);
-         unsigned v = (bass_vols/8) & 0x7F;
-         paint_led(v, 0x0D);
-         paint_led(v, 0x0D);
-         paint_led(0, 0);
-         v = (bass_vols >> (16+3));
-         paint_led(v, 0x0D);
-         paint_led(v, 0x0D);
-         paint_led(0, 0);
-      }
-      for (unsigned c = 0; c < 4; c++) {
-         GSHLE::CHANNEL *ch = gs.chan+c;
-         // adjust volume with play progress
-         unsigned v = (ch->end && ch->start)? (ch->volume*(ch->end - ch->ptr)/ch->end)/4 : 0;
-         paint_led(v, 0x0F);
-         paint_led(v, 0x0F);
-         paint_led(0, 0);
-      }
+   for (unsigned ch = 0; ch < 8; ch++) {
+      unsigned v = gsleds[ch].level, a = gsleds[ch].attrib;
+      paint_led(v, a);
+      paint_led(v, a);
+      paint_led(0, 0);
    }
-   #endif
-
-   #ifdef MOD_GSZ80
-   if (conf.gs_type == 1) {
-      for (unsigned ch = 0; ch < 4; ch++) {
-         unsigned v = temp.led.gssum[ch]*z80gs::gsvol[ch] / (temp.led.gscnt[ch]*(0x100*0x40/16)+1);
-         temp.led.gssum[ch] = temp.led.gscnt[ch] = 0;
-         paint_led(v, 0x0F);
-         paint_led(v, 0x0F);
-         paint_led(0, 0);
-      }
-   }
-   #endif
 
    #endif
 }
@@ -144,7 +116,7 @@ void load_led()
       static unsigned char tapeled[11*2] = {
          0x7F, 0xFE, 0x80, 0x01, 0x80, 0x01, 0x93, 0xC9, 0xAA, 0x55, 0x93, 0xC9,
          0x80, 0x01, 0x8F, 0xF1, 0x80, 0x01, 0xB5, 0xA9, 0xFF, 0xFF };
-      const tapecolor = 0x51; tape_bit();
+      const tapecolor = 0x51;
       for (int i = 0; i < 11; i++)
          temp.led.load[pitch*i+0] = tapeled[2*i],
          temp.led.load[pitch*i+1] = tapecolor,
@@ -358,11 +330,11 @@ void ay_kbd()
    KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
    InputBuffer.LedFlags = InputBuffer.UnitId = 0;
 
-   if (comp.ay->reg[ 8] > pA) InputBuffer.LedFlags |= KEYBOARD_NUM_LOCK_ON;
-   if (comp.ay->reg[ 9] > pB) InputBuffer.LedFlags |= KEYBOARD_CAPS_LOCK_ON;
-   if (comp.ay->reg[10] > pC) InputBuffer.LedFlags |= KEYBOARD_SCROLL_LOCK_ON;
+   if (ay->get_reg( 8) > pA) InputBuffer.LedFlags |= KEYBOARD_NUM_LOCK_ON;
+   if (ay->get_reg( 9) > pB) InputBuffer.LedFlags |= KEYBOARD_CAPS_LOCK_ON;
+   if (ay->get_reg(10) > pC) InputBuffer.LedFlags |= KEYBOARD_SCROLL_LOCK_ON;
 
-   pA = comp.ay->reg[8], pB = comp.ay->reg[9], pC = comp.ay->reg[10];
+   pA = ay->get_reg(8), pB = ay->get_reg(9), pC = ay->get_reg(10);
 
    DWORD xx;
    if (prev_keyled != InputBuffer.LedFlags)

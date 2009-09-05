@@ -43,7 +43,7 @@ void out(unsigned port, unsigned char val)
       if ((p1 & 0x1F) == 0x1F) { comp.wd.out(p1, val); return; }
       // don't return - out to port #FE works in trdos!
    } else {
-      if ((unsigned char)port == 0x1F && conf.sound.ay_scheme == AY::SCHEME_POS) { comp.active_ay = val & 1; return; }
+      if ((unsigned char)port == 0x1F && conf.sound.ay_scheme == AY_SCHEME_POS) { comp.active_ay = val & 1; return; }
       if (!(port & 6) && (conf.ide_scheme == IDE_NEMO || conf.ide_scheme == IDE_NEMO_A8)) {
          unsigned hi_byte = (conf.ide_scheme == IDE_NEMO)? (port & 1) : (port & 0x100);
          if (hi_byte) { comp.ide_write = val; return; }
@@ -111,15 +111,15 @@ set1FFD:
       if (conf.mem_model == MM_ATM450 && (port & 0x8202) == (0xFDFD & 0x8202)) { comp.pFDFD = val; set_banks(); return; }
 
       if ((port & 0xC0FF) == 0xC0FD) { // A15=A14=1, FxFD - AY select register
-         if (conf.sound.ay_scheme == AY::SCHEME_CHRV && ((val & 0xFE) == 0xFE)) comp.active_ay = val & 1;
-         unsigned ay = (conf.sound.ay_scheme == AY::SCHEME_QUADRO)? ay = (port >> 12) & 1 : comp.active_ay;
-         comp.ay[ay].select(val);
+         if (conf.sound.ay_scheme == AY_SCHEME_CHRV && ((val & 0xFE) == 0xFE)) comp.active_ay = val & 1;
+         unsigned n_ay = (conf.sound.ay_scheme == AY_SCHEME_QUADRO)? (port >> 12) & 1 : comp.active_ay;
+         ay[n_ay].select(val);
          return;
       }
       if ((port & 0xC000)==0x8000 && conf.sound.ay_scheme) {  // BFFD - AY data register
-         unsigned ay = (conf.sound.ay_scheme == AY::SCHEME_QUADRO)? ay = (port >> 12) & 1 : comp.active_ay;
-         comp.ay[ay].write(val); // port=0 used in ZX-Time#6 for border effects
-         if (comp.ay[ay].activereg == 14 && conf.input.mouse == 2) input.aymouse_wr(val);
+         unsigned n_ay = (conf.sound.ay_scheme == AY_SCHEME_QUADRO)? (port >> 12) & 1 : comp.active_ay;
+         ay[n_ay].write(temp.sndblock? 0 : cpu.t, val);
+         if (conf.input.mouse == 2 && ay[n_ay].get_activereg() == 14) input.aymouse_wr(val);
          return;
       }
       return;
@@ -228,12 +228,10 @@ __inline unsigned char in1(unsigned port)
    }
    if ((unsigned char)port == 0xFD && conf.sound.ay_scheme) {
       if ((port & 0xC0FF) != 0xC0FD) return 0xFF;
-      unsigned ay = (conf.sound.ay_scheme == AY::SCHEME_QUADRO)? ay = (port >> 12) & 1 : comp.active_ay;
-      unsigned reg = comp.ay[ay].activereg;
-      if (reg >= 0x10) return 0xFF;
+      unsigned n_ay = (conf.sound.ay_scheme == AY_SCHEME_QUADRO)? (port >> 12) & 1 : comp.active_ay;
       // else FxFD - read selected AY register
-      if (reg == 14 && conf.input.mouse == 2) { input.mouse_joy_led |= 1; return input.aymouse_rd(); }
-      return comp.ay[ay].reg[reg];
+      if (conf.input.mouse == 2 && ay[n_ay].get_activereg() == 14) { input.mouse_joy_led |= 1; return input.aymouse_rd(); }
+      return ay[n_ay].read();
    }
 
    if ((port & 0x7F) == 0x7B) { // FB/7B

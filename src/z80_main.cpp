@@ -68,25 +68,6 @@ __inline void step()
 #endif
 }
 
-__inline void handle_int()
-{
-   unsigned intad;
-   if (cpu.im < 2) {
-      intad = 0x38;
-   } else { // im2
-      unsigned lo = ((comp.flags & CF_DOSPORTS)? conf.floatdos : conf.floatbus)? ((BYTE)rdtsc()) : 0xFF;
-      unsigned vec =lo+cpu.i*0x100;
-      intad = rm(vec) + 0x100*rm(vec+1);
-   }
-
-   cpu.t += (cpu.im < 2) ? 13 : 19;
-   wm(--cpu.sp, cpu.pch);
-   wm(--cpu.sp, cpu.pcl);
-   cpu.pc = intad;
-   cpu.halted = 0;
-   cpu.iff1 = cpu.iff2 = 0;
-}
-
 __inline void z80loop()
 {
    cpu.haltpos = 0;
@@ -95,7 +76,7 @@ __inline void z80loop()
    while (cpu.t < conf.intlen) {
       if (cpu.iff1 && cpu.t != cpu.eipos && // int enabled in CPU not issued after EI
            !(conf.mem_model == MM_ATM710 && !(comp.pFF77 & 0x20))) // int enabled by ATM hardware
-         handle_int();
+         handle_int(&cpu, (comp.flags & CF_Z80FBUS)? (BYTE)rdtsc() : 0xFF);
 #ifdef Z80_DBG
       debug_events();
 #endif

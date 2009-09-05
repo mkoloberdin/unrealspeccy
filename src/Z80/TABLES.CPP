@@ -118,6 +118,7 @@ Z80INLINE void adc8(Z80 *cpu, unsigned char src)
 
 unsigned char sbcf[0x20000]; // flags for sub and sbc
 unsigned char cpf[0x10000];  // flags for cp
+unsigned char cpf8b[0x10000]; // flags for CPD/CPI/CPDR/CPIR
 
 void make_sbc()
 {
@@ -136,6 +137,8 @@ void make_sbc()
    }
    for (int i = 0; i < 0x10000; i++) {
       cpf[i] = (sbcf[i] & ~(F3|F5)) | (i & (F3|F5));
+      unsigned char tempbyte = (i >> 8) - (i & 0xFF) - ((sbcf[i] & HF) >> 4);
+      cpf8b[i] = (sbcf[i] & ~(F3|F5|PV|CF)) + (tempbyte & F3) + ((tempbyte << 4) & F5);
    }
 }
 
@@ -185,7 +188,13 @@ Z80INLINE void xor8(Z80 *cpu, unsigned char src)
 
 Z80INLINE void bit(Z80 *cpu, unsigned char src, unsigned char bit)
 {
+   cpu->f = log_f[src & (1 << bit)] | HF | (cpu->f & CF) | (src & (F3|F5));
+}
+
+Z80INLINE void bitmem(Z80 *cpu, unsigned char src, unsigned char bit)
+{
    cpu->f = log_f[src & (1 << bit)] | HF | (cpu->f & CF);
+   cpu->f = (cpu->f & ~(F3|F5)) | (cpu->memh & (F3|F5));
 }
 
 Z80INLINE void res(unsigned char &src, unsigned char bit)

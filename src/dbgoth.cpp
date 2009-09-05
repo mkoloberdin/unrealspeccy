@@ -78,15 +78,15 @@ void show_ay()
 {
    if (!conf.sound.ay_scheme) return;
    char *ayn = comp.active_ay? "AY1" : "AY0";
-   if (conf.sound.ay_scheme < AY::SCHEME_QUADRO) ayn = "AY:", comp.active_ay = 0;
+   if (conf.sound.ay_scheme < AY_SCHEME_QUADRO) ayn = "AY:", comp.active_ay = 0;
    tprint(ay_x-3, ay_y, ayn, W_TITLE);
-   AY *ay = comp.ay + comp.active_ay;
+   SNDCHIP *chip = &ay[comp.active_ay];
    char line[32];
    for (int i = 0; i < 16; i++) {
       line[0] = "0123456789ABCDEF"[i]; line[1] = 0;
       tprint(ay_x + i*3, ay_y, line, W_AYNUM);
-      sprintf(line, "%02X", ay->reg[i]);
-      tprint(ay_x + i*3 + 1, ay_y, line, i == ay->activereg ? W_AYON : W_AYOFF);
+      sprintf(line, "%02X", chip->get_reg(i));
+      tprint(ay_x + i*3 + 1, ay_y, line, i == (chip->get_activereg()) ? W_AYON : W_AYOFF);
    }
    frame(ay_x, ay_y, 48, 1, FRAME);
 }
@@ -230,27 +230,11 @@ repaint:
       if (i > 0x100) return 1;
       if (!i && gs.modsize) {
          gs.mod_playing ^= 1;
-         if (gs.mod_playing) gs.restart_mod(0); else gs.stop_mod();
+         if (gs.mod_playing) gs.restart_mod(0,0); else gs.stop_mod();
          goto repaint;
       }
       if (!gs.modsize) i++;
-      GSHLE::CHANNEL ch = { 0 };
-      ch.volume = 64; ch.ptr = 0;
-      ch.start = gs.sample[i].start;
-      ch.loop = gs.sample[i].loop;
-      ch.end = gs.sample[i].end;
-      ch.delta = gs.note2rate[gs.sample[i].note];
-      unsigned t0 = GetTickCount();
-      sound_play();
-      while (ch.start && (gs.sample[i].loop > gs.sample[i].end || GetTickCount() < t0+5000)) {
-         gs.mixchannel(&ch, 0);
-         unsigned save = min(ch.sound_state.ready_samples(), temp.snd_frame_ticks);
-         SOUND_STREAM::copy_to_sndplaybuf(save);
-         do_sound();
-      }
-      memset(sndplaybuf, 0, spbsize = temp.snd_frame_samples*4);
-      for (i = 0; i <= 10; i++) do_sound();
-      sound_stop();
+      gs.debug_note(i);
    }
    return 0;
 }

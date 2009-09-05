@@ -1,5 +1,5 @@
 
-INLINE unsigned __int64 __fastcall rdtsc()
+forceinline unsigned __int64 __fastcall rdtsc()
 {
    __asm rdtsc
 }

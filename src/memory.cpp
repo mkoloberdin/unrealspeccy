@@ -8,7 +8,7 @@ void set_banks()
    if (temp.base_2) temp.base_2 = temp.base;
 
    // these flags will be re-calculated
-   comp.flags &= ~(CF_DOSPORTS | CF_LEAVEDOSRAM | CF_LEAVEDOSADR | CF_SETDOSROM);
+   comp.flags &= ~(CF_DOSPORTS | CF_Z80FBUS | CF_LEAVEDOSRAM | CF_LEAVEDOSADR | CF_SETDOSROM);
 
    unsigned char *bank0, *bank3;
 
@@ -145,6 +145,8 @@ void set_banks()
             if (bankr[i] == bankw[i]) bankw[i] = newram;
             bankr[i] = newram;
          }
+
+   if ((comp.flags & CF_DOSPORTS)? conf.floatdos : conf.floatbus) comp.flags |= CF_Z80FBUS;
 
    if (temp.led.osw && (trace_rom | trace_ram)) {
       for (unsigned i = 0; i < 4; i++) {

@@ -165,6 +165,7 @@ int readTAP()
    unsigned char *ptr = snbuf; closetape();
    while (ptr < snbuf+snapsize) {
       unsigned size = *(unsigned short*)ptr; ptr += 2;
+      if (!size) break;
       alloc_infocell();
       desc(ptr, size, tapeinfo[tape_infosize].desc);
       tape_infosize++;
@@ -607,11 +608,10 @@ unsigned char tape_bit() // used in io.cpp & sound.cpp
    if (cur < comp.tape.edge_change) return (unsigned char)comp.tape.tape_bit;
    while (comp.tape.edge_change < cur) {
       if (!temp.sndblock) {
-         unsigned t = (unsigned)(comp.tape.edge_change - comp.t_states);
+         unsigned t = (unsigned)(comp.tape.edge_change - comp.t_states - temp.cpu_t_at_frame_start);
          if ((int)t >= 0) {
-            comp.tape.sound.mix_l = comp.tape.sound.mix_r = conf.sound.micin & comp.tape.tape_bit;
-            t = t*temp.mult_const1 >> MULT_C; //(t*temp.snd_frame_ticks)/conf.frame;
-            comp.tape.sound.flush(t);
+            unsigned tape_in = conf.sound.micin & comp.tape.tape_bit;
+            comp.tape.sound.update(t, tape_in, tape_in);
          }
       }
       unsigned pulse; comp.tape.tape_bit ^= -1;

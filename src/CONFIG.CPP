@@ -95,13 +95,6 @@ void save_nv()
    if (f0 = fopen(line, "wb")) fwrite(nvram, 1, sizeof nvram, f0), fclose(f0);
 }
 
-void load_ay_stereo()
-{
-   char line[128], name[64]; sprintf(name, "STEREO.%s", aystereo[conf.sound.ay_stereo]);
-   GetPrivateProfileString("AY", name, "100,10,66,66,10,100", line, sizeof line, ininame);
-   sscanf(line, "%d,%d,%d,%d,%d,%d", &stereo[0], &stereo[1], &stereo[2], &stereo[3], &stereo[4], &stereo[5]);
-}
-
 void load_romset(CONFIG *conf, char *romset)
 {
    char sec[0x200];
@@ -149,6 +142,14 @@ void load_ula_preset()
    conf.floatbus = (unsigned char)t3; conf.floatdos = (unsigned char)t4;
 }
 
+void load_ay_stereo()
+{
+   char line[128], name[64]; sprintf(name, "STEREO.%s", aystereo[conf.sound.ay_stereo]);
+   GetPrivateProfileString("AY", name, "100,10,66,66,10,100", line, sizeof line, ininame);
+   unsigned *stereo = conf.sound.ay_stereo_tab;
+   sscanf(line, "%d,%d,%d,%d,%d,%d", stereo+0, stereo+1, stereo+2, stereo+3, stereo+4, stereo+5);
+}
+
 void load_ay_vols()
 {
    char line[512] = { 0 };
@@ -158,10 +159,10 @@ void load_ay_vols()
    if (line[74] != ',') strcpy(line, defaults);
    if (line[79] == ',') { // YM
       for (int i = 0; i < 32; i++)
-         sscanf(line+i*5, "%X", &voltab[i]);
+         sscanf(line+i*5, "%X", &conf.sound.ay_voltab[i]);
    } else { // AY
       for (int i = 0; i < 16; i++)
-         sscanf(line+i*5, "%X", &voltab[2*i]), voltab[2*i+1] = voltab[2*i];
+         sscanf(line+i*5, "%X", &conf.sound.ay_voltab[2*i]), conf.sound.ay_voltab[2*i+1] = conf.sound.ay_voltab[2*i];
    }
 }
 
@@ -420,19 +421,19 @@ void load_config(char *fname)
    conf.sound.ayfq = GetPrivateProfileInt(ay, "Fq", 1774400, ininame);
 
    GetPrivateProfileString(ay, "Chip", nil, line, sizeof line, ininame);
-   conf.sound.ay_chip = AY::CHIP_YM;
-   if (!strnicmp(line, "AY", 2)) conf.sound.ay_chip = AY::CHIP_AY;
-   if (!strnicmp(line, "YM", 2)) conf.sound.ay_chip = AY::CHIP_YM;
+   conf.sound.ay_chip = SNDCHIP::CHIP_YM;
+   if (!strnicmp(line, "AY", 2)) conf.sound.ay_chip = SNDCHIP::CHIP_AY;
+   if (!strnicmp(line, "YM", 2)) conf.sound.ay_chip = SNDCHIP::CHIP_YM;
 
    conf.sound.ay_samples = GetPrivateProfileInt(ay, "UseSamples", 0, ininame);
 
    GetPrivateProfileString(ay, "Scheme", nil, line, sizeof line, ininame);
-   conf.sound.ay_scheme = AY::SCHEME_NONE;
-   if (!strnicmp(line, "default", 7)) conf.sound.ay_scheme = AY::SCHEME_SINGLE;
-   if (!strnicmp(line, "PSEUDO", 6)) conf.sound.ay_scheme = AY::SCHEME_PSEUDO;
-   if (!strnicmp(line, "QUADRO", 6)) conf.sound.ay_scheme = AY::SCHEME_QUADRO;
-   if (!strnicmp(line, "POS", 3)) conf.sound.ay_scheme = AY::SCHEME_POS;
-   if (!strnicmp(line, "CHRV", 4)) conf.sound.ay_scheme = AY::SCHEME_CHRV;
+   conf.sound.ay_scheme = AY_SCHEME_NONE;
+   if (!strnicmp(line, "default", 7)) conf.sound.ay_scheme = AY_SCHEME_SINGLE;
+   if (!strnicmp(line, "PSEUDO", 6)) conf.sound.ay_scheme = AY_SCHEME_PSEUDO;
+   if (!strnicmp(line, "QUADRO", 6)) conf.sound.ay_scheme = AY_SCHEME_QUADRO;
+   if (!strnicmp(line, "POS", 3)) conf.sound.ay_scheme = AY_SCHEME_POS;
+   if (!strnicmp(line, "CHRV", 4)) conf.sound.ay_scheme = AY_SCHEME_CHRV;
 
    GetPrivateProfileString(input, "KeybLayout", "default", conf.keyset, sizeof conf.keyset, ininame);
 
@@ -486,6 +487,8 @@ void load_config(char *fname)
    if (!strnicmp(line, "NEMO-A8", 7)) conf.ide_scheme = IDE_NEMO_A8;
    if (!strnicmp(line, "SMUC", 4)) conf.ide_scheme = IDE_SMUC;
    conf.ide_skip_real = GetPrivateProfileInt(hdd, "SkipReal", 0, ininame);
+   GetPrivateProfileString(hdd, "CDROM", "SPTI", line, sizeof line, ininame);
+   if (!strnicmp(line, "ASPI", 4)) conf.cd_aspi = 1; else conf.cd_aspi = 0;
    for (int ide_device = 0; ide_device < 2; ide_device++) {
       char param[32];
       sprintf(param, "LBA%d", ide_device);

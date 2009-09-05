@@ -1,6 +1,7 @@
 #ifdef MOD_GS
 
 unsigned gs_vfx[0x41];  // logarithmic + mixed with conf.sound.gs
+struct { unsigned level, attrib; } gsleds[8];
 
 void make_gs_volume(unsigned level = 0x3F)
 {
@@ -48,14 +49,11 @@ void out_gs(unsigned char port, unsigned char byte)
 void reset_gs_sound()
 {
 #ifdef MOD_GSZ80
-   z80gs::sound.clear();
+   z80gs::sound.set_timings(z80gs::GSCPUFQ, conf.sound.fq);
 #endif
 
 #ifdef MOD_GSBASS
-   gs.chan[0].sound_state.clear();
-   gs.chan[1].sound_state.clear();
-   gs.chan[2].sound_state.clear();
-   gs.chan[3].sound_state.clear();
+   gs.reset_sound();
 #endif
 }
 
@@ -108,7 +106,7 @@ void flush_gs_frame()
 #endif
 
 #ifdef MOD_GSBASS
-   if (conf.gs_type==2) { gs.mix_fx(); return; }
+   if (conf.gs_type==2) { gs.flush_gs_frame(); return; }
 #endif
 }
 

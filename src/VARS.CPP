@@ -1,10 +1,12 @@
-#pragma pack(8)
+#include "sndrender/sndbuffer.cpp"
 
+
+#pragma pack(8)
 Z80 cpu;
 
 #ifdef MOD_GSZ80
 Z80 gscpu;
-namespace z80gs { SOUND_STREAM sound; }
+namespace z80gs { SNDRENDER sound; }
 #endif
 
 #ifdef MOD_GSBASS
@@ -17,6 +19,11 @@ TEMP temp;
 ATA_PORT hdd;   // not in `comp' - not cleared in reset()
 K_INPUT input;
 ISA_MODEM modem;
+
+SNDRENDER sound;
+SNDCHIP ay[2];
+SNDCOUNTER sndcounter;
+
 
 unsigned char *base_sos_rom, *base_dos_rom, *base_128_rom, *base_sys_rom;
 
@@ -40,10 +47,6 @@ unsigned char membits[0x10000];
 unsigned char *bankr[4], *bankw[4];
 unsigned char cmos[0x100];
 unsigned char nvram[0x800];
-
-#define SNDBUFSIZE 16384
-unsigned sndbuf[SNDBUFSIZE];
-unsigned sb_readpos, sb_start_frame;
 
 #define PLAYBUFSIZE 16384
 unsigned sndplaybuf[PLAYBUFSIZE]; unsigned spbsize;
@@ -259,4 +262,3 @@ char presetbuf[0x4000], *setptr = presetbuf;
 #include "fontatm2.cpp"
 
 const char * const ay_schemes[] = { "no soundchip", "single chip", "pseudo-turbo", "quadro-AY", "turbo-AY // POS", "turbo-sound // NedoPC" };
-const char * const ay_chips[] = { "AY-3-8910", "YM2149F" };

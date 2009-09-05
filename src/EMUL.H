@@ -1,132 +1,14 @@
+
+#include "sysdefs.h"
+#include "z80/defs.h"
+
+#include "sndrender/sndrender.h"
+#include "sndrender/sndchip.h"
+#include "sndrender/sndcounter.h"
+
+
 #define EMUL_DEBUG
 #define TRASH_PAGE
-
-struct Z80
-{
-   unsigned t;
-   /*------------------------------*/
-   union {
-      unsigned pc;
-      struct {
-         unsigned char pcl;
-         unsigned char pch;
-      };
-   };
-   union {
-      unsigned sp;
-      struct {
-         unsigned char spl;
-         unsigned char sph;
-      };
-   };
-   union {
-      unsigned ir_;
-      struct {
-         unsigned char r_low;
-         unsigned char i;
-      };
-   };
-   union {
-      unsigned int_flags;
-      struct {
-         unsigned char r_hi;
-         unsigned char iff1;
-         unsigned char iff2;
-         unsigned char halted;
-      };
-   };
-   /*------------------------------*/
-   union {
-      unsigned bc;
-      unsigned short bc16;
-      struct {
-         unsigned char c;
-         unsigned char b;
-      };
-   };
-   union {
-      unsigned de;
-      struct {
-         unsigned char e;
-         unsigned char d;
-      };
-   };
-   union {
-      unsigned hl;
-      struct {
-         unsigned char l;
-         unsigned char h;
-      };
-   };
-   union {
-      unsigned af;
-      struct {
-         unsigned char f;
-         unsigned char a;
-      };
-   };
-   /*------------------------------*/
-   union {
-      unsigned ix;
-      struct {
-         unsigned char xl;
-         unsigned char xh;
-      };
-   };
-   union {
-      unsigned iy;
-      struct {
-         unsigned char yl;
-         unsigned char yh;
-      };
-   };
-   /*------------------------------*/
-   struct {
-      union {
-         unsigned bc;
-         struct {
-            unsigned char c;
-            unsigned char b;
-         };
-      };
-      union {
-         unsigned de;
-         struct {
-            unsigned char e;
-            unsigned char d;
-         };
-      };
-      union {
-         unsigned hl;
-         struct {
-            unsigned char l;
-            unsigned char h;
-         };
-      };
-      union {
-         unsigned af;
-         struct {
-            unsigned char f;
-            unsigned char a;
-         };
-      };
-   } alt;
-   unsigned eipos, haltpos;
-   /*------------------------------*/
-   unsigned char im;
-   unsigned char tmp0, tmp1, tmp3;
-   void reset() { int_flags = ir_ = pc = 0; im = 0; }
-};
-typedef void (__fastcall *STEPFUNC)(Z80*);
-
-#define CF 0x01
-#define NF 0x02
-#define PV 0x04
-#define F3 0x08
-#define HF 0x10
-#define F5 0x20
-#define ZF 0x40
-#define SF 0x80
 
 #define PAGE 0x4000
 #define MAX_RAM_PAGES 64        // 1Mb RAM
@@ -192,7 +74,6 @@ struct
 
 typedef void (__fastcall *VOID_FUNC)(void);
 typedef void (__fastcall *RENDER_FUNC)(unsigned char*,unsigned);
-typedef void (__fastcall *STEPFUNC)(Z80*);
 
 struct RENDER
 {
@@ -256,8 +137,8 @@ struct CONFIG
 
    unsigned char gs_type;
    unsigned char pixelscroll;
-   unsigned char ide_skip_real;
    unsigned char sleepidle;
+   unsigned char rsrvd1_;
 
    unsigned char highpriority;
    unsigned char videoscale;
@@ -267,6 +148,9 @@ struct CONFIG
 
    IDE_SCHEME ide_scheme;
    IDE_CONFIG ide[2];
+   unsigned char ide_skip_real;
+   unsigned char cd_aspi;
+
    struct {
       unsigned fq, ayfq;
       int beeper, micout, micin, ay, aydig,
@@ -274,7 +158,9 @@ struct CONFIG
       VOID_FUNC do_sound;
       unsigned char enabled, gsreset, dsprimary;
       unsigned char ay_chip, ay_scheme, ay_stereo, ay_vols, ay_samples;
+      unsigned ay_stereo_tab[6], ay_voltab[32];
    } sound;
+
    struct {
       unsigned firenum;
       unsigned char altlock, fire, firedelay;
@@ -282,6 +168,7 @@ struct CONFIG
       unsigned char mouse, mouseswap, kjoy, keymatrix, joymouse;
       signed char mousescale;
    } input;
+
    struct {
       unsigned char enabled;
       unsigned char flash_ay_kbd;
@@ -297,12 +184,14 @@ struct CONFIG
       unsigned osw;
       unsigned memband;
    } led;
+
    struct {
       unsigned char mem_swap;
       unsigned char use_pal;
       unsigned char xt_kbd;
       unsigned char reserved1;
    } atm;
+
    unsigned pal, num_pals;      // selected palette and total number of pals
    unsigned minres;             // min. screen x-resolution
    unsigned scanbright;         // scanlines intensity
@@ -345,12 +234,9 @@ struct TEMP
    unsigned char rom_mask, ram_mask;
    unsigned char evenM1_C0; // C0 for scorpion, 00 for pentagon
    unsigned char hi15; // 0 - 16bit color, 1 - 15bit color, 2 - YUY2 colorspace
-   unsigned mult_const1;               // for sound mixer
-   unsigned mult_const2, mult_const3;           // for ay engine
-   unsigned mult_gs, mult_gs2;                  // for GS mixer
    unsigned snd_frame_samples;  // samples / frame
    unsigned snd_frame_ticks;    // sound ticks / frame
-   unsigned ay_div, ay_div2; // for digital_ay
+   unsigned cpu_t_at_frame_start;
 
    unsigned gx, gy, gdx, gdy; // updating rectangle (used by GDI renderer)
    RECT client;               // updating rectangle (used by DD_blt renderer)
@@ -375,7 +261,6 @@ struct TEMP
       unsigned char *fdd;
 
       __int64 tape_started;
-      unsigned gssum[4], gscnt[4];
    } led;
    unsigned char profrom_mask;
    unsigned char atm_pal_changed;
@@ -391,59 +276,26 @@ struct TEMP
 extern TEMP temp;
 extern unsigned sb_start_frame;
 
-struct SOUND_STREAM
+enum AY_SCHEME
 {
-   unsigned tick;
-   unsigned mix_l, mix_r;
-   unsigned s1_l, s1_r;
-   unsigned s2_l, s2_r;
-   void flush(unsigned endtick);
-   __inline unsigned ready_samples();
-   __inline void flush_empty() { tick = sb_start_frame + temp.snd_frame_ticks; }
-   void clear() { tick = 0; }
-   static void copy_to_sndplaybuf(unsigned save_ticks);
+   AY_SCHEME_NONE = 0,
+   AY_SCHEME_SINGLE,
+   AY_SCHEME_PSEUDO,
+   AY_SCHEME_QUADRO,
+   AY_SCHEME_POS,
+   AY_SCHEME_CHRV,
+   AY_SCHEME_MAX
 };
 
-#pragma pack(push)
-#pragma pack(1)
-struct AY
-{
-   union {
-      unsigned char reg[16];
-      struct {
-         unsigned short r_fA, r_fB, r_fC;
-         unsigned char r_noise, r_mix;
-         unsigned char r_vA, r_vB, r_vC;
-         unsigned short r_envT;
-         unsigned char r_env;
-         unsigned char r_portA, r_portB;
-      };
-   };
-   unsigned fa, fb, fc, fn, fe;
-   unsigned bit0, bit1, bit2, bit3, bit4, bit5;
-   unsigned t, ta, tb, tc, tn, te, env, denv;
-   unsigned bitA, bitB, bitC, bitN, ns;
-   struct SOUND_STREAM sound;
-   unsigned char r13_reloaded, activereg;
-
-   __inline void flush_sndbuf();
-   void flush(unsigned cputick);
-   void select(unsigned char nreg);
-   void write(unsigned char val);
-   void mix_dig();
-   void reset();
-
-   enum { CHIP_AY, CHIP_YM, CHIP_MAX };
-   enum { SCHEME_NONE = 0, SCHEME_SINGLE, SCHEME_PSEUDO, SCHEME_QUADRO, SCHEME_POS, SCHEME_CHRV, SCHEME_MAX };
-};
-#pragma pack(pop)
 
 #include "wd93.h"
+#include "hddio.h"
 #include "hdd.h"
 #include "input.h"
 #include "modem.h"
 
 #ifdef MOD_GSBASS
+#include "gshlbass.h"
 #include "gshle.h"
 #endif
 
@@ -501,7 +353,6 @@ struct COMPUTER
    unsigned char res1, res2;
 
    unsigned char p0F, p1F, p4F, p5F; // soundrive
-   struct AY ay[2];
    struct WD1793 wd;
    struct NVRAM nvram;
    struct {
@@ -510,7 +361,7 @@ struct COMPUTER
       unsigned char *end_of_tape;  // where to stop tape
       unsigned index;    // current tape block
       unsigned tape_bit;
-      struct SOUND_STREAM sound;
+      SNDRENDER sound;
    } tape;
    unsigned char atm_pal[0x10];
    unsigned char ide_read, ide_write; // high byte in IDE i/o
@@ -524,6 +375,7 @@ struct COMPUTER
 #define CF_LEAVEDOSRAM  0x08    // DOS ROM will be closed at executing RAM
 #define CF_LEAVEDOSADR  0x10    // DOS ROM will be closed at pc>#4000
 #define CF_CACHEON      0x20    // cache active
+#define CF_Z80FBUS      0x40    // unstable data bus
 #define CF_PROFROM      0x80    // PROF-ROM active
 
 #define TAPE_QUANTUM 64

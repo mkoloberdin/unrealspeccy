@@ -100,7 +100,7 @@ void mon_scr(char alt)
    flip(); if (conf.noflic) flip();
    memcpy(rbuf, save_buf, rb2_offs);
 
-   while (!process_msgs());
+   while (!process_msgs()) Sleep(20);
    temp.rflags = RF_MONITOR;
    set_video();
 }
