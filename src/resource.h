@@ -293,14 +293,18 @@
 #define IDC_LISTBOX                     1243
 #define IDC_FRAMES_6                    1244
 #define IDC_FRAMES_8                    1245
+#define IDC_LED_MEMBAND                 1246
+#define IDC_LED_MEMBAND_X               1247
+#define IDC_LED_MEMBAND_Y               1248
+#define IDC_LED_BPP                     1249
 
 // Next default values for new objects
-// 
+//
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        138
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1244
+#define _APS_NEXT_CONTROL_VALUE         1250
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

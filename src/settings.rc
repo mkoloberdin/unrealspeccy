@@ -218,8 +218,14 @@ BEGIN
                     WS_TABSTOP,7,100,69,10
     EDITTEXT        IDC_LED_DEBUG_X,80,97,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_DEBUG_Y,101,97,19,14,ES_AUTOHSCROLL
-    CONTROL         "Use &keyboard leds for AY (WinNT)",IDC_LED_AYKBD,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,7,114,144,10
+    CONTROL         "Memory &Band",IDC_LED_MEMBAND,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,7,115,69,10
+    EDITTEXT        IDC_LED_MEMBAND_X,80,112,19,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_LED_MEMBAND_Y,101,112,19,14,ES_AUTOHSCROLL
+    CONTROL         "Slider1",IDC_LED_BPP,"msctls_trackbar32",
+                    TBS_AUTOTICKS | WS_TABSTOP,123,112,64,17
+    CONTROL         "Use &keyboard leds for AY",IDC_LED_AYKBD,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,130,144,10
 END
 
 IDD_SOUND DIALOG  0, 0, 214, 145

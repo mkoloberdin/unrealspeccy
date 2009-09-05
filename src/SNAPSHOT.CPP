@@ -7,14 +7,6 @@ int writeSNA(FILE*);
 
 int load_arc(char *fname);
 
-enum SNAP
-{
-   snNOFILE, snUNKNOWN, snTOOLARGE,
-   snSP, snZ80, snSNA_48, snSNA_128,
-   snTAP, snTZX, snCSW,
-   snHOB, snSCL, snTRD, snFDI, snTD0, snUDI,
-};
-
 unsigned char what_is(char *filename)
 {
    FILE *ff = fopen(filename, "rb");
@@ -49,28 +41,32 @@ int loadsnap(char *filename)
 {
    if (load_arc(filename)) return 1;
    unsigned char type = what_is(filename);
+
    if (type >= snHOB) {
       for (unsigned k = 0; k < 4; k++)
-         if (k != trd_toload && !stricmp(disk[k].name, filename)) {
+         if (k != trd_toload && !stricmp(comp.wd.fdd[k].name, filename)) {
             static char err[] = "This disk image is already loaded to drive X:\n"
                                 "Do you still want to load it to drive Y:?";
             err[43] = k+'A';
             err[84] = trd_toload+'A';
             if (MessageBox(GetForegroundWindow(), err, "Warning", MB_YESNO | MB_ICONWARNING) == IDNO) return 1;
          }
-      if (!testdisk(trd_toload)) return 0;
+      FDD *drive = comp.wd.fdd + trd_toload;
+      if (!drive->test()) return 0;
       int ok = 0;
-      if (type == snTRD) ok = read_trd(trd_toload);
-      if (type == snUDI) ok = read_udi(trd_toload);
-      if (type == snHOB) ok = read_hob(trd_toload);
-      if (type == snSCL) ok = read_scl(trd_toload);
-      if (type == snFDI) ok = read_fdi(trd_toload);
-      if (type == snTD0) ok = read_td0(trd_toload);
+      if (type == snTRD) ok = drive->read_trd();
+      if (type == snUDI) ok = drive->read_udi();
+      if (type == snHOB) ok = drive->read_hob();
+      if (type == snSCL) ok = drive->read_scl();
+      if (type == snFDI) ok = drive->read_fdi();
+      if (type == snTD0) ok = drive->read_td0();
       if (ok) {
-         strcpy(disk[trd_toload].name, filename);
+         if (*conf.appendboot) drive->addboot();
+         strcpy(drive->name, filename);
          if (GetFileAttributes(filename) & FILE_ATTRIBUTE_READONLY)
             conf.trdos_wp[trd_toload] = 1;
          if (type != snHOB) trd_toload = (trd_toload+1) & 3;
+         drive->snaptype = (type == snHOB || type == snSCL)? snTRD : type;
       }
       return ok;
    }
@@ -247,7 +243,8 @@ int readZ80()
 
 #define arctmp ((char*)rbuf)
 char *arc_fname;
-BOOL CALLBACK ArcDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
+BOOL CALLBACK ArcDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+{
    if (msg == WM_INITDIALOG) {
       for (char *dst = arctmp; *dst; dst += strlen(dst)+1)
          SendDlgItemMessage(dlg, IDC_ARCLIST, LB_ADDSTRING, 0, (LPARAM)dst);
@@ -374,7 +371,6 @@ void opensnap(int index)
    }
    eat();
 }
-void opensnap() { opensnap(0); }
 
 const mx_typs = (1+4*6);
 unsigned char snaps[mx_typs]; unsigned exts[mx_typs], drvs[mx_typs]; int snp;
@@ -390,23 +386,34 @@ void savesnap(int diskindex)
 again:
    OPENFILENAME ofn = { sizeof ofn }; char fname[0x200]; *fname = 0;
    if (diskindex >= 0) {
-      strcpy(fname, disk[diskindex].name);
+      strcpy(fname, comp.wd.fdd[diskindex].name);
       int ln = strlen(fname);
       if (ln > 4 && (*(unsigned*)(fname+ln-4) | WORD4(0,0x20,0x20,0x20)) == WORD4('.','s','c','l'))
          *(unsigned*)(fname+ln-4) = WORD4('.','t','r','d');
    }
+
    snp = 1; char types[600], *ptr = types;
+
    if (diskindex < 0) {
       exts[snp] = WORD4('s','n','a',0); snaps[snp] = snSNA_128; // default
       addref(ptr, snSNA_128, "ZX-Spectrum 128K snapshot (SNA)\0*.sna", -1, WORD4('s','n','a',0));
    }
+
+   ofn.nFilterIndex = 1;
+
    if (conf.trdos_present) {
-      for (int n = 0; n < 4; n++) if (disk[n].rawdata) {
-         if (diskindex>=0 && diskindex!=n) continue;
-         static char mask[] = "Disk A (TRD)\0*.trd"; mask[5] = 'A'+n;
-         static char ex[][3] = { {'T','R','D'}, {'F','D','I'},{'T','D','0'},{'U','D','I'}};
-         unsigned ex2[] = { snTRD, snFDI, snTD0, snUDI };
+
+      static char mask[] = "Disk A (TRD)\0*.trd";
+      static const char ex[][3] = { {'T','R','D'}, {'F','D','I'},{'T','D','0'},{'U','D','I'}};
+      static const unsigned ex2[] = { snTRD, snFDI, snTD0, snUDI };
+
+      for (int n = 0; n < 4; n++) {
+         if (!comp.wd.fdd[n].rawdata) continue;
+         if (diskindex >= 0 && diskindex != n) continue;
+         mask[5] = 'A'+n;
+
          for (int i = 0; i < sizeof ex/sizeof(ex[0]); i++) {
+            if (diskindex == n && ex2[i] == comp.wd.fdd[n].snaptype) ofn.nFilterIndex = snp;
             memcpy(mask+8, ex[i], 3);
             memcpy(mask+15, ex[i], 3);
             addref(ptr, ex2[i], mask, n, (*(unsigned*)ex[i] & 0xFFFFFF) | 0x202020);
@@ -424,7 +431,7 @@ again:
       if (atr == -1 || !(atr & FILE_ATTRIBUTE_DIRECTORY)) *fname = 0;
    } else path = fname;
    path = strrchr(path, '.'); if (path) *path = 0; // delete extension
-   ofn.nFilterIndex = 1;
+
    if (GetSaveFileName(&ofn)) {
       char *fn = strrchr(ofn.lpstrFile, '\\');
       fn = fn? fn+1 : ofn.lpstrFile;
@@ -440,21 +447,21 @@ again:
       FILE *ff = fopen(ofn.lpstrFile, "wb");
       if (ff) {
          int res = 0;
+         FDD *saveto = comp.wd.fdd + drvs[ofn.nFilterIndex];
          switch (snaps[ofn.nFilterIndex]) {
             case snSNA_128: res = writeSNA(ff); break;
-            case snTRD: res = write_trd(drvs[ofn.nFilterIndex], ff); break;
-            case snUDI: res = write_udi(drvs[ofn.nFilterIndex], ff); break;
-            case snFDI: res = write_fdi(drvs[ofn.nFilterIndex], ff); break;
-            case snTD0: res = write_td0(drvs[ofn.nFilterIndex], ff); break;
+            case snTRD: res = saveto->write_trd(ff); break;
+            case snUDI: res = saveto->write_udi(ff); break;
+            case snFDI: res = saveto->write_fdi(ff); break;
+            case snTD0: res = saveto->write_td0(ff); break;
          }
          fclose(ff);
          if (!res) MessageBox(GetForegroundWindow(), "write error", "Save", MB_ICONERROR);
-         else if (drvs[ofn.nFilterIndex]!=-1) disk[drvs[ofn.nFilterIndex]].optype=0, strcpy(disk[drvs[ofn.nFilterIndex]].name, ofn.lpstrFile);
+         else if (drvs[ofn.nFilterIndex]!=-1) comp.wd.fdd[drvs[ofn.nFilterIndex]].optype=0, strcpy(comp.wd.fdd[drvs[ofn.nFilterIndex]].name, ofn.lpstrFile);
       } else MessageBox(GetForegroundWindow(), "Can't open file for writing", "Save", MB_ICONERROR);
    }
    eat();
 }
-void savesnap() { savesnap(-1); }
 
 unsigned char bmpheader32[]=
 {

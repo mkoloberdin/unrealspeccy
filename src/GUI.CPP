@@ -708,9 +708,7 @@ BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          sh = (f & RF_BORDER)? SW_HIDE : SW_SHOW;
          ShowWindow(GetDlgItem(dlg, IDC_FLASH), sh);
 
-         sh = (f & RF_DRIVER)? SW_SHOW : SW_HIDE;
-         if (rend == render_tv) sh = SW_SHOW;
-         if (rend == render_text || rend == render_rsm) sh = SW_HIDE;
+         sh = (((f & (RF_DRIVER | RF_8BPCH | RF_USEFONT)) == RF_DRIVER) || (rend == render_tv))? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_NOFLIC), sh);
 
          if (!(f & RF_512) || getcheck(IDC_FAST_SL) || !getcheck(IDC_NOFLIC)) sh = SW_HIDE;
@@ -844,7 +842,7 @@ upd:  for (int i = 0; i < sizeof slider/sizeof*slider; i++) {
       return 1;
    }
 
-   #ifdef GS_BASS
+   #ifdef MOD_GSBASS
    if (msg == WM_COMMAND && LOWORD(wp) == IDB_SAVEMOD) {
       OPENFILENAME ofn = { sizeof ofn };
       char fname[0x200]; strncpy(fname, (char*)gs.mod, 20); fname[20] = 0;
@@ -1052,7 +1050,8 @@ BOOL CALLBACK LedsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
      { IDC_LED_LOAD, IDC_LED_ROM_X, IDC_LED_ROM_Y },
      { IDC_LED_INPUT, IDC_LED_INPUT_X, IDC_LED_INPUT_Y },
      { IDC_LED_TIME, IDC_LED_TIME_X, IDC_LED_TIME_Y },
-     { IDC_LED_DEBUG, IDC_LED_DEBUG_X, IDC_LED_DEBUG_Y }
+     { IDC_LED_DEBUG, IDC_LED_DEBUG_X, IDC_LED_DEBUG_Y },
+     { IDC_LED_MEMBAND, IDC_LED_MEMBAND_X, IDC_LED_MEMBAND_Y }
    };
    volatile static char block=0;
    ::dlg = dlg;
@@ -1062,8 +1061,6 @@ BOOL CALLBACK LedsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       c1.led.enabled = ld_on;
       c1.led.perf_t = getcheck(IDC_PERF_T);
       c1.led.flash_ay_kbd = getcheck(IDC_LED_AYKBD);
-      EnableWindow(GetDlgItem(dlg, IDC_LED_AYKBD), (ld_on && hndKbdDev));
-      EnableWindow(GetDlgItem(dlg, IDC_PERF_T), ld_on);
       for (unsigned i = 0; i < NUM_LEDS; i++) {
          char b1[16], b2[16];
          SendDlgItemMessage(dlg, ids[i][1], WM_GETTEXT, sizeof b1, (LPARAM)b1);
@@ -1077,14 +1074,40 @@ BOOL CALLBACK LedsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          EnableWindow(GetDlgItem(dlg, ids[i][2]), x);
          (&c1.led.ay)[i] = a;
       }
+      EnableWindow(GetDlgItem(dlg, IDC_LED_AYKBD), (ld_on && hndKbdDev));
+      EnableWindow(GetDlgItem(dlg, IDC_PERF_T), ld_on && (c1.led.perf & 0x80000000));
+      EnableWindow(GetDlgItem(dlg, IDC_LED_BPP), ld_on && (c1.led.memband & 0x80000000));
+
+      #ifndef MOD_MONITOR
+      c1.led.osw &= 0x7FFFFFFF;
+      EnableWindow(GetDlgItem(dlg, IDC_LED_DEBUG), 0);
+      #endif
+
+      #ifndef MOD_DEBUGCORE
+      c1.led.memband &= 0x7FFFFFFF;
+      EnableWindow(GetDlgItem(dlg, IDC_LED_MEMBAND), 0);
+      #endif
    }
    if (msg != WM_NOTIFY) return 0;
    NMHDR *nm = (NMHDR*)lp;
+   if (nm->code == PSN_KILLACTIVE) {
+      unsigned pos = SendDlgItemMessage(dlg, IDC_LED_BPP, TBM_GETPOS, 0, 0);
+      if (pos == 0) c1.led.bandBpp = 64;
+      else if (pos == 1) c1.led.bandBpp = 128;
+      else if (pos == 2) c1.led.bandBpp = 256;
+      else c1.led.bandBpp = 512;
+   }
    if (nm->code == PSN_SETACTIVE) {
       block = 1;
       setcheck(IDC_LED_ON, c1.led.enabled);
       setcheck(IDC_LED_AYKBD, c1.led.flash_ay_kbd);
       setcheck(IDC_PERF_T, c1.led.perf_t);
+      unsigned pos = 3;
+      if (c1.led.bandBpp == 64) pos = 0;
+      if (c1.led.bandBpp == 128) pos = 1;
+      if (c1.led.bandBpp == 256) pos = 2;
+      SendDlgItemMessage(dlg, IDC_LED_BPP, TBM_SETRANGE, 0, MAKELONG(0,3));
+      SendDlgItemMessage(dlg, IDC_LED_BPP, TBM_SETPOS, 1, pos);
       for (unsigned i = 0; i < NUM_LEDS; i++) {
          unsigned a = (&c1.led.ay)[i];
          char bf[16]; sprintf(bf, "%d", (signed short)(a & 0xFFFF));
@@ -1097,6 +1120,7 @@ BOOL CALLBACK LedsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       block = 0;
       lastpage = "LEDS";
    }
+
    if (nm->code == PSN_APPLY) dlgok = 1;
    if (nm->code == PSN_RESET) dlgok = 0;
    return 1;
@@ -1117,8 +1141,8 @@ BOOL CALLBACK BetaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          case IDB_INS_C: disk = 2; goto load;
          case IDB_INS_D: disk = 3; goto load;
          load:
-            if (!testdisk(disk)) return 1;
-            freedisk(disk); opensnap(disk+1);
+            if (!comp.wd.fdd[disk].test()) return 1;
+            comp.wd.fdd[disk].free(); opensnap(disk+1);
             c1.trdos_wp[disk] = conf.trdos_wp[disk]; goto reload;
 
          case IDB_REM_A: disk = 0; goto remove;
@@ -1126,8 +1150,8 @@ BOOL CALLBACK BetaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          case IDB_REM_C: disk = 2; goto remove;
          case IDB_REM_D: disk = 3; goto remove;
          remove:
-            if (!testdisk(disk)) return 1;
-            freedisk(disk); c1.trdos_wp[disk] = conf.trdos_wp[disk];
+            if (!comp.wd.fdd[disk].test()) return 1;
+            comp.wd.fdd[disk].free(); c1.trdos_wp[disk] = conf.trdos_wp[disk];
             goto reload;
 
          case IDB_SAVE_A: savesnap(0); goto reload;
@@ -1162,10 +1186,10 @@ BOOL CALLBACK BetaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    if (nm->code == PSN_RESET) dlgok = 0;
    return 1;}
 reload:
-   SendDlgItemMessage(dlg, IDE_DISK_A, WM_SETTEXT, 0, (LPARAM)disk[0].name);
-   SendDlgItemMessage(dlg, IDE_DISK_B, WM_SETTEXT, 0, (LPARAM)disk[1].name);
-   SendDlgItemMessage(dlg, IDE_DISK_C, WM_SETTEXT, 0, (LPARAM)disk[2].name);
-   SendDlgItemMessage(dlg, IDE_DISK_D, WM_SETTEXT, 0, (LPARAM)disk[3].name);
+   SendDlgItemMessage(dlg, IDE_DISK_A, WM_SETTEXT, 0, (LPARAM)comp.wd.fdd[0].name);
+   SendDlgItemMessage(dlg, IDE_DISK_B, WM_SETTEXT, 0, (LPARAM)comp.wd.fdd[1].name);
+   SendDlgItemMessage(dlg, IDE_DISK_C, WM_SETTEXT, 0, (LPARAM)comp.wd.fdd[2].name);
+   SendDlgItemMessage(dlg, IDE_DISK_D, WM_SETTEXT, 0, (LPARAM)comp.wd.fdd[3].name);
    setcheck(IDC_BETA128, c1.trdos_present);
    setcheck(IDC_DISK_TRAPS, c1.trdos_traps);
    setcheck(IDC_DISK_NODELAY, c1.wd93_nodelay);
@@ -1187,15 +1211,15 @@ reload:
    EnableWindow(GetDlgItem(dlg, IDB_REM_C), on);
    EnableWindow(GetDlgItem(dlg, IDB_REM_D), on);
 
-   EnableWindow(GetDlgItem(dlg, IDB_SAVE_A), on && disk[0].rawdata);
-   EnableWindow(GetDlgItem(dlg, IDB_SAVE_B), on && disk[1].rawdata);
-   EnableWindow(GetDlgItem(dlg, IDB_SAVE_C), on && disk[2].rawdata);
-   EnableWindow(GetDlgItem(dlg, IDB_SAVE_D), on && disk[3].rawdata);
+   EnableWindow(GetDlgItem(dlg, IDB_SAVE_A), on && comp.wd.fdd[0].rawdata);
+   EnableWindow(GetDlgItem(dlg, IDB_SAVE_B), on && comp.wd.fdd[1].rawdata);
+   EnableWindow(GetDlgItem(dlg, IDB_SAVE_C), on && comp.wd.fdd[2].rawdata);
+   EnableWindow(GetDlgItem(dlg, IDB_SAVE_D), on && comp.wd.fdd[3].rawdata);
 
-   ShowWindow(GetDlgItem(dlg, IDC_MODA), disk[0].optype? SW_SHOW : SW_HIDE);
-   ShowWindow(GetDlgItem(dlg, IDC_MODB), disk[1].optype? SW_SHOW : SW_HIDE);
-   ShowWindow(GetDlgItem(dlg, IDC_MODC), disk[2].optype? SW_SHOW : SW_HIDE);
-   ShowWindow(GetDlgItem(dlg, IDC_MODD), disk[3].optype? SW_SHOW : SW_HIDE);
+   ShowWindow(GetDlgItem(dlg, IDC_MODA), comp.wd.fdd[0].optype? SW_SHOW : SW_HIDE);
+   ShowWindow(GetDlgItem(dlg, IDC_MODB), comp.wd.fdd[1].optype? SW_SHOW : SW_HIDE);
+   ShowWindow(GetDlgItem(dlg, IDC_MODC), comp.wd.fdd[2].optype? SW_SHOW : SW_HIDE);
+   ShowWindow(GetDlgItem(dlg, IDC_MODD), comp.wd.fdd[3].optype? SW_SHOW : SW_HIDE);
    return 1;
 }
 

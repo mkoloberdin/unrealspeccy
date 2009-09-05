@@ -68,6 +68,14 @@ void stop_tape()
    comp.tape.tape_bit = -1;
 }
 
+void reset_tape()
+{
+   comp.tape.index = 0;
+   comp.tape.play_pointer = 0;
+   comp.tape.edge_change = 0x7FFFFFFFFFFFFFFF;
+   comp.tape.tape_bit = -1;
+}
+
 void start_tape()
 {
    if (!tape_image) return;

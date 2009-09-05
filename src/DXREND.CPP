@@ -38,6 +38,21 @@ void __fastcall render_dbl(unsigned char *dst, unsigned pitch)
    rend_dbl(dst, pitch);
 }
 
+void __fastcall render_quad(unsigned char *dst, unsigned pitch)
+{
+   if (conf.noflic) {
+      if (temp.obpp == 8)  rend_copy8q_nf (dst, pitch);
+      if (temp.obpp == 16) rend_copy16q_nf(dst, pitch);
+      if (temp.obpp == 32) rend_copy32q_nf(dst, pitch);
+      memcpy(rbuf_s, rbuf, temp.scy*temp.scx/4);
+   } else {
+      if (temp.obpp == 8)  { rend_copy8q (dst, pitch); return; }
+      if (temp.obpp == 16) { rend_copy16q(dst, pitch); return; }
+      if (temp.obpp == 32) { rend_copy32q(dst, pitch); return; }
+   }
+}
+
+
 void __fastcall render_scale(unsigned char *dst, unsigned pitch)
 {
    unsigned char *src = rbuf;

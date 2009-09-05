@@ -1,4 +1,6 @@
 
+// #define QUAD_BUFFER  // tests show that this variant is slower, even in noflic mode
+
 void line32_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
    for (unsigned x = 0; x < temp.scx*4; x += 32) {
@@ -71,6 +73,66 @@ void line32d_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
+void line32q_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
+{
+   for (unsigned x = 0; x < temp.scx*16; x += 128) {
+      unsigned char byte = *src;
+      unsigned *t1 = tab + src[1];
+      unsigned char byt1 = src[rb2_offs];
+      unsigned *t2 = tab + src[rb2_offs+1];
+      src += 2;
+
+      *(unsigned*)(dst+x+0x00) =
+      *(unsigned*)(dst+x+0x04) =
+      *(unsigned*)(dst+x+0x08) =
+      *(unsigned*)(dst+x+0x0C) =
+                               t1[(byte << 1) & 0x100] +
+                               t2[(byt1 << 1) & 0x100];
+      *(unsigned*)(dst+x+0x10) =
+      *(unsigned*)(dst+x+0x14) =
+      *(unsigned*)(dst+x+0x18) =
+      *(unsigned*)(dst+x+0x1C) =
+                               t1[(byte << 2) & 0x100] +
+                               t2[(byt1 << 2) & 0x100];
+      *(unsigned*)(dst+x+0x20) =
+      *(unsigned*)(dst+x+0x24) =
+      *(unsigned*)(dst+x+0x28) =
+      *(unsigned*)(dst+x+0x2C) =
+                               t1[(byte << 3) & 0x100] +
+                               t2[(byt1 << 3) & 0x100];
+      *(unsigned*)(dst+x+0x30) =
+      *(unsigned*)(dst+x+0x34) =
+      *(unsigned*)(dst+x+0x38) =
+      *(unsigned*)(dst+x+0x3C) =
+                               t1[(byte << 4) & 0x100] +
+                               t2[(byt1 << 4) & 0x100];
+      *(unsigned*)(dst+x+0x40) =
+      *(unsigned*)(dst+x+0x44) =
+      *(unsigned*)(dst+x+0x48) =
+      *(unsigned*)(dst+x+0x4C) =
+                               t1[(byte << 5) & 0x100] +
+                               t2[(byt1 << 5) & 0x100];
+      *(unsigned*)(dst+x+0x50) =
+      *(unsigned*)(dst+x+0x54) =
+      *(unsigned*)(dst+x+0x58) =
+      *(unsigned*)(dst+x+0x5C) =
+                               t1[(byte << 6) & 0x100] +
+                               t2[(byt1 << 6) & 0x100];
+      *(unsigned*)(dst+x+0x60) =
+      *(unsigned*)(dst+x+0x64) =
+      *(unsigned*)(dst+x+0x68) =
+      *(unsigned*)(dst+x+0x6C) =
+                               t1[(byte << 7) & 0x100] +
+                               t2[(byt1 << 7) & 0x100];
+      *(unsigned*)(dst+x+0x70) =
+      *(unsigned*)(dst+x+0x74) =
+      *(unsigned*)(dst+x+0x78) =
+      *(unsigned*)(dst+x+0x7C) =
+                               t1[(byte << 8) & 0x100] +
+                               t2[(byt1 << 8) & 0x100];
+   }
+}
+
 void line32(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
    for (unsigned x = 0; x < temp.scx*4; x += 32) {
@@ -119,6 +181,54 @@ void line32d(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
+void line32q(unsigned char *dst, unsigned char *src, unsigned *tab)
+{
+   for (unsigned x = 0; x < temp.scx*16; x += 128) {
+      unsigned char byte = *src++;
+      unsigned *t = tab + *src++;
+      *(unsigned*)(dst+x+0x00) =
+      *(unsigned*)(dst+x+0x04) =
+      *(unsigned*)(dst+x+0x08) =
+      *(unsigned*)(dst+x+0x0C) =
+                               t[(byte << 1) & 0x100];
+      *(unsigned*)(dst+x+0x10) =
+      *(unsigned*)(dst+x+0x14) =
+      *(unsigned*)(dst+x+0x18) =
+      *(unsigned*)(dst+x+0x1C) =
+                               t[(byte << 2) & 0x100];
+      *(unsigned*)(dst+x+0x20) =
+      *(unsigned*)(dst+x+0x24) =
+      *(unsigned*)(dst+x+0x28) =
+      *(unsigned*)(dst+x+0x2C) =
+                               t[(byte << 3) & 0x100];
+      *(unsigned*)(dst+x+0x30) =
+      *(unsigned*)(dst+x+0x34) =
+      *(unsigned*)(dst+x+0x38) =
+      *(unsigned*)(dst+x+0x3C) =
+                               t[(byte << 4) & 0x100];
+      *(unsigned*)(dst+x+0x40) =
+      *(unsigned*)(dst+x+0x44) =
+      *(unsigned*)(dst+x+0x48) =
+      *(unsigned*)(dst+x+0x4C) =
+                               t[(byte << 5) & 0x100];
+      *(unsigned*)(dst+x+0x50) =
+      *(unsigned*)(dst+x+0x54) =
+      *(unsigned*)(dst+x+0x58) =
+      *(unsigned*)(dst+x+0x5C) =
+                               t[(byte << 6) & 0x100];
+      *(unsigned*)(dst+x+0x60) =
+      *(unsigned*)(dst+x+0x64) =
+      *(unsigned*)(dst+x+0x68) =
+      *(unsigned*)(dst+x+0x6C) =
+                               t[(byte << 7) & 0x100];
+      *(unsigned*)(dst+x+0x70) =
+      *(unsigned*)(dst+x+0x74) =
+      *(unsigned*)(dst+x+0x78) =
+      *(unsigned*)(dst+x+0x7C) =
+                               t[(byte << 8) & 0x100];
+   }
+}
+
 #define line16 line8d
 
 void line16_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
@@ -149,6 +259,9 @@ void line16_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
 
 #define line16d line32
 #define line16d_nf line32_nf
+
+#define line16q line32d
+#define line16q_nf line32d_nf
 
 void line8(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
@@ -215,6 +328,22 @@ void line8d(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
+void line8q(unsigned char *dst, unsigned char *src, unsigned *tab)
+{
+   for (unsigned x = 0; x < temp.scx*4; x += 32) {
+      unsigned char byte = *src++;
+      unsigned *t = tab + *src++;
+      *(unsigned*)(dst+x+0x00) = t[(byte << 1) & 0x100];
+      *(unsigned*)(dst+x+0x04) = t[(byte << 2) & 0x100];
+      *(unsigned*)(dst+x+0x08) = t[(byte << 3) & 0x100];
+      *(unsigned*)(dst+x+0x0C) = t[(byte << 4) & 0x100];
+      *(unsigned*)(dst+x+0x10) = t[(byte << 5) & 0x100];
+      *(unsigned*)(dst+x+0x14) = t[(byte << 6) & 0x100];
+      *(unsigned*)(dst+x+0x18) = t[(byte << 7) & 0x100];
+      *(unsigned*)(dst+x+0x1C) = t[(byte << 8) & 0x100];
+   }
+}
+
 void line8d_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
    for (unsigned x = 0; x < temp.scx*2; x += 32) {
@@ -238,6 +367,24 @@ void line8d_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
       *(unsigned*)(dst+x+28)= (tab[((s >>16) & 3) + attr] & 0x0F0F0F0F) +
                               (tab[((r >>16) & 3) + atr2] & 0xF0F0F0F0);
       src += 4;
+   }
+}
+
+void line8q_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
+{
+   for (unsigned x = 0; x < temp.scx*4; x += 32) {
+      unsigned char byte1 = src[0], byte2 = src[rb2_offs+0];
+      unsigned *t1 = tab + src[1], *t2 = tab + src[rb2_offs+1];
+      src += 2;
+
+      *(unsigned*)(dst+x+0x00) = (t1[(byte1 << 1) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 1) & 0x100] & 0xF0F0F0F0);
+      *(unsigned*)(dst+x+0x04) = (t1[(byte1 << 2) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 2) & 0x100] & 0xF0F0F0F0);
+      *(unsigned*)(dst+x+0x08) = (t1[(byte1 << 3) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 3) & 0x100] & 0xF0F0F0F0);
+      *(unsigned*)(dst+x+0x0C) = (t1[(byte1 << 4) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 4) & 0x100] & 0xF0F0F0F0);
+      *(unsigned*)(dst+x+0x10) = (t1[(byte1 << 5) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 5) & 0x100] & 0xF0F0F0F0);
+      *(unsigned*)(dst+x+0x14) = (t1[(byte1 << 6) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 6) & 0x100] & 0xF0F0F0F0);
+      *(unsigned*)(dst+x+0x18) = (t1[(byte1 << 7) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 7) & 0x100] & 0xF0F0F0F0);
+      *(unsigned*)(dst+x+0x1C) = (t1[(byte1 << 8) & 0x100] & 0x0F0F0F0F) + (t2[(byte2 << 8) & 0x100] & 0xF0F0F0F0);
    }
 }
 
@@ -289,6 +436,27 @@ void rend_copy32d_nf(unsigned char *dst, unsigned pitch)
    }
 }
 
+void rend_copy32q_nf(unsigned char *dst, unsigned pitch)
+{
+   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
+   for (unsigned y = 0; y < temp.scy; y++) {
+#ifdef QUAD_BUFFER
+      unsigned char buffer[MAX_WIDTH*4*sizeof(DWORD)];
+      line32q_nf(buffer, src, t.sctab32_nf[0]);
+      for (int i = 0; i < 4; i++) {
+         memcpy(dst, buffer, temp.scx*16);
+         dst += pitch;
+      }
+#else
+      line32q_nf(dst, src, t.sctab32_nf[0]); dst += pitch;
+      line32q_nf(dst, src, t.sctab32_nf[0]); dst += pitch;
+      line32q_nf(dst, src, t.sctab32_nf[0]); dst += pitch;
+      line32q_nf(dst, src, t.sctab32_nf[0]); dst += pitch;
+#endif
+      src += delta;
+   }
+}
+
 void rend_copy32d1(unsigned char *dst, unsigned pitch)
 {
    unsigned char *src = rbuf; unsigned delta = temp.scx/4;
@@ -304,6 +472,27 @@ void rend_copy32d(unsigned char *dst, unsigned pitch)
    for (unsigned y = 0; y < temp.scy; y++) {
       line32d(dst, src, t.sctab32[0]); dst += pitch;
       line32d(dst, src, t.sctab32[1]); dst += pitch;
+      src += delta;
+   }
+}
+
+void rend_copy32q(unsigned char *dst, unsigned pitch)
+{
+   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
+   for (unsigned y = 0; y < temp.scy; y++) {
+#ifdef QUAD_BUFFER
+      unsigned char buffer[MAX_WIDTH*4*sizeof(DWORD)];
+      line32q(buffer, src, t.sctab32[0]);
+      for (int i = 0; i < 4; i++) {
+         memcpy(dst, buffer, temp.scx*16);
+         dst += pitch;
+      }
+#else
+      line32q(dst, src, t.sctab32[0]); dst += pitch;
+      line32q(dst, src, t.sctab32[0]); dst += pitch;
+      line32q(dst, src, t.sctab32[0]); dst += pitch;
+      line32q(dst, src, t.sctab32[0]); dst += pitch;
+#endif
       src += delta;
    }
 }
@@ -345,7 +534,20 @@ void rend_copy16d(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_copy16d1_nf(unsigned char *dst, unsigned pitch) {
+void rend_copy16q(unsigned char *dst, unsigned pitch)
+{
+   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
+   for (unsigned y = 0; y < temp.scy; y++) {
+      line16q(dst, src, t.sctab16d[0]); dst += pitch;
+      line16q(dst, src, t.sctab16d[0]); dst += pitch;
+      line16q(dst, src, t.sctab16d[0]); dst += pitch;
+      line16q(dst, src, t.sctab16d[0]); dst += pitch;
+      src += delta;
+   }
+}
+
+void rend_copy16d1_nf(unsigned char *dst, unsigned pitch)
+{
    unsigned char *src = rbuf; unsigned delta = temp.scx/4;
    for (unsigned y = 0; y < temp.scy; y++) {
       line16d_nf(dst, src, t.sctab16d_nf[0]); dst += pitch;
@@ -371,6 +573,18 @@ void rend_copy16d_nf(unsigned char *dst, unsigned pitch)
          line16d_nf(dst, src, t.sctab16d_nf[1]); dst += pitch;
          src += delta;
       }
+   }
+}
+
+void rend_copy16q_nf(unsigned char *dst, unsigned pitch)
+{
+   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
+   for (unsigned y = 0; y < temp.scy; y++) {
+      line16q_nf(dst, src, t.sctab16d_nf[0]); dst += pitch;
+      line16q_nf(dst, src, t.sctab16d_nf[0]); dst += pitch;
+      line16q_nf(dst, src, t.sctab16d_nf[0]); dst += pitch;
+      line16q_nf(dst, src, t.sctab16d_nf[0]); dst += pitch;
+      src += delta;
    }
 }
 
@@ -411,6 +625,18 @@ void rend_copy8d(unsigned char *dst, unsigned pitch)
    }
 }
 
+void rend_copy8q(unsigned char *dst, unsigned pitch)
+{
+   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
+   for (unsigned y = 0; y < temp.scy; y++) {
+      line8q(dst, src, t.sctab8q); dst += pitch;
+      line8q(dst, src, t.sctab8q); dst += pitch;
+      line8q(dst, src, t.sctab8q); dst += pitch;
+      line8q(dst, src, t.sctab8q); dst += pitch;
+      src += delta;
+   }
+}
+
 void rend_copy8d1_nf(unsigned char *dst, unsigned pitch)
 {
    unsigned char *src = rbuf; unsigned delta = temp.scx/4;
@@ -439,3 +665,16 @@ void rend_copy8d_nf(unsigned char *dst, unsigned pitch)
       }
    }
 }
+
+void rend_copy8q_nf(unsigned char *dst, unsigned pitch)
+{
+   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
+   for (unsigned y = 0; y < temp.scy; y++) {
+      line8q_nf(dst, src, t.sctab8q); dst += pitch;
+      line8q_nf(dst, src, t.sctab8q); dst += pitch;
+      line8q_nf(dst, src, t.sctab8q); dst += pitch;
+      line8q_nf(dst, src, t.sctab8q); dst += pitch;
+      src += delta;
+   }
+}
+

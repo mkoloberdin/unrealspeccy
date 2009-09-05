@@ -501,14 +501,6 @@ void mon_bpdialog()
    DialogBox(hIn, MAKEINTRESOURCE(IDD_COND), wnd, conddlg);
 }
 
-unsigned char isbrk() // is there breakpoints active ?
-{
-   if (cbpn || conf.mem_model == MM_PROFSCORP) return 1; // breakpoint on read ROM switches ROM bank
-   unsigned char res = 0;
-   for (int i = 0; i < 0x10000; i++) res |= membits[i];
-   return (res & (MEMBITS_BPR | MEMBITS_BPW | MEMBITS_BPX));
-}
-
 BOOL CALLBACK watchdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    char tmp[0x200]; unsigned i;

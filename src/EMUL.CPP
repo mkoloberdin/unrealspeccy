@@ -19,6 +19,8 @@
 #include "z80.cpp"
 #include "gs.cpp"
 #include "tape.cpp"
+#include "wd93crc.cpp"
+#include "wd93trk.cpp"
 #include "wd93dat.cpp"
 #include "wd93cmd.cpp"
 #include "hdd.cpp"
@@ -70,7 +72,6 @@ void init_all(int argc, char **argv)
    init_gs();
    #endif
    init_leds();
-   init_dos();
    init_tape();
    init_hdd_cd();
    start_dx();
@@ -101,7 +102,6 @@ void __declspec(noreturn) exit()
 {
    exitflag = 1;
    if (savesndtype) savesnddialog();
-   done_dos();
    done_tape();
    done_dx();
    done_leds();
@@ -130,9 +130,6 @@ LONG __stdcall filter(EXCEPTION_POINTERS *pp)
 
 void __declspec(noreturn) __cdecl main(int argc, char **argv)
 {
-   Sleep(20); DWORD ticks = GetTickCount();
-   unsigned __int64 clocks = rdtsc();
-
    CONSOLE_SCREEN_BUFFER_INFO csbi;
    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
    nowait = *(unsigned*)&csbi.dwCursorPosition;
@@ -147,19 +144,14 @@ void __declspec(noreturn) __cdecl main(int argc, char **argv)
    unsigned cpuver = cpuid(1,0);
    temp.mmx = (cpuid(1,1) >> 23) & 1;
 
-   init_all(argc-1, argv+1);
-
-   Sleep(20);
-   ticks = GetTickCount() - ticks;
-   clocks = rdtsc() - clocks;
-   conf.cpufq = (unsigned)(clocks*1000/ticks);
-
+   conf.cpufq = GetCPUFrequency();
    printf("cpu: %s %d.%d.%d [%sMMX] at %d MHz\n",
       idstr,
       (cpuver>>8) & 0x0F, (cpuver>>4) & 0x0F, cpuver & 0x0F,
       temp.mmx ? nil : "non-",
       (unsigned)(conf.cpufq/1000000));
 
+   init_all(argc-1, argv+1);
    applyconfig();
    sound_play();
    mainloop();

@@ -137,6 +137,8 @@ void load_led()
    } else if (trdos_load) {
       diskcolor = (trdos_load < ROMLED_TIME*3/4) ? 0x01 : 0x09;
       trdos_load--;
+   } else if (trdos_seek) {
+      trdos_seek--;
    } else if (comp.tape.play_pointer) {
       static unsigned char tapeled[11*2] = {
          0x7F, 0xFE, 0x80, 0x01, 0x80, 0x01, 0x93, 0xC9, 0xAA, 0x55, 0x93, 0xC9,
@@ -161,14 +163,16 @@ void load_led()
       sprintf(ln, "%X:%02d", time/60, time % 60);
       text_i(temp.led.load + pitch*12 - 2, ln, 0x0D);
    }
-   if (diskcolor) {
-      unsigned *ptr = (unsigned*)temp.led.load;
-      for (int i = 0; i < 7; i++, ptr = (unsigned*)((char*)ptr+pitch))
-         *ptr = (*ptr & WORD4(0,0xF0,0,0xF0)) | WORD4(0x3F,diskcolor,0xFC,diskcolor);
-      static unsigned char disk[] = { 0x38, 0x1C, 0x3B, 0x9C, 0x3B, 0x9C, 0x3B, 0x9C, 0x38,0x1C };
-      for (i = 0; i < 5; i++, ptr = (unsigned*)((char*)ptr+pitch))
-         *ptr = (*ptr & WORD4(0,0xF0,0,0xF0)) | WORD4(disk[2*i],diskcolor,disk[2*i+1],diskcolor);
-      sprintf(ln, "%02X", fdd_track[comp.wd.drive]*2 + comp.wd.side);
+   if (diskcolor | trdos_seek) {
+      if (diskcolor) {
+         unsigned *ptr = (unsigned*)temp.led.load;
+         for (int i = 0; i < 7; i++, ptr = (unsigned*)((char*)ptr+pitch))
+            *ptr = (*ptr & WORD4(0,0xF0,0,0xF0)) | WORD4(0x3F,diskcolor,0xFC,diskcolor);
+         static unsigned char disk[] = { 0x38, 0x1C, 0x3B, 0x9C, 0x3B, 0x9C, 0x3B, 0x9C, 0x38,0x1C };
+         for (i = 0; i < 5; i++, ptr = (unsigned*)((char*)ptr+pitch))
+            *ptr = (*ptr & WORD4(0,0xF0,0,0xF0)) | WORD4(disk[2*i],diskcolor,disk[2*i+1],diskcolor);
+      }
+      sprintf(ln, "%02X", comp.wd.seldrive->track*2 + comp.wd.side);
       text_i(temp.led.load + pitch - 4, ln, 0x05 + (diskcolor & 8));
    }
 }
@@ -267,6 +271,65 @@ void debug_led()
 }
 #endif
 
+#ifdef MOD_DEBUGCORE
+void show_mband(unsigned char *dst, unsigned start)
+{
+   char xx[8]; sprintf(xx, "%02X", start >> 8);
+   text_i(dst, xx, 0x0B); dst += 4;
+
+   unsigned char band[128];
+   for (unsigned i = 0; i < 128; i++) {
+      unsigned char res = 0;
+      for (unsigned q = 0; q < conf.led.bandBpp; q++)
+         res |= membits[start++];
+      band[i] = res;
+   }
+
+   for (unsigned p = 0; p < 16; p++, dst+=2) {
+      unsigned char r=0, w=0, x=0;
+      for (unsigned b = 0; b < 8; b++) {
+         r *= 2, w *= 2, x *= 2;
+         if (band[p*8+b] & MEMBITS_R) r |= 1;
+         if (band[p*8+b] & MEMBITS_W) w |= 1;
+         if (band[p*8+b] & MEMBITS_X) x |= 1;
+      }
+
+      unsigned char t = (p && !(p & 3))? 0x7F : 0xFF;
+
+      dst[0*pitch] = t; dst[0*pitch+1] = 0x9B;
+
+      dst[1*pitch] = r; dst[1*pitch+1] = 0x1C;
+      dst[2*pitch] = r; dst[2*pitch+1] = 0x1C;
+      dst[3*pitch] = w; dst[3*pitch+1] = 0x1A;
+      dst[4*pitch] = w; dst[4*pitch+1] = 0x1A;
+      dst[5*pitch] = x; dst[5*pitch+1] = 0x1F;
+      dst[6*pitch] = x; dst[6*pitch+1] = 0x1F;
+
+      dst[7*pitch] = t; dst[7*pitch+1] = 0x9B;
+   }
+
+   sprintf(xx, "%02X", (start-1) >> 8);
+   text_i(dst, xx, 0x0B);
+
+   for (i = 0; i < 8; i++)
+      dst[i*pitch] |= 0x80, dst[i*pitch - 17*2] |= 0x01;
+}
+
+void memband_led()
+{
+   unsigned char *dst = temp.led.memband;
+   for (unsigned start = 0x0000; start < 0x10000;) {
+      show_mband(dst, start);
+      start += conf.led.bandBpp * 128;
+      dst += 10*pitch;
+   }
+
+   for (unsigned i = 0; i < 0x10000; i++)
+      membits[i] &= ripper | ~(MEMBITS_R | MEMBITS_W | MEMBITS_X);
+}
+#endif
+
+
 HANDLE hndKbdDev;
 
 void init_leds()
@@ -335,43 +398,6 @@ void time_led()
    text_i(temp.led.time, bf, 0x0D);
 }
 
-/*
-void fdd_led()
-{
-   process_wd();
-   unsigned char *ptr = screen + conf.led.fdd;
-   unsigned i;
-   static double phi = 0;
-   phi += 2*PI/(50/5);
-   for (unsigned d = 0; d < 4; d++, ptr += 22) {
-      unsigned char a = (d == comp.wd.drive) ? 0x45: 0x04;
-      if (disk[d].rawdata) {
-         for (double t = 0; t < 8; t += 0.1)
-            ptr[(int)(cos(t)*6+10) + MAX_WIDTH*(int)(sin(t)*6+10)] = a+1;
-      }
-      if (d == comp.wd.drive) {
-         char xx[8]; sprintf(xx, "%2d", fdd_track[d]);
-         printtrraw(ptr+MAX_WIDTH*12+6, xx, attrtab[0x105]);
-         *(unsigned*)xx = '0'+comp.wd.side;
-         printtrraw(ptr+2*6, xx, attrtab[0x143]);
-      }
-      static char x[2] = "A"; *x = 'A'+d;
-      printtrraw(ptr, x, 0x46);
-      a = attrtab[0x100 + a];
-      for (i = 0; i < 20; i++) ptr[i] = a;
-      for (i = 0; i < 20; i++) ptr[19*MAX_WIDTH+i] = a;
-      for (i = 0; i < 20; i++) ptr[i*MAX_WIDTH] = ptr[i*MAX_WIDTH+19] = a;
-      if (fdd_motor[d]) {
-         ptr[(int)(cos(phi)*8+10) + MAX_WIDTH*(int)(sin(phi)*8+10)] = attrtab[0x142];
-         ptr[(int)(cos(phi)*7+10) + MAX_WIDTH*(int)(sin(phi)*7+10)] = attrtab[0x142];
-      }
-      for (i = 1; i < 10; i++) ptr[10+MAX_WIDTH*i] = attrtab[0x147];
-      unsigned char c = attrtab[0x142];
-      *(unsigned*)(ptr+8+MAX_WIDTH*(fdd_track[d]*10/80)) = WORD4(0,c,c,c);
-   }
-}
-*/
-
 __inline void showleds()
 {
    led_updtime = GetTickCount();
@@ -392,6 +418,9 @@ __inline void showleds()
    if (temp.led.time) time_led();
 #ifdef MOD_MONITOR
    if (temp.led.osw) debug_led();
+#endif
+#ifdef MOD_DEBUGCORE
+   if (temp.led.memband) memband_led();
 #endif
    if (conf.led.flash_ay_kbd && hndKbdDev) ay_kbd();
    if (input.keymode == K_INPUT::KM_KEYSTICK) key_led();

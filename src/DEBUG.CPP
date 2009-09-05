@@ -67,6 +67,9 @@ unsigned regs_curs;
 #define W_INPUTCUR 0x60
 #define W_INPUTBG  0x40
 
+#define W_TRACE_JARROW_FOREGR 0x02
+#define W_TRACE_JMPADR_FOREGR 0x0D
+
 #define FRAME         0x01
 #define FFRAME_FRAME  0x04
 
@@ -87,7 +90,8 @@ enum DBGWND {
    WNDNO, WNDMEM, WNDTRACE, WNDREGS
 } activedbg = WNDTRACE;
 
-void frame(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char attr) {
+void frame(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char attr)
+{
    frames[nfr].x = x;
    frames[nfr].y = y;
    frames[nfr].dx = dx;
@@ -96,13 +100,15 @@ void frame(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char attr)
    nfr++;
 }
 
-void tprint(unsigned x, unsigned y, char *str, unsigned char attr) {
+void tprint(unsigned x, unsigned y, char *str, unsigned char attr)
+{
    for (unsigned ptr = y*80 + x; *str; str++, ptr++) {
       txtscr[ptr] = *str; txtscr[ptr+80*30] = attr;
    }
 }
 
-void filledframe(unsigned x, unsigned y, unsigned dx, unsigned dy) {
+void filledframe(unsigned x, unsigned y, unsigned dx, unsigned dy)
+{
    for (unsigned yy = y; yy < (y+dy); yy++)
       for (unsigned xx = x; xx < (x+dx); xx++)
          txtscr[yy*80+xx] = ' ',
@@ -111,7 +117,8 @@ void filledframe(unsigned x, unsigned y, unsigned dx, unsigned dy) {
    frame(x,y,dx,dy,FFRAME_FRAME);
 }
 
-void debugflip() {
+void debugflip()
+{
    if (!active) return;
    setpal(0);
 
@@ -130,7 +137,10 @@ void debugflip() {
          }
       }
    }
+
    if (show_scrshot) {
+      memcpy(save_buf, rbuf, rb2_offs);
+      paint_scr((show_scrshot == 1)? 0 : 2);
       unsigned char *dst = bptr + wat_y*16*640+wat_x*8;
       unsigned char *src = rbuf+temp.scx/4*(temp.b_top+192/2-wat_sz*16/2);
       src += temp.scx/8-37/2*2;
@@ -141,6 +151,7 @@ void debugflip() {
          }
          src += temp.scx/4, dst += 640;
       }
+      memcpy(rbuf, save_buf, rb2_offs);
    }
 
    // show frames
@@ -164,7 +175,8 @@ void debugflip() {
 }
 
 char str[0x80];
-unsigned inputhex(unsigned x, unsigned y, unsigned sz, char hex) {
+unsigned inputhex(unsigned x, unsigned y, unsigned sz, char hex)
+{
    unsigned cr = 0;
    mousepos = 0;
    for (;;) {
@@ -200,12 +212,16 @@ unsigned inputhex(unsigned x, unsigned y, unsigned sz, char hex) {
       if (cr == sz) cr--;
    }
 }
-unsigned input4(unsigned x, unsigned y, unsigned val) {
+
+unsigned input4(unsigned x, unsigned y, unsigned val)
+{
    sprintf(str, "%04X", val);
    if (inputhex(x,y,4,1)) { sscanf(str, "%x", &val); return val; }
    return -1;
 }
-unsigned input2(unsigned x, unsigned y, unsigned val) {
+
+unsigned input2(unsigned x, unsigned y, unsigned val)
+{
    sprintf(str, "%02X", val);
    if (inputhex(x,y,2,1)) { sscanf(str, "%x", &val); return val; }
    return -1;
@@ -314,6 +330,7 @@ void debug()
    set_video();
    trace_curs = cpu.pc;
    dbg_stopsp = dbg_stophere = -1;
+   dbg_loop_r1 = 0, dbg_loop_r2 = 0xFFFF;
    needclr = dbgbreak = 1;
    mousepos = 0;
 
@@ -354,9 +371,17 @@ sleep:
 
 void debug_events()
 {
-   dbgbreak |= (membits[cpu.pc & 0xFFFF] & MEMBITS_BPX);
-   if ((cpu.pc & 0xFFFF) == dbg_stophere) dbgbreak = 1;
-   if ((cpu.sp & 0xFFFF) == dbg_stopsp && (cpu.pc & 0xFFFF) > dbg_stophere && (cpu.pc & 0xFFFF) < dbg_stophere+0x100) dbgbreak = 1;
+
+   unsigned pc = cpu.pc & 0xFFFF;
+   unsigned char *membit = membits + pc;
+   *membit |= MEMBITS_X; dbgbreak |= (*membit & MEMBITS_BPX);
+
+   if (pc == dbg_stophere) dbgbreak = 1;
+
+   if ((cpu.sp & 0xFFFF) == dbg_stopsp) {
+      if (pc > dbg_stophere && pc < dbg_stophere+0x100) dbgbreak = 1;
+      if (pc < dbg_loop_r1 || pc > dbg_loop_r2) dbgbreak = 1;
+   }
 
    if (cbpn) {
       cpu.r_low = (cpu.r_low & 0x7F) + cpu.r_hi;
@@ -370,3 +395,20 @@ void debug_events()
 }
 
 #endif // MOD_MONITOR
+
+unsigned char isbrk() // is there breakpoints active or any other reason to use debug z80 loop?
+{
+#ifndef MOD_DEBUGCORE
+   return 0;
+#else
+
+   if ((conf.led.memband & 0x80000000) || conf.mem_model == MM_PROFSCORP) return 1; // breakpoint on read ROM switches ROM bank
+   #ifdef MOD_MONITOR
+   if (cbpn) return 1;
+   unsigned char res = 0;
+   for (int i = 0; i < 0x10000; i++) res |= membits[i];
+   return (res & (MEMBITS_BPR | MEMBITS_BPW | MEMBITS_BPX));
+   #endif
+
+#endif
+}

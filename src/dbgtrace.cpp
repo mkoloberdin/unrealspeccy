@@ -32,6 +32,67 @@ void mon_dis()
    fclose(ff);
 }
 
+#define TWF_BRANCH  0x010000
+#define TWF_BRADDR  0x020000
+#define TWF_LOOPCMD 0x040000
+#define TWF_CALLCMD 0x080000
+
+unsigned tracewndflags()
+{
+   unsigned readptr = cpu.pc, base = cpu.hl;
+   unsigned char opcode = 0; unsigned char ed = 0;
+   for (;;) {
+      opcode = rmdbg(readptr++);
+      if (opcode == 0xDD) base = cpu.ix;
+      else if (opcode == 0xFD) base = cpu.iy;
+      else if (opcode == 0xED) ed = 1;
+      else break;
+   }
+
+   unsigned fl = 0;
+
+   if (ed) {
+      if ((opcode & 0xC7) != 0x45) return 0; // reti/retn
+ ret:
+      return rmdbg(cpu.sp) + 0x100*rmdbg(cpu.sp+1) + TWF_BRANCH + TWF_BRADDR;
+   }
+
+   if (opcode == 0xC9) goto ret;
+   if (opcode == 0xC3) { jp: return rmdbg(readptr) + 0x100*rmdbg(readptr+1) + TWF_BRANCH + fl; }
+   if (opcode == 0xCD) { fl = TWF_CALLCMD; goto jp; }
+
+   static const unsigned char flags[] = { ZF,CF,PV,SF };
+
+   if ((opcode & 0xC1) == 0xC0) {
+      unsigned char flag = flags[(opcode >> 4) & 3];
+      unsigned char res = cpu.f & flag;
+      if (!(opcode & 0x08)) res ^= flag;
+      if (!res) return 0;
+      if ((opcode & 0xC7) == 0xC0) goto ret;// ret cc
+      if ((opcode & 0xC7) == 0xC4) { fl = TWF_CALLCMD; goto jp; } // call cc
+      if ((opcode & 0xC7) == 0xC2) { fl = TWF_LOOPCMD; goto jp; } // jp cc
+   }
+
+   if (opcode == 0xE9) return base + TWF_BRANCH + TWF_BRADDR; // jp (hl/ix/iy)
+
+   if ((opcode & 0xC7) == 0xC7) return (opcode & 0x38) + TWF_CALLCMD + TWF_BRANCH; // rst #xx
+
+   if ((opcode & 0xC7) == 0x00) {
+      if (!opcode || opcode == 0x08) return 0;
+      int offs = (signed char)rmdbg(readptr++);
+      unsigned addr = offs + readptr + TWF_BRANCH;
+      if (opcode == 0x18) return addr; // jr
+      if (opcode == 0x10) return (cpu.b==1)? 0 : addr + TWF_LOOPCMD; // djnz
+
+      unsigned char flag = flags[(opcode >> 4) & 1]; // jr cc
+      unsigned char res = cpu.f & flag;
+      if (!(opcode & 0x08)) res ^= flag;
+      return res? addr+TWF_LOOPCMD : 0;
+   }
+   return 0;
+}
+
+unsigned pc_trflags;
 unsigned nextpc, trcurs_y; unsigned asmii;
 unsigned trpc[40]; char asmpc[64], dumppc[12];
 static const unsigned cs[3][2] = { {0,4}, {5,10}, {16,16} };
@@ -43,6 +104,7 @@ void showtrace()
    trace_curs &= 0xFFFF, trace_top &= 0xFFFF, cpu.pc &= 0xFFFF;
    trace_mode = (trace_mode+3) % 3;
 
+   pc_trflags = tracewndflags();
    nextpc = (cpu.pc + disasm_line(cpu.pc, line)) & 0xFFFF;
    unsigned pc = trace_top; asmii = -1;
    unsigned char atr0 = (activedbg == WNDTRACE) ? W_SEL : W_NORM;
@@ -51,10 +113,21 @@ void showtrace()
       int len = disasm_line(pc, line);
       char *ptr = line+strlen(line);
       while (ptr < line+32) *ptr++ = ' '; line[32] = 0;
+
       unsigned char atr = atr0;
-      if (pc == cpu.pc) atr = W_TRACEPOS; //nextpc = pc + len;
+      unsigned fl = 0;
+      if (pc == cpu.pc) {
+         fl = pc_trflags;
+         if (fl & TWF_BRANCH) {
+            unsigned addr = fl & 0xFFFF;
+            if (fl & TWF_BRADDR) sprintf(line+32-1-4, "%04X", addr);
+            line[32-1] = (addr <= cpu.pc)? 0x18 : 0x19; // up/down arrow
+         }
+         atr = W_TRACEPOS;
+      }
       if (membits[pc] & MEMBITS_BPX) atr = (atr&~7)|2;
       tprint(trace_x, trace_y+ii, line, atr);
+
       if (pc == trace_curs) {
          asmii = ii;
          unsigned char dbuf[16];
@@ -66,6 +139,15 @@ void showtrace()
             for (unsigned q = 0; q < cs[trace_mode][1]; q++)
                txtscr[80*30 + (trace_y+ii)*80 + trace_x + cs[trace_mode][0] + q] = W_CURS;
       }
+
+      if (fl & TWF_BRANCH) {
+         unsigned char *arr_attr = txtscr + 30*80 + (trace_y+ii)*80 + trace_x + 32-1;
+         *arr_attr = (*arr_attr & 0xF0) + W_TRACE_JARROW_FOREGR;
+         if (fl & TWF_BRADDR)
+            for (unsigned q = 0; q < 4; q++)
+               arr_attr--, *arr_attr = (*arr_attr & 0xF0) + W_TRACE_JMPADR_FOREGR;
+      }
+
       pc += len;
    }
    trpc[ii] = pc;
@@ -272,21 +354,20 @@ void mon_step()
 
 void mon_stepover()
 {
-   unsigned pc = cpu.pc;
-   unsigned char inst, trace = 0;
-   do {
-      inst = rmdbg(pc++);
-   } while (inst == 0xDD || inst == 0xFD);
+   unsigned char trace = 0;
+
    // call,rst
-   if (inst == 0xCD || (inst & 0xC7) == 0xC7) dbg_stopsp = cpu.sp & 0xFFFF;
-   // jr,jp,jp(hl),ret
-   if (inst == 0xC3 || inst == 0xC9 || inst == 0x18 || inst == 0xE9) trace = 1;
-   // jr xx,$+nn
-   if ((inst & 0xF0) && !(inst & 0xC7) && rmdbg(pc) <= 0x7F) trace = 1;
-   // ret xx
-   if ((inst & 0xC7) == 0xC0) trace = 1;
-   // jp xx,$+nn
-   if ((inst & 0xC7) == 0xC2 && (unsigned)(rmdbg(pc)+0x100*rmdbg(pc+1)) > pc) trace = 1;
+   if (pc_trflags & TWF_CALLCMD) dbg_stopsp = cpu.sp & 0xFFFF, dbg_stophere = nextpc;
+
+   // jr cc,$-xx, jp cc,$-xx
+   else if ((pc_trflags & TWF_LOOPCMD) && (pc_trflags & 0xFFFF) < (cpu.pc & 0xFFFF))
+      dbg_stopsp = cpu.sp & 0xFFFF, dbg_stophere = nextpc,
+      dbg_loop_r1 = pc_trflags & 0xFFFF, dbg_loop_r2 = cpu.pc & 0xFFFF;
+
+   else if (pc_trflags & TWF_BRANCH) trace = 1;
+
+   else dbg_stophere = nextpc;
+
    if (trace) mon_step();
-   else dbgbreak = 0, dbgchk = 1, dbg_stophere = nextpc;
+   else dbgbreak = 0, dbgchk = 1;
 }

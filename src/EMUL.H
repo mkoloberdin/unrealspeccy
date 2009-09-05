@@ -115,6 +115,7 @@ struct Z80
    /*------------------------------*/
    unsigned char im;
    unsigned char tmp0, tmp1, tmp3;
+   void reset() { int_flags = ir_ = pc = 0; im = 0; }
 };
 typedef void (__fastcall *STEPFUNC)(Z80*);
 
@@ -281,13 +282,15 @@ struct CONFIG
       unsigned char flash_ay_kbd;
       unsigned char perf_t;
       unsigned char reserved1;
-      #define NUM_LEDS 6
+      unsigned bandBpp;
+      #define NUM_LEDS 7
       unsigned ay;
       unsigned perf;
       unsigned load;
       unsigned input;
       unsigned time;
       unsigned osw;
+      unsigned memband;
    } led;
    struct {
       unsigned char mem_swap;
@@ -348,7 +351,6 @@ struct TEMP
    unsigned ox, oy, obpp, ofq; // destination video format
    unsigned scx, scy; // multicolor area (320x240 or 384x300), used in MCR renderer
    unsigned odx, ody; // offset to border in surface, used only in flip()
-   unsigned pdx, pdy; // offset to paper in surface, used in some renderers
    unsigned rsx, rsy; // screen resolution
    unsigned b_top, b_left, b_right, b_bottom; // border frame used to setup MCR
 
@@ -359,6 +361,7 @@ struct TEMP
       unsigned char *input;
       unsigned char *time;
       unsigned char *osw;
+      unsigned char *memband;
       unsigned char *fdd;
 
       __int64 tape_started;
@@ -415,35 +418,14 @@ struct AY
    void select(unsigned char nreg);
    void write(unsigned char val);
    void mix_dig();
+   void reset();
 
    enum { CHIP_AY, CHIP_YM, CHIP_MAX };
    enum { SCHEME_NONE = 0, SCHEME_SINGLE, SCHEME_PSEUDO, SCHEME_QUADRO, SCHEME_POS, SCHEME_CHRV, SCHEME_MAX };
 };
 #pragma pack(pop)
 
-struct WD1793
-{
-   __int64 next;
-   unsigned char state, cmd;
-   unsigned char data, track, sector;
-   unsigned char rqs, status, state2;
-   unsigned drive, side; // update this with changing trdos_system
-   union {
-      struct {
-         unsigned steptime;             // for seek/step
-         unsigned seek0cnt;             // for seek trk00
-      };
-      struct {
-         unsigned char *ptr;            // for any read/write
-         unsigned len;                  // for any read/write
-         unsigned char *ptr0;           // for any read/write/format (start of CRC'ed block)
-         unsigned len0;                 // for any read/write (size of last processed block)
-      };
-   };
-   signed char stepdirection;
-   unsigned char trdos_system;
-};
-
+#include "wd93.h"
 #include "hdd.h"
 #include "input.h"
 #include "modem.h"
@@ -461,6 +443,13 @@ struct WD1793
 #define EFF7_384        0x40
 #define EFF7_CMOS       0x80
 
+enum SNAP
+{
+   snNOFILE, snUNKNOWN, snTOOLARGE,
+   snSP, snZ80, snSNA_48, snSNA_128,
+   snTAP, snTZX, snCSW,
+   snHOB, snSCL, snTRD, snFDI, snTD0, snUDI,
+};
 
 struct NVRAM
 {
@@ -585,7 +574,7 @@ struct action {
 
                                 // main area size
 #define RF_256      0x00000000   // 256x192 (default)
-#define RF_384      0x00000100   // 384x300
+#define RF_1024     0x00000100   // quad size
 #define RF_512      0x00000200   // 512x384
 #define RF_64x48    0x00000400   // 64x48  (for chunky 4x4)
 #define RF_128x96   0x00000800   // 128x96 (for chunky 2x2)

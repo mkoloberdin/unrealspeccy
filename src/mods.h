@@ -1,9 +1,9 @@
 
 /* edit this file to make optimized versions without unnecessary parts */
 
-#define VERS_STRING  "0.30b "   // version for monitor (exact 6 chars)
-#define VERS_STRING_ "0.30b"    // version for startup string (any length)
-#define VER_HL 0x001E           // major version
+#define VERS_STRING  "0.31b "   // version for monitor (exact 6 chars)
+#define VERS_STRING_ "0.31b"    // version for startup string (any length)
+#define VER_HL 0x001F           // major version
 #define VER_A  0x00             // minor version and beta flag
 
 #define MOD_GSZ80     // exact gs emulation through Z80/ROM/DACs

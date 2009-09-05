@@ -1,7 +1,4 @@
 
-#define in_trdos in_wd93
-#define out_trdos out_wd93
-
 void out(unsigned port, unsigned char val)
 {
    port &= 0xFFFF;
@@ -43,7 +40,7 @@ void out(unsigned port, unsigned char val)
          if ((p1 & 0x9F) == 0x97) { comp.pFFF7[((comp.p7FFD & 0x10) >> 2) + ((port >> 14) & 3)] = val ^ 0xFF; set_banks(); return; }
          if ((p1 & 0x9F) == 0x9F && !(comp.aFF77 & 0x4000)) atm_writepal(val); // don't return - write to TR-DOS system port
       }
-      if ((p1 & 0x1F) == 0x1F) { out_trdos(p1, val); return; }
+      if ((p1 & 0x1F) == 0x1F) { comp.wd.out(p1, val); return; }
       // don't return - out to port #FE works in trdos!
    } else {
       if ((unsigned char)port == 0x1F && conf.sound.ay_scheme == AY::SCHEME_POS) { comp.active_ay = val & 1; return; }
@@ -188,7 +185,7 @@ __inline unsigned char in1(unsigned port)
       }
 
       unsigned char p1 = (unsigned char)port;
-      if ((p1 & 0x1F) == 0x1F) return in_trdos(p1);
+      if ((p1 & 0x1F) == 0x1F) return comp.wd.in(p1);
    } else {
       if (!(port & 6) && (conf.ide_scheme == IDE_NEMO || conf.ide_scheme == IDE_NEMO_A8)) {
          unsigned hi_byte = (conf.ide_scheme == IDE_NEMO)? (port & 1) : (port & 0x100);

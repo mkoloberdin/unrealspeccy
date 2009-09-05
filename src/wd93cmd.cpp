@@ -1,327 +1,275 @@
 
-enum WDSTATE
+void WD1793::process()
 {
-   WD_READY = 0,
-   WD_WAIT,
-   WD_SEEK0,
-   WD_SEEK,
-   WD_STEP,
-   WD_SEEKDONE,
-   WD_STARTREAD,
-   WD_READSECTORS,
-   WD_READDATA,
-   WD_NOTFND,
-   WD_WRITESECTORS,
-   WD_STARTWRITE,
-   WD_STARTWRITE2,
-   WD_WRITEDATA,
-   WD_FORMATTRACK,
-   WD_FORMAT,
-   WD_RESET
-};
-
-const INTRQ = 0x80,
-      DRQ = 0x40;
-
-const WDS_BUSY      = 0x01,
-      WDS_INDEX     = 0x02,
-      WDS_DRQ       = 0x02,
-      WDS_TRK00     = 0x04,
-      WDS_LOST      = 0x04,
-      WDS_CRCERR    = 0x08,
-      WDS_NOTFOUND  = 0x10,
-      WDS_RECORDT   = 0x20,
-      WDS_HEADL     = 0x20,
-      WDS_WRFAULT   = 0x20,
-      WDS_WRITEP    = 0x40,
-      WDS_NOTRDY    = 0x80;
-
-unsigned char fdd_track[4];
-__int64 fdd_motor[4];
-
-
-// test=0 - any ID, test=1 - correct crc&sec&trk, test=2 - correct side
-void find_marker(int test, int needdata)
-{
-   if (conf.wd93_nodelay) {
-      fdd_track[comp.wd.drive]=comp.wd.track;
-      seek_track(comp.wd.drive, fdd_track[comp.wd.drive], comp.wd.side);
-   }
-
-   // seek_track() - assume it's already done
-   comp.wd.state = WD_WAIT;
-   unsigned char found = 0; unsigned t = MAX_TRACK_LEN;
-   if (trkcache.trkd) {
-      unsigned i = (unsigned)(comp.wd.next % (trkcache.trklen*trkcache.ts_byte)) / trkcache.ts_byte;
-      for (t = 0; t < trkcache.trklen; t++, i = (i+1 >= trkcache.trklen)? 0 : i+1) {
-         if (trkcache.trkd[i] != 0xA1 || trkcache.trkd[i+1] != 0xFE || !(trkcache.trki[i/8] & (1<<(i&7)))) continue;
-         comp.wd.ptr = trkcache.trkd+i+2; comp.wd.len = 6; // nearest marker
-         if (!test) { found = 1; break; }
-         if (trkcache.trkd[i+2] != comp.wd.track || trkcache.trkd[i+4] != comp.wd.sector) continue;
-         if (test > 1 && trkcache.trkd[i+3] != (unsigned char)comp.wd.side) continue;
-         if (wd93_crc(trkcache.trkd+i+1, 5) != *(unsigned short*)(trkcache.trkd+i+6)) continue;
-         if (!needdata) { found = 1; break; }
-         for (unsigned j = i+8; j < trkcache.trklen-4; j++)
-            if (trkcache.trkd[j] == 0xA1 && (trkcache.trki[j/8] & (1<<(j&7))) && !(trkcache.trki[(j+1)/8] & (1<<((j+1)&7)))) {
-               if (trkcache.trkd[j+1] == 0xF8 || trkcache.trkd[j+1] == 0xFB) {
-                  comp.wd.ptr = trkcache.trkd+j+2;
-                  comp.wd.len = 0x80 << trkcache.trkd[i+5];
-                  found = 1; break;
-               }
-               break;
-            }
-         break;
-      }
-      if (found && (comp.wd.ptr - trkcache.trkd + comp.wd.len > trkcache.trklen))
-         comp.wd.len = trkcache.trklen-(comp.wd.ptr - trkcache.trkd);
-   } else // no disk/track
-      comp.wd.next += 20*Z80FQ; // no disk: infinite timeout?
-
-   if (!found) comp.wd.ptr = 0, comp.wd.state2 = WD_NOTFND, t = 4*MAX_TRACK_LEN;
-   comp.wd.ptr0 = comp.wd.ptr; comp.wd.len0 = comp.wd.len;
-   comp.wd.next += ((__int64)t)*trkcache.ts_byte;
-}
-
-void find_marker()
-{
-
-}
-
-void process_wd()
-{
-   seek_track(comp.wd.drive, fdd_track[comp.wd.drive], comp.wd.side);
-
    __int64 time = comp.t_states + cpu.t;
-   for (int d = 0; d < 4; d++) // tofix: inactive drives disregard HLT bit
-      if (time > fdd_motor[d] && (comp.wd.trdos_system & 0x08)) fdd_motor[d] = 0;
-   if (!fdd_motor[comp.wd.drive]) comp.wd.status |= WDS_NOTRDY;
-   if (!(comp.wd.cmd & 0x80)) { // seek / step commands
-      comp.wd.status &= ~(WDS_TRK00 | WDS_INDEX);
-      if (fdd_motor[comp.wd.drive] && (comp.wd.trdos_system & 0x08))
-         comp.wd.status |= WDS_HEADL;
-      if (!fdd_track[comp.wd.drive]) comp.wd.status |= WDS_TRK00;
+   // inactive drives disregard HLT bit
+   if (time > seldrive->motor && (system & 0x08)) seldrive->motor = 0;
+   if (seldrive->rawdata) status &= ~WDS_NOTRDY; else status |= WDS_NOTRDY;
+
+   if (!(cmd & 0x80)) { // seek / step commands
+      status &= ~(WDS_TRK00 | WDS_INDEX);
+      if (seldrive->motor && (system & 0x08)) status |= WDS_HEADL;
+      if (!seldrive->track) status |= WDS_TRK00;
       // todo: test spinning
-      if (disk[comp.wd.drive].rawdata && fdd_motor[comp.wd.drive] && (time % (Z80FQ/FDD_RPS) < (Z80FQ*4/1000)))
-         comp.wd.status |= WDS_INDEX; // index every turn, len=4ms (if disk present)
+      if (seldrive->rawdata && seldrive->motor && ((time+tshift) % (Z80FQ/FDD_RPS) < (Z80FQ*4/1000)))
+         status |= WDS_INDEX; // index every turn, len=4ms (if disk present)
    }
+
    for (;;) {
-      switch (comp.wd.state) {
-         case WD_READY:
-            comp.wd.status &= ~WDS_BUSY;
-            comp.wd.rqs |= INTRQ;
+
+      switch (state) {
+
+         // ----------------------------------------------------
+
+         case S_IDLE:
+            status &= ~WDS_BUSY;
+            rqs = INTRQ;
             return;
 
-         case WD_WAIT:
-            if (!conf.wd93_nodelay && time < comp.wd.next) return;
-            comp.wd.state = comp.wd.state2;
+         case S_WAIT:
+            if (time < next) return;
+            state = state2;
             break;
 
-         case WD_NOTFND:
-            comp.wd.status |= WDS_NOTFOUND;
-            comp.wd.state = WD_READY;
+         // ----------------------------------------------------
+
+         case S_DELAY_BEFORE_CMD:
+            if (!conf.wd93_nodelay && (cmd & CMD_DELAY)) next += (Z80FQ*15/1000); // 15ms delay
+            status = (status | WDS_BUSY) & ~(WDS_DRQ | WDS_LOST | WDS_NOTFOUND | WDS_RECORDT | WDS_WRITEP);
+            state2 = S_CMD_RW; state = S_WAIT;
             break;
 
-         case WD_SEEK0:
-            if (!fdd_track[comp.wd.drive] || !comp.wd.seek0cnt) {
-               comp.wd.track = 0;
-               comp.wd.state = WD_SEEKDONE;
+         case S_CMD_RW:
+            if (((cmd & 0xE0) == 0xA0 || (cmd & 0xF0) == 0xF0) && conf.trdos_wp[drive]) {
+               status |= WDS_WRITEP;
+               state = S_IDLE;
                break;
             }
-            if (comp.wd.seek0cnt == 0x100) comp.wd.track = 0;
-            else comp.wd.track--;
-            comp.wd.seek0cnt--;
-seek_step:
-            fdd_track[comp.wd.drive] += comp.wd.stepdirection;
-            if (fdd_track[comp.wd.drive] == (unsigned char)-1) fdd_track[comp.wd.drive] = 0;
-            if (fdd_track[comp.wd.drive] >= MAX_PHYS_CYL) fdd_track[comp.wd.drive] = MAX_PHYS_CYL;
-            seek_track(comp.wd.drive, fdd_track[comp.wd.drive], comp.wd.side);
-            if (comp.wd.cmd & 0x10) comp.wd.track += comp.wd.stepdirection;
-            comp.wd.next += comp.wd.steptime;
-            comp.wd.state2 = comp.wd.state;
-            comp.wd.state = WD_WAIT;
-            break;
 
-         case WD_SEEK:
-            if (comp.wd.track == comp.wd.data) {
-               comp.wd.state = WD_SEEKDONE;
+            if ((cmd & 0xC0) == 0x80 || (cmd & 0xF8) == 0xC0) {
+               // read/write sectors or read am - find next AM
+               end_waiting_am = next + 5*Z80FQ/FDD_RPS; // max wait disk 5 turns
+               find_marker();
                break;
             }
-            goto seek_step;
 
-         case WD_STEP:
-            comp.wd.state = WD_READY;
-            goto seek_step;
-
-         case WD_SEEKDONE:
-            if (comp.wd.cmd & 4) { // read track number?
-               comp.wd.state2 = WD_READY;
-               find_marker(0,0);
-               if (!comp.wd.ptr || comp.wd.ptr[0] != comp.wd.track)
-                  comp.wd.state2 = WD_NOTFND;
+            if ((cmd & 0xF8) == 0xF0) { // write track
+               rqs = DRQ; status |= WDS_DRQ;
+               next += 3*trkcache.ts_byte;
+               state2 = S_WRTRACK; state = S_WAIT;
                break;
             }
-            comp.wd.state = WD_READY;
-            comp.wd.rqs = INTRQ;
+
+            if ((cmd & 0xF8) == 0xE0) { // read track
+               load(); rwptr = 0; rwlen = trkcache.trklen;
+               state2 = S_READ; getindex();
+               break;
+            }
+
+            // else unknown command
+            state = S_IDLE;
             break;
 
-         case WD_RESET: // seek to trk0, but don't be busy
-            if (!fdd_track[comp.wd.drive]) comp.wd.state = WD_READY;
-            else fdd_track[comp.wd.drive]--, seek_track(comp.wd.drive, fdd_track[comp.wd.drive], comp.wd.side);
-            comp.wd.next += comp.wd.steptime;
-            break;
+        case S_FOUND_NEXT_ID:
+            if (!seldrive->rawdata) { // no disk - wait again
+               end_waiting_am = next + 5*Z80FQ/FDD_RPS;
+        nextmk:
+               find_marker();
+               break;
+            }
+            if (next >= end_waiting_am) { nf: status |= WDS_NOTFOUND; state = S_IDLE; break; }
+            if (foundid == -1) goto nf;
 
-         case WD_READDATA:
-            if (conf.wd93_nodelay && (comp.wd.rqs & DRQ) && comp.wd.next > time) return;
-            if (comp.wd.len) {
+            status &= ~WDS_CRCERR;
+            load();
+
+            if (!(cmd & 0x80)) { // verify after seek
+               if (trkcache.hdr[foundid].c != track) goto nextmk;
+               if (!trkcache.hdr[foundid].c1) { status |= WDS_CRCERR; goto nextmk; }
+               state = S_IDLE; break;
+            }
+
+            if ((cmd & 0xF0) == 0xC0) { // read AM
+               rwptr = trkcache.hdr[foundid].id - trkcache.trkd;
+               rwlen = 6;
+         read_first_byte:
+               data = trkcache.trkd[rwptr++]; rwlen--;
+               rqs = DRQ; status |= WDS_DRQ;
+               next += trkcache.ts_byte;
+               state = S_WAIT;
+               state2 = S_READ;
+               break;
+            }
+
+            // else R/W sector(s)
+            if (trkcache.hdr[foundid].c != track || trkcache.hdr[foundid].n != sector) goto nextmk;
+            if ((cmd & CMD_SIDE_CMP_FLAG) && (((cmd >> CMD_SIDE_SHIFT) ^ trkcache.hdr[foundid].s) & 1)) goto nextmk;
+            if (!trkcache.hdr[foundid].c1) { status |= WDS_CRCERR; goto nextmk; }
+
+            if (cmd & 0x20) { // write sector(s)
+               rqs = DRQ; status |= WDS_DRQ;
+               next += trkcache.ts_byte*9;
+               state = S_WAIT; state2 = S_WRSEC;
+               break;
+            }
+
+            // read sector(s)
+            if (!trkcache.hdr[foundid].data) goto nextmk;
+            if (trkcache.hdr[foundid].data[-1] == 0xF8) status |= WDS_RECORDT; else status &= ~WDS_RECORDT;
+            rwptr = trkcache.hdr[foundid].data - trkcache.trkd;
+            rwlen = 128 << trkcache.hdr[foundid].l;
+            goto read_first_byte;
+
+         case S_READ:
+            if (notready()) break;
+            load();
+
+            if (rwlen) {
                trdos_load = ROMLED_TIME;
-               if (comp.wd.rqs & DRQ) comp.wd.status |= WDS_LOST;
-               comp.wd.data = *comp.wd.ptr++;
-               comp.wd.len--;
-               comp.wd.rqs = DRQ;
-               comp.wd.status |= WDS_DRQ;
-               comp.wd.next += trkcache.ts_byte;
-               comp.wd.state = WD_WAIT;
-               comp.wd.state2 = WD_READDATA;
+               if (rqs & DRQ) status |= WDS_LOST;
+               data = trkcache.trkd[rwptr++]; rwlen--;
+               rqs = DRQ; status |= WDS_DRQ;
+               if (!conf.wd93_nodelay) next += trkcache.ts_byte;
+               state = S_WAIT;
+               state2 = S_READ;
             } else {
-               comp.wd.state = WD_READY;
-               if ((comp.wd.cmd & 0xE0) == 0x80) { // read sector
-                  if (comp.wd.ptr0[-1] == 0xF8) comp.wd.status |= WDS_RECORDT;
-                  if (*(unsigned short*)(comp.wd.ptr0+comp.wd.len0) != wd93_crc(comp.wd.ptr0-1, comp.wd.len0+1))
-                     comp.wd.status |= WDS_CRCERR;
-                  if (comp.wd.cmd & 0x10)
-                     comp.wd.state = WD_READSECTORS, comp.wd.sector++;
+               if ((cmd & 0xE0) == 0x80) { // read sector
+                  if (!trkcache.hdr[foundid].c2) status |= WDS_CRCERR;
+                  if (cmd & CMD_MULTIPLE) { sector++, state = S_CMD_RW; break; }
                }
-               if ((comp.wd.cmd & 0xF0) == 0xC0) { // read address
-                  if (*(unsigned short*)(comp.wd.ptr0+4) != wd93_crc(comp.wd.ptr0-1, 5)) comp.wd.status |= WDS_CRCERR;
-               }
+               if ((cmd & 0xF0) == 0xC0) // read address
+                  if (!trkcache.hdr[foundid].c1) status |= WDS_CRCERR;
+               state = S_IDLE;
             }
             break;
 
-         case WD_READSECTORS:
-            comp.wd.state2 = WD_STARTREAD;
-            find_marker(comp.wd.cmd & 2 ? 2 : 1, 1);
-            break;
 
-         case WD_STARTREAD:
-            comp.wd.state2 = WD_READDATA;
-            comp.wd.state = WD_WAIT;
-            comp.wd.next += trkcache.ts_byte;
-            comp.wd.rqs = DRQ;
-            comp.wd.status |= WDS_DRQ;
-            comp.wd.data = *comp.wd.ptr++;
-            comp.wd.len--;
-            break;
+         case S_WRSEC:
+            load();
+            if (rqs & DRQ) { status |= WDS_LOST; state = S_IDLE; break; }
+            seldrive->optype |= 1;
+            rwptr = trkcache.hdr[foundid].id + 6 + 11 + 11 - trkcache.trkd;
+            for (rwlen = 0; rwlen < 12; rwlen++) trkcache.write(rwptr++, 0, 0);
+            for (rwlen = 0; rwlen < 3; rwlen++)  trkcache.write(rwptr++, 0xA1, 1);
+            trkcache.write(rwptr++, (cmd & CMD_WRITE_DEL)? 0xF8 : 0xFB, 0);
+            rwlen = 128 << trkcache.hdr[foundid].l;
+            state = S_WRITE; break;
 
-         case WD_WRITESECTORS:
-            comp.wd.state2 = WD_STARTWRITE;
-            find_marker(comp.wd.cmd & 2 ? 2 : 1, 1);
-            break;
-
-         case WD_STARTWRITE: // set DRQ and wait 22 bytes
-            comp.wd.state = WD_WAIT;
-            comp.wd.state2 = WD_STARTWRITE2;
-            comp.wd.rqs |= DRQ;
-            comp.wd.status |= WDS_DRQ;
-            comp.wd.next += 22*trkcache.ts_byte;
-            break;
-
-         case WD_STARTWRITE2:
-            if (comp.wd.rqs & DRQ) {
-               if (conf.wd93_nodelay && comp.wd.next > time) return;
-               comp.wd.state = WD_READY;
-               comp.wd.status |= WDS_LOST;
-               break;
-            }
-            disk[comp.wd.drive].optype |= 1;
-            comp.wd.ptr[-1] = (comp.wd.cmd & 1) ? 0xF8 : 0xFB;
-            *comp.wd.ptr = comp.wd.data;
-            trkcache.trki[(comp.wd.ptr-trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr-trkcache.trkd) & 7));
-            comp.wd.ptr++;
-            comp.wd.len--;
-            comp.wd.state = WD_WAIT;
-            comp.wd.state2 = WD_WRITEDATA;
-            comp.wd.status |= WDS_DRQ;
-            comp.wd.rqs |= DRQ;
-            comp.wd.next += 12*trkcache.ts_byte;
-            break;
-
-         case WD_WRITEDATA:
-            if (conf.wd93_nodelay && (comp.wd.rqs & DRQ) && comp.wd.next > time) return;
-            if (comp.wd.rqs & DRQ) comp.wd.status |= WDS_LOST, comp.wd.data = 0;
+         case S_WRITE:
+            if (notready()) break;
+            if (rqs & DRQ) status |= WDS_LOST, data = 0;
             trdos_save = ROMLED_TIME;
-            *comp.wd.ptr = comp.wd.data;
-            trkcache.trki[(comp.wd.ptr-trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr-trkcache.trkd) & 7));
-            comp.wd.ptr++;
-            comp.wd.len--;
-            if (comp.wd.len) {
-               comp.wd.next += trkcache.ts_byte;
-               comp.wd.state = WD_WAIT;
-               comp.wd.state2 = WD_WRITEDATA;
-               comp.wd.rqs = DRQ;
-               comp.wd.status |= WDS_DRQ;
+            trkcache.write(rwptr++, data, 0); rwlen--;
+            if (rwptr == trkcache.trklen) rwptr = 0;
+            trkcache.sf = JUST_SEEK; // invalidate sectors
+            if (rwlen) {
+               if (!conf.wd93_nodelay) next += trkcache.ts_byte;
+               state = S_WAIT; state2 = S_WRITE;
+               rqs = DRQ; status |= WDS_DRQ;
             } else {
-               comp.wd.state = WD_READY;
-               if ((comp.wd.cmd & 0xE0) == 0xA0) { // write sector
-                  *(unsigned short*)(comp.wd.ptr0 + comp.wd.len0) = wd93_crc(comp.wd.ptr0-1, comp.wd.len0+1);
-                  trkcache.trki[(comp.wd.ptr0 + comp.wd.len0 - trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr0 + comp.wd.len0 - trkcache.trkd) & 7));
-                  trkcache.trki[(comp.wd.ptr0 + comp.wd.len0 + 1 - trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr0 + comp.wd.len0 + 1 - trkcache.trkd) & 7));
-                  if (comp.wd.cmd & 0x10)
-                     comp.wd.state = WD_WRITESECTORS, comp.wd.sector++;
-               }
+               unsigned len = (128 << trkcache.hdr[foundid].l) + 1;
+               unsigned char sc[2056];
+               if (rwptr < len)
+                  memcpy(sc, trkcache.trkd + trkcache.trklen - rwptr, rwptr), memcpy(sc + rwptr, trkcache.trkd, len - rwptr);
+               else memcpy(sc, trkcache.trkd + rwptr - len, len);
+               unsigned crc = wd93_crc(sc, len);
+               trkcache.write(rwptr++, (BYTE)crc, 0);
+               trkcache.write(rwptr++, (BYTE)(crc >> 8), 0);
+               trkcache.write(rwptr, 0xFF, 0);
+               if (cmd & CMD_MULTIPLE) { sector++, state = S_CMD_RW; break; }
+               state = S_IDLE;
             }
             break;
 
-         case WD_FORMATTRACK:
-            if (comp.wd.rqs & DRQ) {
-               if (conf.wd93_nodelay && comp.wd.next > time) return;
-               comp.wd.state = WD_READY;
-               comp.wd.status |= WDS_LOST;
+         case S_WRTRACK:
+            if (rqs & DRQ) { status |= WDS_LOST; state = S_IDLE; break; }
+            seldrive->optype |= 2;
+            state2 = S_WR_TRACK_DATA; getindex();
+            break;
+
+         case S_WR_TRACK_DATA:
+         {
+            if (notready()) break;
+            trdos_format = ROMLED_TIME;
+            if (rqs & DRQ) status |= WDS_LOST, data = 0;
+            trkcache.seek(seldrive, seldrive->track, side, JUST_SEEK);
+            trkcache.sf = JUST_SEEK; // invalidate sectors
+            unsigned char marker = 0, byte = data;
+            unsigned crc;
+            if (data == 0xF5) byte = 0xA1, marker = 1, start_crc = rwptr+1;
+            if (data == 0xF6) byte = 0xC2, marker = 1;
+            if (data == 0xF7) crc = wd93_crc(trkcache.trkd+start_crc, rwptr-start_crc), byte = crc & 0xFF;
+            trkcache.write(rwptr++, byte, marker); rwlen--;
+            if (data == 0xF7) trkcache.write(rwptr++, (BYTE)(crc >> 8), 0), rwlen--; // second byte of CRC16
+
+            if ((int)rwlen > 0) {
+               if (!conf.wd93_nodelay) next += trkcache.ts_byte;
+               state2 = S_WR_TRACK_DATA; state = S_WAIT;
+               rqs = DRQ; status |= WDS_DRQ;
                break;
             }
-            disk[comp.wd.drive].optype |= 2;
-            *comp.wd.ptr = comp.wd.data;
-            trkcache.trki[(comp.wd.ptr-trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr-trkcache.trkd) & 7));
-            comp.wd.ptr++;
-            comp.wd.len--;
-            comp.wd.state = WD_WAIT;
-            comp.wd.state2 = WD_FORMAT;
-            comp.wd.status |= WDS_DRQ;
-            comp.wd.rqs |= DRQ;
-            comp.wd.next += trkcache.ts_byte;
-            comp.wd.ptr0 = comp.wd.ptr;
-            break;
-
-         case WD_FORMAT:
-         {
-            if (conf.wd93_nodelay && (comp.wd.rqs & DRQ) && comp.wd.next > time) return;
-            trdos_format = ROMLED_TIME;
-            if (comp.wd.rqs & DRQ) comp.wd.status |= WDS_LOST, comp.wd.data = 0;
-            unsigned char marker = 0, data = comp.wd.data;
-            unsigned crc;
-            if (data == 0xF5) data = 0xA1, marker = 1, comp.wd.ptr0 = comp.wd.ptr+1;
-            if (data == 0xF6) data = 0xC2, marker = 1;
-            if (data == 0xF7) crc = wd93_crc(comp.wd.ptr0, comp.wd.ptr-comp.wd.ptr0), data = crc & 0xFF;
-            *comp.wd.ptr = data;
-            if (marker) trkcache.trki[(comp.wd.ptr-trkcache.trkd)/8] |= (1<<((comp.wd.ptr-trkcache.trkd) & 7));
-            else trkcache.trki[(comp.wd.ptr-trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr-trkcache.trkd) & 7));
-            comp.wd.ptr++;
-            comp.wd.len--;
-            if (comp.wd.data == 0xF7) { // second byte of CRC16
-               *comp.wd.ptr = crc >> 8;
-               trkcache.trki[(comp.wd.ptr-trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr-trkcache.trkd) & 7));
-               comp.wd.ptr++; comp.wd.len--;
-            }
-            if ((int)comp.wd.len > 0) {
-               comp.wd.next += trkcache.ts_byte;
-               comp.wd.state = WD_WAIT;
-               comp.wd.state2 = WD_FORMAT;
-               comp.wd.rqs = DRQ;
-               comp.wd.status |= WDS_DRQ;
-            } else {
-               comp.wd.state = WD_READY;
-            }
+            state = S_IDLE;
             break;
          }
+
+         // ----------------------------------------------------
+
+         case S_TYPE1_CMD:
+            status = (status | WDS_BUSY) & ~(WDS_DRQ | WDS_CRCERR | WDS_SEEKERR);
+            rqs = 0;
+
+            if (!(cmd & 0xE0)) { // seek, restore
+               if (!(cmd & 0x10)) track = 0xFF, data = 0;
+               stepdirection = (data < track) ? -1 : 1;
+               state2 = S_SEEK;
+            } else { // single step
+               if (cmd & 0x40) stepdirection = (cmd & CMD_SEEK_DIR) ? -1 : 1;
+               if (!(cmd & CMD_SEEK_TRKUPD)) track -= stepdirection; // compensate change in S_STEP
+               state2 = S_VERIFY;
+            }
+            state = S_STEP;
+
+         case S_STEP:
+         {
+            trdos_seek = ROMLED_TIME;
+            if (conf.trdos_wp[drive]) status |= WDS_WRITEP;
+            // disk spins 1.8 sec (9 turns) after command then stop
+            seldrive->motor = next + 2*Z80FQ;
+
+            // TRK00 sampled only in RESTORE command
+            if (!seldrive->track && !(cmd & 0xF0)) { track = 0; state = S_VERIFY; break; }
+
+            track += stepdirection;
+            seldrive->track += stepdirection;
+            if (seldrive->track == (unsigned char)-1) seldrive->track = 0;
+            if (seldrive->track >= MAX_PHYS_CYL) seldrive->track = MAX_PHYS_CYL;
+            trkcache.clear();
+
+            static const unsigned steps[] = { 6,12,20,30 };
+            if (!conf.wd93_nodelay) next += steps[cmd & CMD_SEEK_RATE]*Z80FQ/1000;
+            state = S_WAIT; break;
+         }
+
+         case S_SEEK:
+            if (data == track) { state = S_VERIFY; break; }
+            stepdirection = (data < track) ? -1 : 1;
+            state = S_STEP; break;
+
+         case S_VERIFY:
+            if (!(cmd & CMD_SEEK_VERIFY)) { state = S_IDLE; break; }
+            end_waiting_am = next + 6*Z80FQ/FDD_RPS; // max wait disk 6 turns
+            load(); find_marker(); break;
+
+
+         // ----------------------------------------------------
+
+         case S_RESET: // seek to trk0, but don't be busy
+            if (!seldrive->track) state = S_IDLE;
+            else seldrive->track--, trkcache.clear();
+            // if (!seldrive->track) track = 0;
+            next += 6*Z80FQ/1000;
+            break;
+
 
          default:
             printf("WD1793 in wrong state"); exit();
@@ -329,189 +277,166 @@ seek_step:
    }
 }
 
-unsigned char in_wd93(unsigned char port)
+void WD1793::find_marker()
 {
-   process_wd();
-   if (port & 0x80) return comp.wd.rqs;
-   if (port == 0x1F) { comp.wd.rqs &= ~INTRQ; return comp.wd.status; }
-   if (port == 0x3F) return comp.wd.track;
-   if (port == 0x5F) return comp.wd.sector;
-   if (port == 0x7F) { comp.wd.status &= ~WDS_DRQ; comp.wd.rqs &= ~DRQ; return comp.wd.data; }
+   if (conf.wd93_nodelay && seldrive->track != track) seldrive->track = track;
+   load();
+
+   foundid = -1; unsigned wait = 10*Z80FQ/FDD_RPS;
+
+   if (seldrive->motor && seldrive->rawdata) {
+      unsigned div = trkcache.trklen*trkcache.ts_byte;
+      unsigned i = (unsigned)((next+tshift) % div) / trkcache.ts_byte;
+      wait = -1;
+      for (unsigned is = 0; is < trkcache.s; is++) {
+         unsigned pos = trkcache.hdr[is].id - trkcache.trkd;
+         unsigned dist = (pos > i)? pos-i : trkcache.trklen+pos-i;
+         if (dist < wait) wait = dist, foundid = is;
+      }
+
+      if (foundid != -1) wait *= trkcache.ts_byte;
+      else wait = 10*Z80FQ/FDD_RPS;
+
+      if (conf.wd93_nodelay && foundid != -1) {
+         // adjust tshift, that id appares right under head
+         unsigned pos = trkcache.hdr[foundid].id - trkcache.trkd + 2;
+         tshift = (unsigned)(((pos * trkcache.ts_byte) - (next % div) + div) % div);
+         wait = 100; // delay=0 causes fdc to search infinitely, when no matched id on track
+      }
+
+   } // else no index pulses - infinite wait, but now wait 10spins, and re-test if disk inserted
+
+   next += wait;
+   if (seldrive->rawdata && next > end_waiting_am) next = end_waiting_am, foundid = -1;
+   state = S_WAIT; state2 = S_FOUND_NEXT_ID;
+}
+
+char WD1793::notready()
+{
+   // fdc is too fast in no-delay mode, wait cpu
+   if (!conf.wd93_nodelay || !(rqs & DRQ)) return 0;
+   state2 = state; state = S_WAIT;
+   next += trkcache.ts_byte;
+   return 1;
+}
+
+void WD1793::getindex()
+{
+   unsigned trlen = trkcache.trklen*trkcache.ts_byte;
+   unsigned ticks = (unsigned)((next+tshift) % trlen);
+   if (!conf.wd93_nodelay) next += (trlen - ticks);
+   rwptr = 0; rwlen = trkcache.trklen; state = S_WAIT;
+}
+
+void WD1793::load()
+{
+   trkcache.seek(seldrive, seldrive->track, side, LOAD_SECTORS);
+}
+
+unsigned char WD1793::in(unsigned char port)
+{
+   process();
+   if (port & 0x80) return rqs | 0x3F;
+   if (port == 0x1F) { rqs &= ~INTRQ; return status; }
+   if (port == 0x3F) return track;
+   if (port == 0x5F) return sector;
+   if (port == 0x7F) { status &= ~WDS_DRQ; rqs &= ~DRQ; return data; }
    return 0xFF;
 }
 
-void out_wd93(unsigned char port, unsigned char val)
+void WD1793::out(unsigned char port, unsigned char val)
 {
-   process_wd();
+   process();
 
    if (port == 0x1F) { // cmd
-      comp.wd.rqs &= ~INTRQ;
 
+      // force interrupt
       if ((val & 0xF0) == 0xD0) {
-         comp.wd.state = WD_READY;
-         comp.wd.status &= ~WDS_BUSY;
+         state = S_IDLE; rqs = INTRQ;
+         status &= ~WDS_BUSY;
          return;
       }
 
-      if (comp.wd.status & WDS_BUSY) return;
-      comp.wd.cmd = val;
-      comp.wd.next = comp.t_states + cpu.t;
-      comp.wd.status = WDS_BUSY;
-      comp.wd.rqs = 0;
+      if (status & WDS_BUSY) return;
+      cmd = val; next = comp.t_states + cpu.t;
+      status |= WDS_BUSY; rqs = 0;
 
-      //=======================================================================
+      //-----------------------------------------------------------------------
 
-      if ((val & 0xF0) == 0x00) { // seek trk 0
-         comp.wd.state2 = WD_SEEK0;
-         comp.wd.stepdirection = -1;
-         comp.wd.seek0cnt = 0x100;
-      setup_seek:
-         static char steps[] = { 6,12,20,30 };
-         comp.wd.steptime = steps[val & 3] * (Z80FQ / 1000);
-         comp.wd.next += 1*Z80FQ/1000; // 1ms delay before command
-         comp.wd.state = WD_WAIT;
-         if (conf.trdos_wp[comp.wd.drive]) comp.wd.status |= WDS_WRITEP;
+      if (cmd & 0x80) // read/write command
+      {
+         // abort if no disk
+         if (status & WDS_NOTRDY) {
+            state = S_IDLE; rqs = INTRQ;
+            return;
+         }
 
-         // disk spins 1.8 sec (9 turns) after command then stop
-         fdd_motor[comp.wd.drive] = comp.wd.next + 2*Z80FQ;
-         return;
-      }
-      if ((val & 0xF0) == 0x10) { // seek
-         //if (comp.wd.data & 0x80) { comp.wd.state = WD_READY; return; }
-         comp.wd.state2 = WD_SEEK;
-         if (comp.wd.track < comp.wd.data) comp.wd.stepdirection = +1;
-         else if (comp.wd.track > comp.wd.data) comp.wd.stepdirection = -1;
-         else comp.wd.stepdirection = 0;
-         goto setup_seek;
-      }
-      if ((val & 0xE0) == 0x20) { // step
-         comp.wd.state2 = WD_STEP;
-         goto setup_seek;
-      }
-      if ((val & 0xC0) == 0x40) { // step-in, step-out
-         comp.wd.state2 = WD_STEP;
-         comp.wd.stepdirection = (val & 0x20) ? -1 : 1;
-         goto setup_seek;
-      }
+         // continue disk spinning
+         if (seldrive->motor || conf.wd93_nodelay) seldrive->motor = next + 2*Z80FQ;
 
-      //=======================================================================
-
-      if (!trkcache.trkd) { // other commands work with surface - abort if no track
-         comp.wd.state = WD_NOTFND;
+         state = S_DELAY_BEFORE_CMD;
          return;
       }
 
-      // abort if disk is not spinning
-      if (!fdd_motor[comp.wd.drive]) {
-         comp.wd.status = WDS_NOTRDY | WDS_NOTFOUND;
-         comp.wd.state = WD_READY;
-         return;
-      } else fdd_motor[comp.wd.drive] = comp.wd.next + 2*Z80FQ;
-
-      if ((val & 0xE0) == 0x80) { // read sector
-         comp.wd.state = WD_READSECTORS;
-         return;
-      }
-
-      if ((val & 0xF0) == 0xC0) { // read address
-         comp.wd.state2 = WD_STARTREAD;
-         find_marker(0, 0);
-         return;
-      }
-
-      if ((val & 0xE0) == 0xA0) { // write sector
-         if (conf.trdos_wp[comp.wd.drive]) { comp.wd.status |= WDS_WRITEP; return; }
-         comp.wd.state = WD_WRITESECTORS;
-         return;
-      }
-
-      //=======================================================================
-
-      if ((val & 0xF0) == 0xE0) { // read track
-         comp.wd.state2 = WD_STARTREAD;
-      trk_op:
-         comp.wd.ptr = trkcache.trkd;
-         comp.wd.len = trkcache.trklen;
-         comp.wd.state = WD_WAIT;
-         unsigned offset = (unsigned)(comp.wd.next % (trkcache.trklen*trkcache.ts_byte));
-         comp.wd.next += (trkcache.trklen*trkcache.ts_byte - offset); // wait index
-         return;
-      }
-
-      if ((val & 0xF0) == 0xF0) { // format track
-         if (conf.trdos_wp[comp.wd.drive]) { comp.wd.status |= WDS_WRITEP; return; }
-         comp.wd.state2 = WD_FORMATTRACK;
-         comp.wd.rqs |= DRQ, comp.wd.status |= WDS_DRQ;
-         goto trk_op;
-      }
+      // else seek/step command
+      state = S_TYPE1_CMD;
+      return;
    }
 
    //=======================================================================
 
-   if (port == 0x3F) { comp.wd.track = val; return; }
-   if (port == 0x5F) { comp.wd.sector = val; return; }
-   if (port == 0x7F) { comp.wd.data = val, comp.wd.rqs &= ~DRQ, comp.wd.status &= ~WDS_DRQ; return; }
+   if (port == 0x3F) { track = val; return; }
+   if (port == 0x5F) { sector = val; return; }
+   if (port == 0x7F) { data = val, rqs &= ~DRQ, status &= ~WDS_DRQ; return; }
 
    if (port & 0x80) { // system
-      comp.wd.trdos_system = val;
-      comp.wd.drive = val & 3;
-      comp.wd.side = 1 & ~(val >> 4);
+      system = val;
+      drive = val & 3, side = 1 & ~(val >> 4);
+      trkcache.clear();
       if (!(val & 0x04)) { // reset
-         comp.wd.status = 0x80;
-         comp.wd.rqs = INTRQ;
-         fdd_motor[comp.wd.drive] = 0;
-         comp.wd.state = WD_READY;
-         // move head to trk00
-         #if 0
-           //fdd_track[comp.wd.drive] = 0;
-         comp.wd.steptime = 6 * (Z80FQ / 1000); // 6ms
-         comp.wd.next += 1*Z80FQ/1000; // 1ms before command
-         comp.wd.state = WD_RESET;
+         status = WDS_NOTRDY;
+         rqs = INTRQ;
+         seldrive->motor = 0;
+         state = S_IDLE;
+         #if 0 // move head to trk00
+         steptime = 6 * (Z80FQ / 1000); // 6ms
+         next += 1*Z80FQ/1000; // 1ms before command
+         state = S_RESET;
+           //seldrive->track = 0;
          #endif
       }
    }
 }
 
-void trdos_traps()
+void WD1793::trdos_traps()
 {
    unsigned pc = (cpu.pc & 0xFFFF);
    if (pc < 0x3E01) return;
 
    if (pc == 0x3E01 && bankr[0][0x3E01] == 0x0D) { cpu.a = cpu.c = 1; return; } // no delays
    if (pc == 0x3FEC && bankr[0][0x3FED] == 0xA2 &&
-              (comp.wd.state == WD_READDATA || (comp.wd.state2 == WD_READDATA && comp.wd.state == WD_WAIT))) {
+              (state == S_READ || (state2 == S_READ && state == S_WAIT))) {
       trdos_load = ROMLED_TIME;
-      if (comp.wd.rqs & DRQ) {
-         z80dbg::wm(cpu.hl, comp.wd.data); // move byte from controller
+      if (rqs & DRQ) {
+         z80dbg::wm(cpu.hl, data); // move byte from controller
          cpu.hl++, cpu.b--;
-         comp.wd.rqs &= ~DRQ; comp.wd.status &= ~WDS_DRQ;
+         rqs &= ~DRQ; status &= ~WDS_DRQ;
       }
-      while (comp.wd.len) { // move others
-         z80dbg::wm(cpu.hl, *comp.wd.ptr++);
-         comp.wd.len--; cpu.hl++; cpu.b--;
+      while (rwlen) { // move others
+         z80dbg::wm(cpu.hl, trkcache.trkd[rwptr++]); rwlen--;
+         cpu.hl++; cpu.b--;
       }
       cpu.pc += 2; // skip INI
       return;
    }
    if (pc == 0x3FD1 && bankr[0][0x3FD2] == 0xA3 &&
-              (comp.wd.rqs & DRQ) && (comp.wd.len>1) && (comp.wd.state == WD_WRITEDATA || (comp.wd.state2 == WD_WRITEDATA && comp.wd.state == WD_WAIT))) {
+              (rqs & DRQ) && (rwlen>1) && (state == S_WRITE || (state2 == S_WRITE && state == S_WAIT))) {
       trdos_save = ROMLED_TIME;
-      while (comp.wd.len > 1) {
-         *comp.wd.ptr = z80dbg::rm(cpu.hl); cpu.hl++; cpu.b--;
-         trkcache.trki[(comp.wd.ptr-trkcache.trkd)/8] &= ~(1<<((comp.wd.ptr-trkcache.trkd) & 7));
-         comp.wd.ptr++; comp.wd.len--;
+      while (rwlen > 1) {
+         trkcache.write(rwptr++, z80dbg::rm(cpu.hl), 0); rwlen--;
+         cpu.hl++; cpu.b--;
       }
       cpu.pc += 2; // skip OUTI
       return;
    }
-}
-
-void init_dos()
-{
-
-}
-
-void done_dos()
-{
-   for (int i = 0; i < 4; i++) testdisk(i), freedisk(i);
 }

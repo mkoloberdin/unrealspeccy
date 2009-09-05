@@ -68,6 +68,19 @@ unsigned cpuid(unsigned _eax, int ext)
    return _eax;
 }
 
+unsigned GetCPUFrequency()
+{
+   LARGE_INTEGER Frequency; QueryPerformanceFrequency(&Frequency);
+   LARGE_INTEGER Start; QueryPerformanceCounter(&Start);
+   unsigned clocks = (unsigned)rdtsc();
+   Sleep(50);
+   LARGE_INTEGER s1; QueryPerformanceCounter(&s1);
+   clocks = (unsigned)rdtsc() - clocks;
+   Start.QuadPart = s1.QuadPart - Start.QuadPart;
+
+   return (unsigned)(clocks * Frequency.QuadPart / Start.LowPart);
+}
+
 void trim(char *dst)
 {
    unsigned i = strlen(dst);
@@ -110,11 +123,13 @@ unsigned process_msgs()
 {
    MSG msg; unsigned key = 0;
    while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+      // WM_KEYDOWN and WM_SYSKEYDOWN must not be dispatched,
+      // bcoz window will be closed on alt-f4
       if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
          if (conf.atm.xt_kbd) input.atm51.setkey(msg.lParam >> 16, 1);
          key = msg.wParam;
       }
-      if (msg.message == WM_KEYUP || msg.message == WM_SYSKEYUP) {
+      else if (msg.message == WM_KEYUP || msg.message == WM_SYSKEYUP) {
          if (conf.atm.xt_kbd) input.atm51.setkey(msg.lParam >> 16, 0);
       }
       else if (msg.message == WM_LBUTTONDOWN) mousepos = msg.lParam, key = VK_LMB;
@@ -180,4 +195,7 @@ void dump1(BYTE *p, unsigned sz)
    }
    printf("\n");
 }
+
+extern "C" void * _ReturnAddress(void);
+#pragma intrinsic(_ReturnAddress)
 

@@ -45,6 +45,9 @@ action ac_main[] =
    { "main.lockmouse", main_mouse },
    { "main.xtkbd", main_atmkbd },
    { "main.pastetext", main_pastetext },
+   { "main.size1", main_size1 },
+   { "main.size2", main_size2 },
+   { "main.sizem", main_sizem },
    { "main.help", main_help },
 
    { 0, 0 },
@@ -65,6 +68,7 @@ action ac_main_xt[] =
    { "mon.gs", mon_gsdialog },                          \
    { "mon.saveblock", mon_save },                       \
    { "mon.loadblock", mon_load },                       \
+   { "mon.fillblock", mon_fill },                       \
    { "mon.bpdialog", mon_bpdialog },                    \
    { "mon.pokedialog", main_poke },                     \
    { "mon.tapebrowser", main_tapebrowser },             \
@@ -90,6 +94,7 @@ action ac_main_xt[] =
    { "mon.qload3", qload3 },                            \
    { "mon.screen", mon_scr0 },                          \
    { "mon.altscreen", mon_scr1 },                       \
+   { "mon.rayscreen", mon_scray },                      \
    { "mon.step", mon_step },                            \
    { "mon.stepover", mon_stepover },                    \
    { "mon.exitsub", mon_exitsub },                      \
@@ -102,7 +107,6 @@ action ac_main_xt[] =
    { "mon.disasm", mon_dis },                           \
    { "mon.help", mon_help },                            \
    { "mon.scrshot", mon_scrshot },                      \
-   { "mon.render", draw_screen },                       \
    { "mon.setwatch", mon_setwatch },                    \
    { "mon.switchay", mon_switchay },                    \
    { "mon.labels", mon_show_labels },

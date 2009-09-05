@@ -1,35 +1,47 @@
+TRKCACHE edited_track;
+
 unsigned sector_offset, sector;
-void findsector(unsigned addr) {
-   for (sector_offset = sector = 0; sector < trkcache.s; sector++, sector_offset += trkcache.hdr[sector].datlen)
-      if (addr >= sector_offset && addr < sector_offset + trkcache.hdr[sector].datlen)
+
+void findsector(unsigned addr)
+{
+   for (sector_offset = sector = 0; sector < edited_track.s; sector++, sector_offset += edited_track.hdr[sector].datlen)
+      if (addr >= sector_offset && addr < sector_offset + edited_track.hdr[sector].datlen)
          return;
    printf("internal diskeditor error");
    exit();
 }
-unsigned char *editam(unsigned addr) {
+
+unsigned char *editam(unsigned addr)
+{
    if (editor == ED_MEM) return am_r(addr);
-   if (!trkcache.trkd) return 0;
-   if (editor == ED_PHYS) return trkcache.trkd + addr;
+   if (!edited_track.trkd) return 0;
+   if (editor == ED_PHYS) return edited_track.trkd + addr;
    // editor == ED_LOG
-   findsector(addr); return trkcache.hdr[sector].data + addr - sector_offset;
+   findsector(addr); return edited_track.hdr[sector].data + addr - sector_offset;
 }
-__inline unsigned char editrm(unsigned addr) {
+
+__inline unsigned char editrm(unsigned addr)
+{
    unsigned char *ptr = editam(addr);
    return ptr? *ptr : 0;
 }
-void editwm(unsigned addr, unsigned char byte) {
+
+void editwm(unsigned addr, unsigned char byte)
+{
    if (editrm(addr) == byte) return;
    unsigned char *ptr = editam(addr);
    if (!ptr) return; *ptr = byte;
    if (editor == ED_MEM) return;
-   if (editor == ED_PHYS) { disk[mem_disk].optype |= 2; return; }
-   disk[mem_disk].optype |= 1;
+   if (editor == ED_PHYS) { comp.wd.fdd[mem_disk].optype |= 2; return; }
+   comp.wd.fdd[mem_disk].optype |= 1;
    // recalc sector checksum
    findsector(addr);
-   *(unsigned short*)(trkcache.hdr[sector].data + trkcache.hdr[sector].datlen) =
-      wd93_crc(trkcache.hdr[sector].data - 1, trkcache.hdr[sector].datlen + 1);
+   *(unsigned short*)(edited_track.hdr[sector].data + edited_track.hdr[sector].datlen) =
+      wd93_crc(edited_track.hdr[sector].data - 1, edited_track.hdr[sector].datlen + 1);
 }
-unsigned memadr(unsigned addr) {
+
+unsigned memadr(unsigned addr)
+{
    if (editor == ED_MEM) return (addr & 0xFFFF);
    // else if (editor == ED_PHYS || editor == ED_LOG)
    if (!mem_max) return 0;
@@ -38,14 +50,16 @@ unsigned memadr(unsigned addr) {
    return addr;
 }
 
-void showmem() {
+void showmem()
+{
    char line[80]; unsigned ii;
    unsigned cursor_found = 0;
    if (mem_dump) mem_ascii = 1, mem_sz = 32; else mem_sz = 8;
 
    if (editor != ED_MEM) {
-      seek_track(mem_disk, mem_track/2, mem_track & 1, editor == ED_LOG);
-      if (!trkcache.trkd) { // no track
+      edited_track.clear();
+      edited_track.seek(comp.wd.fdd+mem_disk, mem_track/2, mem_track & 1, (editor == ED_LOG)? LOAD_SECTORS : JUST_SEEK);
+      if (!edited_track.trkd) { // no track
          for (ii = 0; ii < mem_size; ii++) {
             sprintf(line, (ii == mem_size/2)?
                "          track not found            ":
@@ -55,10 +69,10 @@ void showmem() {
          mem_max = 0;
          goto title;
       }
-      mem_max = trkcache.trklen;
+      mem_max = edited_track.trklen;
       if (editor == ED_LOG)
-         for (mem_max = ii = 0; ii < trkcache.s; ii++)
-            mem_max += trkcache.hdr[ii].datlen;
+         for (mem_max = ii = 0; ii < edited_track.s; ii++)
+            mem_max += edited_track.hdr[ii].datlen;
    } else mem_max = 0x10000;
 redraw:
    mem_curs = memadr(mem_curs); mem_top = memadr(mem_top);
@@ -94,7 +108,7 @@ title:
       if (mem_max) findsector(mem_curs);
       sprintf(line, "disk %c, trk %02X, sec %02X[%02X], offs %04X",
         mem_disk+'A', mem_track,
-        sector, trkcache.hdr[sector].n,
+        sector, edited_track.hdr[sector].n,
         mem_curs-sector_offset);
    }
    tprint(mem_x, mem_y-1, line, W_TITLE);
@@ -107,23 +121,31 @@ void mendl() { if (mem_max) mem_curs |= (mem_sz-1), mem_second = 1; }
 void mup() { if (mem_max) mem_curs -= mem_sz; }
 void mpgdn() { if (mem_max) mem_curs += mem_size*mem_sz, mem_top += mem_size*mem_sz; }
 void mpgup() { if (mem_max) mem_curs -= mem_size*mem_sz, mem_top -= mem_size*mem_sz; }
-void mdown() {
+
+void mdown()
+{
    if (!mem_max) return;
    mem_curs += mem_sz;
    if (((mem_curs - mem_top + mem_max) % mem_max) / mem_sz >= mem_size) mem_top += mem_sz;
 }
-void mleft() {
+
+void mleft()
+{
    if (!mem_max) return;
    if (mem_ascii || !mem_second) mem_curs--;
    if (!mem_ascii) mem_second ^= 1;
 }
-void mright() {
+
+void mright()
+{
    if (!mem_max) return;
    if (mem_ascii || mem_second) mem_curs++;
    if (!mem_ascii) mem_second ^= 1;
    if (((mem_curs - mem_top + mem_max) % mem_max) / mem_sz >= mem_size) mem_top += mem_sz;
 }
-char dispatch_mem() {
+
+char dispatch_mem()
+{
    if (!mem_max) return 0;
    if (mem_ascii) {
       unsigned short k;
@@ -144,18 +166,25 @@ char dispatch_mem() {
    }
    return 0;
 }
-void mtext() {
+
+void mtext()
+{
    unsigned rs = find1dlg(mem_curs);
    if (rs != -1) mem_curs = rs;
 }
-void mcode() {
+
+void mcode()
+{
    unsigned rs = find2dlg(mem_curs);
    if (rs != -1) mem_curs = rs;
 }
-void mgoto() {
+
+void mgoto()
+{
    unsigned v = input4(mem_x, mem_y, mem_top);
    if (v != -1) mem_top = (v & ~(mem_sz-1)), mem_curs = v;
 }
+
 void mswitch() { mem_ascii ^= 1; }
 void msp() { mem_curs = cpu.sp; }
 void mpc() { mem_curs = cpu.pc; }
@@ -169,7 +198,8 @@ void mmodemem() { editor = ED_MEM; }
 void mmodephys() { editor = ED_PHYS; }
 void mmodelog() { editor = ED_LOG; }
 
-void mdiskgo() {
+void mdiskgo()
+{
    if (editor == ED_MEM) return;
    for (;;) {
       *(unsigned*)str = mem_disk + 'A';
@@ -185,7 +215,7 @@ void mdiskgo() {
    // enter sector
    for (;;) {
       findsector(mem_curs); x = input2(mem_x+20, mem_y-1, sector);
-      if (x == -1) return; if (x < trkcache.s) break;
+      if (x == -1) return; if (x < edited_track.s) break;
    }
-   for (mem_curs = 0; x; x--) mem_curs += trkcache.hdr[x-1].datlen;
+   for (mem_curs = 0; x; x--) mem_curs += edited_track.hdr[x-1].datlen;
 }

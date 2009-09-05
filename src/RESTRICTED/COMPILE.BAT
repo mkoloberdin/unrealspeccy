@@ -15,6 +15,9 @@ shift
 if "%cc%" == "rc" goto rc
 if "%cc%" == "wc" goto wc
 if "%cc%" == "ms" goto ms
+if "%cc%" == "p1" goto p1
+if "%cc%" == "p2" goto p2
+if "%cc%" == "p3" goto p3
 if "%cc%" == "p4" goto p4
 if "%cc%" == "mss" goto mss
 if "%cc%" == "msmerge" goto msmerge
@@ -33,11 +36,22 @@ goto exit
 goto exit
 
 :dll
-%clexe% /W3 /LD /MD /Og /Ot /Oy /Ob1 /Oa /Gr /GA /G6 /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /IGNORE:4108 /DLL
+%clexe% /W3 /LD /MD /Og /Ot /Oy /Ob1 /Oa /Gr /GA /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /IGNORE:4108 /DLL
 if errorlevel 1 goto exit
 goto delobj
 
 :ms
+%clexe% /W3 /MD /Og /Ot /Oy /Ob1 /Oa /Gr /GA /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /IGNORE:4108
+if errorlevel 1 goto exit
+goto delobj
+
+:p1
+%clexe% /W3 /MD /Og /Ot /Oy /Ob1 /Oa /Gr /GA /G5 /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /IGNORE:4108
+if errorlevel 1 goto exit
+goto delobj
+
+:p2
+:p3
 %clexe% /W3 /MD /Og /Ot /Oy /Ob1 /Oa /Gr /GA /G6 /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /IGNORE:4108
 if errorlevel 1 goto exit
 goto delobj
@@ -48,12 +62,12 @@ if errorlevel 1 goto exit
 goto delobj
 
 :mss
-%clexe% /W3 /O1 /MD /Og /Os /Oy /Ob1 /Oa /Gr /GA /G6 /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /IGNORE:4108 /MERGE:.rdata=.text /IGNORE:4078,4108
+%clexe% /W3 /O1 /MD /Og /Os /Oy /Ob1 /Oa /Gr /GA /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /IGNORE:4108 /MERGE:.rdata=.text /IGNORE:4078,4108
 if errorlevel 1 goto exit
 goto delobj
 
 :msmerge
-%clexe% /W3 /MD /Og /Os /Oy /Ob1 /Oa /Gr /GA /G5 /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /MERGE:.rdata=.text /MERGE:.data=.text /SECTION:.text,EWR /IGNORE:4078,4108
+%clexe% /W3 /MD /Og /Os /Oy /Ob1 /Oa /Gr /GA /YX %1 %2 %3 %4 %5 %6 %7 %8 %9 /link /ALIGN:4096 /FILEALIGN:0x200 /MERGE:.rdata=.text /MERGE:.data=.text /SECTION:.text,EWR /IGNORE:4078,4108
 if errorlevel 1 goto exit
 goto delobj
 

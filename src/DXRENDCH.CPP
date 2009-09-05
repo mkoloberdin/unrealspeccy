@@ -147,10 +147,11 @@ void __fastcall render_ch_hw(unsigned char *dst, unsigned pitch)
    _render_ch_ax(dst, pitch, _render_c2hw, _render_c4hw);
 }
 
-void __fastcall  _render_c2x16b(unsigned char *dst, unsigned pitch) {
+void __fastcall  _render_c2x16b(unsigned char *dst, unsigned pitch)
+{
    rend_frame_x2_16(dst, pitch);
-   dst += pitch*temp.pdy + temp.pdx;
    get_c2_32();
+   dst += pitch * (temp.b_top*2) + temp.b_left*2*sizeof(WORD);
 
    unsigned ll[512*2];
    for (unsigned y = 0; y < 512*4; y += 4)
@@ -196,10 +197,11 @@ void __fastcall  _render_c2x16b(unsigned char *dst, unsigned pitch) {
       for (x = 0; x < 512; x++) ll[x] = ll[x+512];
    }
 }
-void __fastcall  _render_c2x16bl(unsigned char *dst, unsigned pitch) {
+void __fastcall  _render_c2x16bl(unsigned char *dst, unsigned pitch)
+{
    rend_frame_x1_16s(dst, pitch);
-   dst += pitch*temp.pdy + temp.pdx;
    get_c2_32();
+   dst += pitch * temp.b_top + temp.b_left*sizeof(WORD);
 
    unsigned ll[256*2];
    for (unsigned y = 0; y < 256*4; y += 4)
@@ -243,10 +245,12 @@ void __fastcall  _render_c2x16bl(unsigned char *dst, unsigned pitch) {
       for (x = 0; x < 256; x++) ll[x] = ll[x+256];
    }
 }
-void __fastcall  _render_c4x16b(unsigned char *dst, unsigned pitch) {
+void __fastcall  _render_c4x16b(unsigned char *dst, unsigned pitch)
+{
    rend_frame_x2_16(dst, pitch);
-   dst += pitch*temp.pdy + temp.pdx;
    get_c4_32();
+   dst += pitch * (temp.b_top*2) + 2*temp.b_left*sizeof(WORD);
+
    unsigned ll[512*2];
    for (unsigned y = 0; y < 512*4; y += 4)
       *(unsigned*)(((unsigned char*)ll)+y) = 0;
@@ -294,10 +298,12 @@ void __fastcall  _render_c4x16b(unsigned char *dst, unsigned pitch) {
       for (x = 0; x < 512; x++) ll[x] = ll[x+512];
    }
 }
-void __fastcall  _render_c4x16bl(unsigned char *dst, unsigned pitch) {
+void __fastcall  _render_c4x16bl(unsigned char *dst, unsigned pitch)
+{
    rend_frame_x1_16s(dst, pitch);
-   dst += pitch*temp.pdy + temp.pdx;
    get_c4_32();
+   dst += pitch * temp.b_top + temp.b_left*sizeof(WORD);
+
    unsigned ll[256*2];
    for (unsigned y = 0; y < 256*4; y += 4)
       *(unsigned*)(((unsigned char*)ll)+y) = 0;
@@ -342,17 +348,22 @@ void __fastcall  _render_c4x16bl(unsigned char *dst, unsigned pitch) {
    }
 }
 
-void __fastcall render_c16bl(unsigned char *dst, unsigned pitch) {
+void __fastcall render_c16bl(unsigned char *dst, unsigned pitch)
+{
    _render_ch_ax(dst, pitch, _render_c2x16bl, _render_c4x16bl);
 }
-void __fastcall render_c16b(unsigned char *dst, unsigned pitch) {
+
+void __fastcall render_c16b(unsigned char *dst, unsigned pitch)
+{
    _render_ch_ax(dst, pitch, _render_c2x16b, _render_c4x16b);
 }
 
-void __fastcall render_c4x32b(unsigned char *dst, unsigned pitch) {
+void __fastcall render_c4x32b(unsigned char *dst, unsigned pitch)
+{
    rend_frame_x2_32(dst, pitch);
-   dst += pitch*temp.pdy + temp.pdx;
    get_c4_32();
+   dst += pitch * (temp.b_top*2) + 2*temp.b_left*sizeof(DWORD);
+
    unsigned ll[512*2];
    for (unsigned y = 0; y < 512*4; y += 4)
       *(unsigned*)(((unsigned char*)ll)+y) = 0;
@@ -380,4 +391,3 @@ void __fastcall render_c4x32b(unsigned char *dst, unsigned pitch) {
    }
    #undef inter
 }
-

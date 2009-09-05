@@ -32,21 +32,26 @@ namespace z80dbg
 
 void reset(ROM_MODE mode)
 {
-   unsigned char oldEFF7 = comp.pEFF7;
-   unsigned char oldFE = comp.pFE, oldboder = comp.border_attr;
-   cpu.int_flags = cpu.ir_ = cpu.pc = 0; cpu.im = 0;
+   comp.p7FFD = comp.pDFFD = comp.pFDFD = comp.p1FFD = comp.pFF77 = 0;
+   comp.t_states = 0; comp.frame_counter = 0;
+   comp.aFF77 = 0;
+   comp.pEFF7 &= conf.EFF7_mask;
 
-   memset(&comp, 0, sizeof comp);
-   comp.tape.edge_change = 0x7FFFFFFFFFFFFFFF;
+   comp.flags = 0;
+   comp.active_ay = 0;
+
+   cpu.reset();
+   reset_tape();
+   comp.ay[0].reset();
+   comp.ay[1].reset();
+
    #ifdef MOD_GS
    if (conf.sound.gsreset) reset_gs();
    #endif
+
    if (conf.mem_model == MM_ATM710) reset_atm();
    hdd.reset();
    input.atm51.reset();
-
-   comp.pEFF7 = oldEFF7 & conf.EFF7_mask;
-   comp.pFE = oldFE, comp.border_attr = oldboder;
 
    if ((!conf.trdos_present && mode == RM_DOS) ||
         (!conf.cache && mode == RM_CACHE)) mode = RM_SOS;

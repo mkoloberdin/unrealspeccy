@@ -1,5 +1,6 @@
 void __declspec(noreturn) exit();
 void correct_exit();
+void wnd_resize(int scale);
 
 void do_screenshot();
 void qsave(char*);
@@ -10,10 +11,16 @@ void setpal(char);
 void set_vidmode();
 void set_video();
 void calc_rsm_tables();
+void update_screen();
+
+void spectrum_frame();
+void do_sound();
+void flip();
 
 void trdos_traps();
 void tape_traps();
 void fast_tape();
+void reset_tape();
 unsigned char tape_bit();
 
 void out(unsigned port, unsigned char val);
@@ -41,10 +48,6 @@ void load_ay_vols();
 void load_ula_preset();
 void create_font_tables();
 void restart_sound();
-
-void do_sound();
-void flip();
-void spectrum_frame();
 
 void reset(ROM_MODE mode);
 

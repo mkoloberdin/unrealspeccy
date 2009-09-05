@@ -1,5 +1,6 @@
 
-unsigned find1dlg(unsigned start) {
+unsigned find1dlg(unsigned start)
+{
    static char ftext[12] = "";
    strcpy(str, ftext);
    filledframe(10,10,16,4);
@@ -18,12 +19,16 @@ unsigned find1dlg(unsigned start) {
    while (!process_msgs());
    return -1;
 }
-__declspec(naked) unsigned __fastcall swp(unsigned x) {
+
+__declspec(naked) unsigned __fastcall swp(unsigned x)
+{
    __asm bswap ecx
    __asm mov eax,ecx
    __asm ret
 }
-unsigned find2dlg(unsigned start) {
+
+unsigned find2dlg(unsigned start)
+{
    static unsigned code = 0xF3, mask = 0xFF; char ln[64];
    filledframe(10,10,16,5);
    tprint(10,10,"   find data    ", FRM_HEADER);
@@ -48,9 +53,12 @@ unsigned find2dlg(unsigned start) {
    while (!process_msgs());
    return -1;
 }
+
 unsigned addr = 0, end = 0xFFFF;
 char fname[20] = "";
-char query_file_addr(unsigned char mode) { // mode: 0-load,1-save,2-disasm
+
+char query_file_addr(unsigned char mode) // mode: 0-load,1-save,2-disasm
+{
    filledframe(6, 10, 26, 5);
    char ln[64];
    static char *titles[] = { "        load block        ",
@@ -73,7 +81,9 @@ char query_file_addr(unsigned char mode) { // mode: 0-load,1-save,2-disasm
    end = e1;
    return 1;
 }
-void saveload_dlg(unsigned char save) {
+
+void saveload_dlg(unsigned char save)
+{
    if (!query_file_addr(save)) return;
    FILE *ff = fopen(fname, save ? "wb" : "rb");
    if (!ff) return;
@@ -87,8 +97,47 @@ void saveload_dlg(unsigned char save) {
    end = a1-1;
    fclose(ff);
 }
+
 void mon_save() { saveload_dlg(1); }
 void mon_load() { saveload_dlg(0); }
+
+void mon_fill()
+{
+   filledframe(6,10,26,5);
+   char ln[64]; sprintf(ln, "start: %04X end: %04X", addr, end);
+   tprint(6,10, "    fill memory block     ", FRM_HEADER);
+   tprint(7,12, "pattern (hex):", FFRAME_INSIDE);
+   tprint(7,13, ln, FFRAME_INSIDE);
+
+   static char fillpattern[10] = "00";
+
+   unsigned char pattern[4];
+   unsigned fillsize = 0;
+
+   strcpy(str, fillpattern);
+   if (!inputhex(22,12,8,1)) return;
+   strcpy(fillpattern, str);
+
+   if (!fillpattern[0]) *(DWORD*)fillpattern = '00';
+
+   for (fillsize = 0; fillpattern[2*fillsize]; fillsize++) {
+      if (!fillpattern[2*fillsize+1]) fillpattern[2*fillsize+1] = '0', fillpattern[2*fillsize+2] = 0;
+      pattern[fillsize] = hex(fillpattern + 2*fillsize);
+   }
+   tprint(22,12,"        ", FFRAME_INSIDE);
+   tprint(22,12,fillpattern, FFRAME_INSIDE);
+
+   unsigned a1 = input4(14,13,addr); if (a1 == -1) return;
+   addr = a1; tprint(14,13,str,FFRAME_INSIDE);
+   a1 = input4(24,13,end); if (a1 == -1) return;
+   end = a1;
+
+   unsigned pos = 0;
+   for (a1 = addr; a1 <= end; a1++) {
+      wmdbg(a1, pattern[pos]);
+      if (++pos == fillsize) pos = 0;
+   }
+}
 
 void mon_emul()
 {
@@ -101,9 +150,12 @@ void mon_scr(char alt)
    unsigned char prev_lock = conf.lockmouse; conf.lockmouse = 0;
    apply_video();
    conf.lockmouse = prev_lock;
-   if (alt) comp.p7FFD ^= 8, set_banks(), draw_screen();
+
+   memcpy(save_buf, rbuf, rb2_offs);
+   paint_scr(alt);
    flip(); if (conf.noflic) flip();
-   if (alt) comp.p7FFD ^= 8, set_banks(), draw_screen(); // restore screen0 in screen buffer
+   memcpy(rbuf, save_buf, rb2_offs);
+
    while (!process_msgs());
    temp.rflags = RF_MONITOR;
    set_video();
@@ -111,6 +163,8 @@ void mon_scr(char alt)
 
 void mon_scr0() { mon_scr(0); }
 void mon_scr1() { mon_scr(1); }
+void mon_scray() { mon_scr(2); }
+
 void mon_exitsub() {
    dbgchk = 1; dbgbreak = 0;
    dbg_stophere = rmdbg(cpu.sp)+0x100*rmdbg(cpu.sp+1);
@@ -180,4 +234,4 @@ void mon_setup_dlg()
 #endif
 }
 
-void mon_scrshot() { show_scrshot ^= 1; }
+void mon_scrshot() { show_scrshot++; if (show_scrshot == 3) show_scrshot = 0; }

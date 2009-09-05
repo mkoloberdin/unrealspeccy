@@ -373,7 +373,7 @@ unsigned ATA_DEVICE::read_data()
    unsigned result = *(unsigned*)(transbf + transptr*2); transptr++;
    if (transptr < transcount) return result;
    // look to state, prepare next block
-   if (state == S_READ_ID) command_ok();
+   if (state == S_READ_ID || state == S_READ_ATAPI) command_ok();
    if (state == S_READ_SECTORS) {
       if (!--reg.count) command_ok();
       else { next_sector(); read_sectors(); }
@@ -577,16 +577,17 @@ void ATA_DEVICE::handle_atapi_packet()
    if (pass_through(transbf, sizeof(transbf))) {
       if (senselen) { reg.err = sense[2] << 4; goto err; } // err = sense key
     ok:
+      if (!passed_length) { command_ok(); return; }
       reg.atapi_count = passed_length;
       reg.intreason = INT_IO;
       reg.status = STATUS_DRQ;
-      transcount = passed_length;
+      transcount = (passed_length+1)/2;
       transptr = 0;
       state = S_READ_ATAPI;
    } else { // bus error
+      reg.err = 0;
     err:
       state = S_IDLE;
-      reg.err = 0;
       reg.status = STATUS_DSC | STATUS_ERR | STATUS_DRDY;
    }
 }

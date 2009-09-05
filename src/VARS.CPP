@@ -24,7 +24,10 @@ unsigned char *base_sos_rom, *base_dos_rom, *base_128_rom, *base_sys_rom;
 __int64 memory__[PAGE*MAX_PAGES/sizeof(__int64)];
 #define memory ((unsigned char*)memory__)
 
-enum { MEMBITS_R = 1, MEMBITS_W = 2, MEMBITS_BPR = 0x10, MEMBITS_BPW = 0x20, MEMBITS_BPX = 0x40 };
+enum {
+   MEMBITS_R = 0x01, MEMBITS_W = 0x02, MEMBITS_X = 0x04,
+   MEMBITS_BPR = 0x10, MEMBITS_BPW = 0x20, MEMBITS_BPX = 0x40
+};
 unsigned char membits[0x10000];
 unsigned char *bankr[4], *bankw[4];
 unsigned char cmos[0x100];
@@ -41,7 +44,7 @@ FILE *savesnd; unsigned char savesndtype; // 0-none,1-wave,2-vtx
 unsigned char *vtxbuf; unsigned vtxbufsize, vtxbuffilled;
 
 #define ROMLED_TIME 16
-unsigned char trdos_load, trdos_save, trdos_format; // for leds
+unsigned char trdos_load, trdos_save, trdos_format, trdos_seek; // for leds
 unsigned char needclr; // clear screenbuffer before rendering
 
 HWND wnd; HINSTANCE hIn;
@@ -92,6 +95,7 @@ unsigned brk_port_in, brk_port_out;
 unsigned char brk_port_val;
 unsigned char dbgbreak = 0, dbgchk = 0;
 unsigned dbg_stophere = -1, dbg_stopsp = -1;
+unsigned dbg_loop_r1 = 0, dbg_loop_r2 = 0xFFFF;
 
 virtkeyt pckeys[] =
 {

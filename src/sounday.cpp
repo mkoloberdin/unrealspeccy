@@ -116,6 +116,12 @@ void AY::write(unsigned char val)
    }
 }
 
+void AY::reset()
+{
+   for (unsigned char r = 0; r < 16; r++)
+      select(r), write(0);
+}
+
 void swap_vols()
 {
    unsigned t[32], sz = sizeof t;

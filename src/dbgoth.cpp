@@ -34,13 +34,16 @@ void showwatch()
    wtline(0, user_watches[0], 10);
    wtline(0, user_watches[1], 11);
    wtline(0, user_watches[2], 12);
-   tprint(wat_x, wat_y-1, show_scrshot?"screenshot":"watches", W_TITLE);
+   char *text = "watches";
+   if (show_scrshot == 1) text = "screen memory";
+   if (show_scrshot == 2) text = "ray-painted";
+   tprint(wat_x, wat_y-1, text, W_TITLE);
    frame(wat_x,wat_y,37,wat_sz,FRAME);
 }
 
 void mon_setwatch()
 {
-   if (show_scrshot) show_scrshot=0;
+   if (show_scrshot) show_scrshot = 0;
    for (unsigned i = 0; i < 3; i++) {
       debugscr();
       unsigned addr = input4(wat_x, wat_y+wat_sz-3+i, user_watches[i]);
@@ -135,25 +138,26 @@ void showdos()
 {
 //    CD:802E
 //    STAT:24
-//    TRCK:00
 //    SECT:00
-//    SYST:00
+//    T:00/01
+//    S:00/00
+   comp.wd.process();
    char ln[64]; unsigned char atr = conf.trdos_present ? W_OTHER : W_OTHEROFF;
    sprintf(ln, "CD:%02X%02X", comp.wd.cmd, comp.wd.data);
    tprint(dos_x, dos_y, ln, atr);
    sprintf(ln, "STAT:%02X", comp.wd.status);
    tprint(dos_x, dos_y+1, ln, atr);
-   sprintf(ln, "TRCK:%02X", comp.wd.track);
-   tprint(dos_x, dos_y+2, ln, atr);
    sprintf(ln, "SECT:%02X", comp.wd.sector);
+   tprint(dos_x, dos_y+2, ln, atr);
+   sprintf(ln, "T:%02X/%02X", comp.wd.seldrive->track, comp.wd.track);
    tprint(dos_x, dos_y+3, ln, atr);
-   sprintf(ln, "SYST:%02X", comp.wd.rqs);
+   sprintf(ln, "S:%02X/%02X", comp.wd.system, comp.wd.rqs);
    tprint(dos_x, dos_y+4, ln, atr);
    frame(dos_x, dos_y, 7, 5, FRAME);
 #if 1
    tprint(dos_x, dos_y-1, "beta128", W_TITLE);
 #else
-   sprintf(ln, "%X-%X %d", comp.wd.state, comp.wd.state2, fdd_track[comp.wd.drive]);
+   sprintf(ln, "%X-%X %d", comp.wd.state, comp.wd.state2, comp.wd.seldrive->track);
    tprint(dos_x,dos_y-1, ln, atr);
 #endif
 /*

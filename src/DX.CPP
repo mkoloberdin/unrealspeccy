@@ -46,15 +46,19 @@ RENDER renders[] =
    { "Normal",                    render_small,         "normal",  RF_DRIVER },
    { "Double size",               render_dbl,           "double",  RF_DRIVER | RF_512 },
    { "Anti-Text64",               render_text,          "text",    RF_512 | RF_USEFONT | RF_DRIVER },
-   { "Bilinear filter (MMX,fullscr)", render_bil,       "bilinear", RF_512 | RF_PALB },
-   { "Vector scaling (fullscr)",  render_scale,         "scale", RF_512 },
-   { "TV Emulation",              render_tv,            "tv",  RF_YUY2 | RF_OVR },
-   { "Chunky overlay (fast!)",    render_ch_ov,         "ch_ov", RF_OVR | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_USE32AS16 },
-   { "Chunky 32bit hardware flt", render_ch_hw,         "ch_hw", RF_CLIP | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_32 | RF_USEC32 },
-   { "Chunky 16bit, low-res, flt",render_c16bl,         "ch_bl", RF_16 | RF_BORDER | RF_USEC32 },
-   { "Chunky 16bit, hi-res, flt", render_c16b,          "ch_b", RF_16 | RF_512 | RF_BORDER | RF_USEC32 },
-   { "Ch4x4 true color (fullscr)",render_c4x32b,        "ch4true", RF_32 | RF_512 | RF_BORDER | RF_USEC32 },
+   { "Quad size",                 render_quad,          "quad",    RF_DRIVER | RF_1024 },
    { "Frame resampler"           ,render_rsm,           "resampler", RF_DRIVER | RF_8BPCH },
+
+   { "TV Emulation",              render_tv,            "tv",      RF_YUY2 | RF_OVR },
+   { "Bilinear filter (MMX,fullscr)", render_bil,       "bilinear", RF_512 | RF_PALB },
+   { "Vector scaling (fullscr)",  render_scale,         "scale",   RF_512 },
+
+   { "Chunky overlay (fast!)",    render_ch_ov,         "ch_ov",   RF_OVR | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_USE32AS16 },
+   { "Chunky 32bit hardware flt", render_ch_hw,         "ch_hw",   RF_CLIP | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_32 | RF_USEC32 },
+
+   { "Chunky 16bit, low-res, flt",render_c16bl,         "ch_bl",   RF_16 | RF_BORDER | RF_USEC32 },
+   { "Chunky 16bit, hi-res, flt", render_c16b,          "ch_b",    RF_16 | RF_512 | RF_BORDER | RF_USEC32 },
+   { "Ch4x4 true color (fullscr)",render_c4x32b,        "ch4true", RF_32 | RF_512 | RF_BORDER | RF_USEC32 },
 
    { 0,0,0,0 }
 };
@@ -299,6 +303,7 @@ void updatebitmap()
 BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
 {
    if (uMessage == WM_QUIT) exit();
+   if (uMessage == WM_CLOSE) return 1;
    if (uMessage == WM_SETFOCUS && !pause) {
       active = 1; setpal(0);
 //      sound_play();
@@ -328,7 +333,8 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
    }
    if (uMessage == WM_SIZE || uMessage == WM_MOVE || uMessage == WM_USER) {
       GetClientRect(wnd, &temp.client);
-      temp.gdx = temp.client.right-temp.client.left; temp.gdy = temp.client.bottom-temp.client.top;
+      temp.gdx = temp.client.right-temp.client.left;
+      temp.gdy = temp.client.bottom-temp.client.top;
       temp.gx = (temp.gdx > temp.ox) ? (temp.gdx-temp.ox)/2 : 0;
       temp.gy = (temp.gdy > temp.oy) ? (temp.gdy-temp.oy)/2 : 0;
       ClientToScreen(wnd, (POINT*)&temp.client.left);
@@ -352,13 +358,8 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
       }
    }
    if (uMessage == WM_SYSCOMMAND) {
-      if (!((wparam-1)&~1)) { // wparam==1 or wparam==2
-         RECT rc, cli; GetWindowRect(hwnd, &rc); GetClientRect(hwnd, &cli);
-         MoveWindow(hwnd, rc.left, rc.top,
-            temp.ox*wparam + (rc.right - rc.left - (cli.right - cli.left)),
-            temp.oy*wparam + (rc.bottom - rc.top - (cli.bottom - cli.top)), 1);
-      }
-      if (wparam == 3) conf.lockmouse = 1, adjust_mouse_cursor();
+      if (wparam==1 || wparam==2) { wnd_resize(wparam); }
+      if (wparam==3) conf.lockmouse = 1, adjust_mouse_cursor();
       if (wparam == SC_CLOSE) { correct_exit(); return 1; }
    }
    return DefWindowProc(hwnd, uMessage, wparam, lparam);
@@ -447,6 +448,7 @@ void set_vidmode()
       temp.ox *=2; temp.oy *= 2;
       if (conf.fast_sl && (temp.rflags & RF_DRIVER) && (temp.rflags & (RF_CLIP | RF_OVR))) temp.oy /= 2;
    }
+   if (temp.rflags & RF_1024) temp.ox *= 4, temp.oy *= 4;
    if (temp.rflags & RF_64x48) temp.ox = 64, temp.oy = 48;
    if (temp.rflags & RF_128x96) temp.ox = 128, temp.oy = 96;
    if (temp.rflags & RF_MON) temp.ox = 640, temp.oy = 480;
@@ -511,9 +513,10 @@ void set_vidmode()
       // restore window position to last saved position in non-fullscreen mode
       ShowWindow(wnd, SW_SHOWNORMAL);
       if (temp.rflags & RF_GDI) {
-         RECT rcw, cli; GetWindowRect(wnd, &rcw); GetClientRect(wnd, &cli);
-         rc.right = rc.left + temp.ox + (rcw.right - rcw.left) - (cli.right - cli.left);
-         rc.bottom = rc.top + temp.oy + (rcw.bottom - rcw.top) - (cli.bottom - cli.top);
+         RECT client = { 0,0, temp.ox, temp.oy };
+         AdjustWindowRect(&client, WS_VISIBLE | WS_OVERLAPPEDWINDOW, 0);
+         rc.right = rc.left + (client.right - client.left);
+         rc.bottom = rc.top + (client.bottom - client.top);
       }
       MoveWindow(wnd, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 1);
    }

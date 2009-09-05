@@ -326,11 +326,13 @@ void load_config(char *fname)
    conf.led.enabled = GetPrivateProfileInt(leds, "leds", 1, ininame);
    conf.led.flash_ay_kbd = GetPrivateProfileInt(leds, "KBD_AY", 1, ininame);
    conf.led.perf_t = GetPrivateProfileInt(leds, "PerfShowT", 0, ininame);
+   conf.led.bandBpp = GetPrivateProfileInt(leds, "BandBpp", 512, ininame);
+   if (conf.led.bandBpp != 64 && conf.led.bandBpp != 128 && conf.led.bandBpp != 256 && conf.led.bandBpp != 512) conf.led.bandBpp = 512;
 
-   static char nm[] = "AY\0Perf\0LOAD\0Input\0Time\0OSW";
+   static char nm[] = "AY\0Perf\0LOAD\0Input\0Time\0OSW\0MemBand";
    char *n2 = nm;
    for (i = 0; i < NUM_LEDS; i++) {
-      GetPrivateProfileString("LEDS", n2, nil, line, sizeof line, ininame);
+      GetPrivateProfileString(leds, n2, nil, line, sizeof line, ininame);
       int x, y, z; unsigned r; n2 += strlen(n2)+1;
       if (sscanf(line, "%d:%d,%d", &z, &x, &y) != 3) r = 0;
       else r = (x & 0xFFFF) + ((y << 16) & 0x7FFFFFFF) + z*0x80000000;
@@ -553,9 +555,7 @@ void apply_memory()
    temp.ram_mask = (conf.ramsize-1) >> 4;
    temp.rom_mask = (romsize-1) >> 4;
    set_banks();
-#ifdef MOD_MONITOR
    dbgchk = isbrk();
-#endif
 }
 
 

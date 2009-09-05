@@ -49,7 +49,7 @@ __inline void step()
          if (bankr[(cpu.pc >> 14) & 3] < RAM_BASE_M+PAGE*MAX_RAM_PAGES) goto close_dos;
       } else if (cpu.pch & 0xC0) // for other models, PC > 3FFF closes TR-DOS
          close_dos: comp.flags &= ~(CF_LEAVEROM | CF_TRDOS | CF_DOSPORTS), set_banks();
-      if (conf.trdos_traps) trdos_traps();
+      if (conf.trdos_traps) comp.wd.trdos_traps();
    }
    //if ((cpu.pc & 0xFFFF) == 0x056B) tape_traps();
    if (comp.tape.play_pointer && !conf.sound.enabled) fast_tape();

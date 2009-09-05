@@ -4,9 +4,10 @@
 #define MAX_BUFFERS 8
 
 __int64 rbuf__[MAX_HEIGHT*MAX_WIDTH_P*(MAX_BUFFERS+1)/sizeof(__int64)]; // force QWORD align
-const rb2_offs = sizeof(rbuf__) / (MAX_BUFFERS+1);
+const rb2_offs = sizeof(rbuf__) / (MAX_BUFFERS+2);
 unsigned char * const rbuf = (unsigned char*)rbuf__;
 unsigned char * const rbuf_s = rbuf + rb2_offs;
+unsigned char * const save_buf = rbuf_s + rb2_offs*MAX_BUFFERS;
 
 struct videopoint
 {
@@ -25,6 +26,7 @@ struct {
       struct { // 8bit
          unsigned sctab8[2][16*0x100];  //4 bits data+pc-attribute -> 4 palette pixels
          unsigned sctab8d[2][4*0x100];  //2 bits data+pc-attribute -> 2 palette pixels (doubled)
+         unsigned sctab8q[2*0x100];     //1 bit  data+pc-attribute -> 1 palette pixel (quad)
       };
       struct { // 16bit & 32bit
          unsigned sctab16[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
@@ -365,30 +367,30 @@ void pixel_tables()
    for (unsigned pass = 0; pass < 2; pass++) {
       for (unsigned at = 0; at < 0x100; at++)
       {
-         unsigned char px0 = attrtab[at], px1 = attrtab[at+0x100];
+         unsigned px0 = attrtab[at], px1 = attrtab[at+0x100];
          if (temp.obpp == 8) {
             if (pass) {
                if (!conf.scanbright) px0 = px1 = 0;
                else if (conf.scanbright < 100) {
                   if (!conf.noflic) { // palette too small to realize noflic scales with shaded scanlines
                      if (temp.rflags & RF_PALB) {
-                        px0 = (px0 & (px0 << 1) & 0x92929292) |
-                              ((px0 ^ 0xFFFFFFFF) & (px0 >> 1) & 0x49494949);
-                        px1 = (px1 & (px1 << 1) & 0x92929292) |
-                              ((px1 ^ 0xFFFFFFFF) & (px1 >> 1) & 0x49494949);
-                     } else px0 &= 0x0F0F0F0F, px1 &= 0x0F0F0F0F;
+                        px0 = (px0 & (px0 << 1) & 0x92) | ((px0 ^ 0xFF) & (px0 >> 1) & 0x49);
+                        px1 = (px1 & (px1 << 1) & 0x92) | ((px1 ^ 0xFF) & (px1 >> 1) & 0x49);
+                     } else px0 &= 0x0F, px1 &= 0x0F;
                   }
                }
             }
+            px0 *= 0x01010101, px1 *= 0x01010101;
             for (unsigned j = 0; j < 0x10; j++) {
                unsigned mask = (j >> 3)*0xFF + (j & 0x04)*(0xFF00/4) +
                                (j & 0x02)*(0xFF0000/2) + (j & 1)*0xFF000000;
-               t.sctab8[pass][j + at*0x10] = (mask & (px1 * 0x01010101)) + (~mask & (px0 * 0x01010101));
+               t.sctab8[pass][j + at*0x10] = (mask & px1) + (~mask & px0);
             }
             for (j = 0; j < 4; j++) {
                unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
-               t.sctab8d[pass][j+at*4] = (mask & (px1 * 0x01010101)) + (~mask & (px0 * 0x01010101));
+               t.sctab8d[pass][j+at*4] = (mask & px1) + (~mask & px0);
             }
+            t.sctab8q[at] = px0, t.sctab8q[at+0x100] = px1;
          } else { // 16,32 bit (resampler requires sctab32 in both 16- and 32-bit modes)
 
             unsigned p0 = raw_data(px0, pass, 3), p1 = raw_data(px1, pass, 3);
@@ -464,9 +466,6 @@ void video_timing_tables()
    temp.b_right = temp.scx - buf_mid - temp.b_left;
    temp.b_bottom = temp.scy - mid_lines - temp.b_top;
 
-   temp.pdx = temp.obpp * temp.b_right / ((temp.rflags & RF_512)? 4 : 8);
-   temp.pdy = temp.b_top * ((temp.rflags & RF_512)? 2 : 1);
-
    if (conf.nopaper) temp.b_bottom += mid_lines, mid_lines=0;
    int inx = 0;
 
@@ -509,7 +508,7 @@ void video_timing_tables()
    temp.border_add = conf.border_4T ? 6 : 0;
    temp.border_and = conf.border_4T ? 0xFFFFFFFC : 0xFFFFFFFF;
 
-   for (i = 0; i < 7; i++) {
+   for (i = 0; i < NUM_LEDS; i++) {
       unsigned z = *(&conf.led.ay + i);
       int x = (signed short)(z & 0xFFFF);
       int y = (signed short)(((z >> 16) & 0x7FFF) + ((z >> 15) & 0x8000));
@@ -535,12 +534,39 @@ void apply_video()
    temp.rflags = renders[conf.render].flags;
    if (conf.atm.use_pal && (conf.mem_model == MM_ATM710)) {
       temp.rflags |= RF_ATMPAL | RF_PALB;
-      if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_512 | RF_USEFONT)) == (RF_DRIVER | RF_512)) conf.noflic = 0;
+      // disable palette noflic, only if it used (e.g. filter = normal/double/quad, but not antitext/resampler)
+      if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_USEFONT | RF_8BPCH)) == RF_DRIVER) conf.noflic = 0;
    }
    if (renders[conf.render].func == render_rsm) conf.flip = 1; // todo: revert back after returning from frame resampler
    set_video();
    calc_rsm_tables();
    video_timing_tables();
+}
+
+__inline unsigned char *raypointer()
+{
+   if (prev_t > conf.frame) return rbuf + rb2_offs;
+   if (!vmode) return vcurr[1].screen_ptr;
+   unsigned offs = (prev_t - vcurr[-1].next_t)/4;
+   return vcurr->screen_ptr + (offs+1)*2;
+}
+
+__inline void clear_until_ray()
+{
+   unsigned char *dst = raypointer();
+   while (dst < rbuf + rb2_offs) *dst++ = 0, *dst++ = 0x55;
+}
+
+void paint_scr(char alt) // alt=0/1 - main/alt screen, alt=2 - ray-painted
+{
+   if (alt == 2) {
+      update_screen();
+      clear_until_ray();
+   } else {
+      if (alt) comp.p7FFD ^= 8, set_banks();
+      draw_screen();
+      if (alt) comp.p7FFD ^= 8, set_banks();
+   }
 }
 
 void update_screen()

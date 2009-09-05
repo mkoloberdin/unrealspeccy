@@ -16,7 +16,8 @@ void main_pause()
    pause = 0;
 }
 
-void main_debug() {
+void main_debug()
+{
    dbgchk = dbgbreak = 1;
 }
 
@@ -34,7 +35,8 @@ unsigned char whatfix = 0, whatsnd = 0;
 unsigned char fixmode = -1;
 int mul0 = 100, mul1 = 1000;
 
-void chfix(int dx) {
+void chfix(int dx)
+{
    if (!fixmode) {
       int value;
       switch (whatfix) {
@@ -78,17 +80,22 @@ void chfix(int dx) {
    }
    apply_sound();
 }
-void main_selectfix() {
+
+void main_selectfix()
+{
    if (!fixmode) whatfix = (whatfix+1) % FIX_LAST;
    fixmode = 0; mul0 = 1, mul1 = 10;
    if (whatfix == FIX_FRAME) mul0 = 100, mul1 = 1000;
    chfix(0);
 }
-void main_selectsnd() {
+
+void main_selectsnd()
+{
    if (fixmode==1) whatsnd = (whatsnd+1) & 3;
    fixmode = 1;
    chfix(0);
 }
+
 void main_incfix() { chfix(mul0); }
 void main_decfix() { chfix(-mul0); }
 void main_incfix10() { chfix(mul1); }
@@ -192,8 +199,7 @@ void main_poke()
 {
    sound_stop();
    DialogBox(hIn, MAKEINTRESOURCE(IDD_POKE), wnd, pokedlg);
-   eat();
-   sound_play();
+   eat(); sound_play();
 }
 
 void main_starttape() {
@@ -283,22 +289,27 @@ void main_autofire()
 void main_save()
 {
    if (conf.cmos) save_nv();
-   if (!testdisk(0)) return;
-   if (!testdisk(1)) return;
-   if (!testdisk(2)) return;
-   if (!testdisk(3)) return;
+   unsigned char optype = 0;
+   for (int i = 0; i < 4; i++) {
+      if (!comp.wd.fdd[i].test()) return;
+      optype |= comp.wd.fdd[i].optype;
+   }
 
-   if (!(disk[0].optype+disk[1].optype+disk[2].optype+disk[3].optype))
-      sprintf(statusline, "all saved"), statcnt = 30;
+   if (!optype) sprintf(statusline, "all saved"), statcnt = 30;
 }
-void main_fullscr() {
+
+void main_fullscr()
+{
    if (!(temp.rflags & (RF_GDI|RF_OVR|RF_CLIP))) sprintf(statusline, "only for overlay/gdi modes"), statcnt = 30;
    else conf.fullscr ^= 1, apply_video();
 }
-void main_mouse() {
+
+void main_mouse()
+{
    conf.lockmouse ^= 1;
    adjust_mouse_cursor();
 }
+
 void main_help() { showhelp(); }
 void mon_help() { showhelp("monitor_keys"); }
 
@@ -312,13 +323,40 @@ void main_atmkbd()
 
 void main_pastetext() { input.paste(); }
 
+void wnd_resize(int scale)
+{
+   if (conf.fullscr) { sprintf(statusline, "impossible in fullscreen mode"); statcnt = 50; return; }
+   if (!scale) { ShowWindow(wnd, SW_MAXIMIZE); return; }
+
+   ShowWindow(wnd, SW_RESTORE);
+   DWORD style = GetWindowLong(wnd, GWL_STYLE);
+   RECT rc = { 0,0, temp.ox*scale, temp.oy*scale };
+   AdjustWindowRect(&rc, style, 0);
+   SetWindowPos(wnd, 0, 0,0, rc.right-rc.left, rc.bottom-rc.top, SWP_NOCOPYBITS | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+   sprintf(statusline, "scale: %dx", scale); statcnt = 50;
+}
+
+void main_size1() { wnd_resize(1); }
+void main_size2() { wnd_resize(2); }
+void main_sizem() { wnd_resize(0); }
+
 void correct_exit()
 {
-   if (!testdisk(0)) return;
-   if (!testdisk(1)) return;
-   if (!testdisk(2)) return;
-   if (!testdisk(3)) return;
-   freedisk(0); freedisk(1); freedisk(2); freedisk(3);
+   for (int i = 0; i < 4; i++)
+      if (!comp.wd.fdd[i].test()) return;
    nowait = 1; exit();
 }
 
+void opensnap()
+{
+   sound_stop();
+   opensnap(0);
+   eat(); sound_play();
+}
+
+void savesnap()
+{
+   sound_stop();
+   savesnap(-1);
+   eat(); sound_play();
+}
