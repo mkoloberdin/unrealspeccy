@@ -6,7 +6,7 @@ unsigned find1dlg(unsigned start)
    filledframe(10,10,16,4);
    tprint(10,10,"  find string   ", FRM_HEADER);
    tprint(11,12,"text:", FFRAME_INSIDE);
-   if (!inputhex(17,12,8,0)) return -1;
+   if (!inputhex(17,12,8,false)) return -1;
    strcpy(ftext, str);
    unsigned len = strlen(ftext);
    unsigned i; //Alone Coder 0.36.7
@@ -29,11 +29,11 @@ unsigned find2dlg(unsigned start)
    sprintf(ln, "code: %08X", _byteswap_ulong(code)); tprint(11,12,ln, FFRAME_INSIDE);
    sprintf(ln, "mask: %08X", _byteswap_ulong(mask)); tprint(11,13,ln, FFRAME_INSIDE);
    sprintf(str, "%08X", _byteswap_ulong(code));
-   if (!inputhex(17,12,8,1)) return -1;
+   if (!inputhex(17,12,8,true)) return -1;
    sscanf(str, "%x", &code); code = _byteswap_ulong(code);
    tprint(17,12,str, FFRAME_INSIDE);
    sprintf(str, "%08X", _byteswap_ulong(mask));
-   if (!inputhex(17,13,8,1)) return -1;
+   if (!inputhex(17,13,8,true)) return -1;
    sscanf(str, "%x", &mask); mask = _byteswap_ulong(mask);
    unsigned i; //Alone Coder 0.36.7
    for (unsigned ptr = memadr(start+1); ptr != start; ptr = memadr(ptr+1)) {
@@ -63,10 +63,11 @@ void mon_fill()
    unsigned fillsize = 0;
 
    strcpy(str, fillpattern);
-   if (!inputhex(22,12,8,1)) return;
+   if (!inputhex(22,12,8,true)) return;
    strcpy(fillpattern, str);
 
-   if (!fillpattern[0]) *(DWORD*)fillpattern = '00';
+   if (!fillpattern[0])
+       strcpy(fillpattern, "00");
 
    for (fillsize = 0; fillpattern[2*fillsize]; fillsize++) {
       if (!fillpattern[2*fillsize+1]) fillpattern[2*fillsize+1] = '0', fillpattern[2*fillsize+2] = 0;
@@ -113,8 +114,9 @@ void mon_scray() { mon_scr(2); }
 
 void mon_exitsub()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    dbgchk = 1; dbgbreak = 0;
-   dbg_stophere = rmdbg(cpu.sp)+0x100*rmdbg(cpu.sp+1);
+   cpu.dbg_stophere = cpu.RmDbg(cpu.sp)+0x100*cpu.RmDbg(cpu.sp+1);
 }
 
 void editbank()
@@ -145,6 +147,7 @@ void mon_dump() { mem_dump ^= 1; mem_sz = mem_dump ? 32:8; }
 
 void mon_tool()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    static unsigned char unref = 0xCF;
    if (ripper) {
       OPENFILENAME ofn = { /*OPENFILENAME_SIZE_VERSION_400*/sizeof OPENFILENAME }; //Alone Coder
@@ -158,7 +161,7 @@ void mon_tool()
       ofn.nFilterIndex = 1;
       if (GetSaveFileName(&ofn)) {
          for (unsigned i = 0; i < 0x10000; i++)
-            snbuf[i] = (membits[i] & ripper) ? rmdbg(i) : unref;
+            snbuf[i] = (membits[i] & ripper) ? cpu.RmDbg(i) : unref;
          FILE *ff = fopen(savename, "wb");
          if (ff) fwrite(snbuf, 1, 0x10000, ff), fclose(ff);
       }
@@ -168,12 +171,12 @@ void mon_tool()
       tprint(tool_x, tool_y, "  ripper's tool  ", FRM_HEADER);
       tprint(tool_x+1,tool_y+2, "trace reads:", FFRAME_INSIDE);
       *(unsigned*)str = 'Y';
-      if (!inputhex(tool_x+15,tool_y+2,1,0)) return;
+      if (!inputhex(tool_x+15,tool_y+2,1,false)) return;
       tprint(tool_x+15,tool_y+2,str,FFRAME_INSIDE);
       if (*str == 'Y' || *str == 'y' || *str == '1') ripper |= MEMBITS_R;
       *(unsigned*)str = 'N';
       tprint(tool_x+1,tool_y+3, "trace writes:", FFRAME_INSIDE);
-      if (!inputhex(tool_x+15,tool_y+3,1,0)) { ripper = 0; return; }
+      if (!inputhex(tool_x+15,tool_y+3,1,false)) { ripper = 0; return; }
       tprint(tool_x+15,tool_y+3,str,FFRAME_INSIDE);
       if (*str == 'Y' || *str == 'y' || *str == '1') ripper |= MEMBITS_W;
       tprint(tool_x+1,tool_y+4, "unref. byte:", FFRAME_INSIDE);
@@ -194,3 +197,21 @@ void mon_setup_dlg()
 }
 
 void mon_scrshot() { show_scrshot++; if (show_scrshot == 3) show_scrshot = 0; }
+
+void mon_switch_cpu()
+{
+    CpuMgr.CopyToPrev();
+    Z80 &cpu0 = CpuMgr.Cpu();
+    CpuMgr.SwitchCpu();
+    Z80 &cpu1 = CpuMgr.Cpu();
+
+    if(cpu1.trace_curs == -1)
+        cpu1.trace_curs = cpu1.pc;
+    if(cpu1.trace_top == -1)
+        cpu1.trace_top = cpu1.pc;
+    if(cpu1.trace_mode == -1)
+        cpu1.trace_mode = 0;
+
+    debugscr();
+    debugflip();
+}

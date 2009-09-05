@@ -132,7 +132,12 @@ char *MON_LABELS::find(unsigned char *address)
 unsigned MON_LABELS::load(char *filename, unsigned char *base, unsigned size)
 {
    FILE *in = fopen(filename, "rt");
-   if (!in) { errmsg("can't find label file %s", filename); return 0; }
+   if (!in)
+   {
+       errmsg("can't find label file %s", filename);
+       return 0;
+   }
+
    clear(base, size);
    unsigned l_counter = 0, loaded = 0; char *txt = 0;
    int l; //Alone Coder 0.36.7
@@ -366,7 +371,7 @@ void ShowLabels()
    SetFocus(list);
 }
 
-BOOL CALLBACK LabelsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK LabelsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    ::dlg = dlg;
    if (msg == WM_INITDIALOG)
@@ -376,7 +381,7 @@ BOOL CALLBACK LabelsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       return 1;
    }
 
-   if (msg == WM_SYSCOMMAND && wp == SC_CLOSE) EndDialog(dlg, 0);
+   if (msg == WM_SYSCOMMAND && (wp & 0xFFF0) == SC_CLOSE) EndDialog(dlg, 0);
 
    if (msg == WM_VKEYTOITEM)
    {
@@ -407,7 +412,8 @@ BOOL CALLBACK LabelsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       unsigned address; sscanf(zz, "%X", &address);
 
       void push_pos(); push_pos();
-      trace_curs = trace_top = address; activedbg = WNDTRACE;
+      CpuMgr.Cpu().trace_curs = CpuMgr.Cpu().trace_top = address;
+      activedbg = WNDTRACE;
 
       EndDialog(dlg, 1);
       return 1;

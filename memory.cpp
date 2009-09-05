@@ -22,10 +22,11 @@ void set_banks()
       case MM_PENTAGON:
          bank += ((comp.p7FFD & 0xC0) >> 3) + (comp.p7FFD & 0x20);
          bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
-		 if (comp.pEFF7 & EFF7_ROCACHE) bank0 = RAM_BASE_M + 0*PAGE; //Alone Coder 0.36.4
+         if (comp.pEFF7 & EFF7_ROCACHE) bank0 = RAM_BASE_M + 0*PAGE; //Alone Coder 0.36.4
          break;
 
       case MM_PROFSCORP:
+         membits[0x0100] &= ~MEMBITS_R;
          membits[0x0104] &= ~MEMBITS_R;
          membits[0x0108] &= ~MEMBITS_R;
          membits[0x010C] &= ~MEMBITS_R;
@@ -155,6 +156,17 @@ void set_banks()
          if (bank < MAX_PAGES) used_banks[bank] = 1;
       }
    }
+
+/*
+    if ((unsigned)(bankr[0] - ROM_BASE_M) < PAGE*MAX_ROM_PAGES)
+    {
+        printf("ROM%2X\n", (bankr[0] - ROM_BASE_M)/PAGE);
+        printf("DOS=%p\n",  base_dos_rom);
+        printf("SVM=%p\n",  base_sys_rom);
+        printf("SOS=%p\n",  base_sos_rom);
+        printf("128=%p\n",  base_128_rom);
+    }
+*/
 }
 
 void set_scorp_profrom(unsigned read_address)
@@ -175,7 +187,7 @@ void set_scorp_profrom(unsigned read_address)
    set_banks();
 }
 
-Z80INLINE unsigned char *am_r(unsigned addr)
+Z80INLINE u8 *am_r(unsigned addr)
 {
 #ifdef MOD_VID_VD
    if (comp.vdbase && (unsigned)((addr & 0xFFFF) - 0x4000) < 0x1800) return comp.vdbase + (addr & 0x1FFF);
@@ -183,12 +195,17 @@ Z80INLINE unsigned char *am_r(unsigned addr)
    return bankr[(addr >> 14) & 3] + (addr & (PAGE-1));
 }
 
-void wmdbg(unsigned addr, unsigned char val)
+u8 *__fastcall MemDbg(u32 addr)
+{
+    return am_r(addr);
+}
+
+void wmdbg(unsigned addr, u8 val)
 {
    *am_r(addr) = val;
 }
 
-unsigned char rmdbg(unsigned addr)
+u8 __fastcall rmdbg(u32 addr)
 {
    return *am_r(addr);
 }
@@ -236,7 +253,8 @@ unsigned char cmos_read()
 
    if ((1 << reg) & ((1<<0)|(1<<2)|(1<<4)|(1<<6)|(1<<7)|(1<<8)|(1<<9)))
       GetLocalTime(&st);
-   switch (reg) {
+   switch (reg)
+   {
       case 0:     return cmosBCD((BYTE)st.wSecond);
       case 2:     return cmosBCD((BYTE)st.wMinute);
       case 4:     return cmosBCD((BYTE)st.wHour);
@@ -244,7 +262,7 @@ unsigned char cmos_read()
       case 7:     return cmosBCD((BYTE)st.wDay);
       case 8:     return cmosBCD((BYTE)st.wMonth);
       case 9:     return cmosBCD(st.wYear % 100);
-      case 10:    return 0x20;
+      case 10:    return 0x20 | (cmos [10] & 0xF); // molodcov_alex
       case 11:    return (cmos[11] & 4) | 2;
       case 12:    return 0;
       case 13:    return 0x80;
@@ -261,8 +279,8 @@ __inline void cmos_write(unsigned char val)
 void NVRAM::write(unsigned char val)
 {
    const int SCL = 0x40, SDA = 0x10, WP = 0x20,
-			 SDA_1 = 0xFF, SDA_0 = 0xBF,
-			 SDA_SHIFT_IN = 4;
+             SDA_1 = 0xFF, SDA_0 = 0xBF,
+             SDA_SHIFT_IN = 4;
 
    if ((val ^ prev) & SCL) // clock edge, data in/out
    {

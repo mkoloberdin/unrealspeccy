@@ -185,7 +185,7 @@ int GetSnapshotFileName(OPENFILENAME *ofn, int save)
    ofn->hInstance = hIn;
    ofn->lpstrTitle = save? "Save Snapshot / Disk / Tape as" : "Load Snapshot / Disk / Tape";
 
-   ofn->lpfnHook          = (unsigned int (__stdcall *)(struct HWND__ *,unsigned int,unsigned int,long))PreviewDlgProc; //Alone Coder
+   ofn->lpfnHook          = PreviewDlgProc;
    ofn->lpTemplateName    = MAKEINTRESOURCE(IDD_FILEPREVIEW);
 
    BOOL res = save? GetSaveFileName(ofn) : GetOpenFileName(ofn);

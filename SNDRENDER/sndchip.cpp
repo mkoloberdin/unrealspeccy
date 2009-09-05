@@ -227,7 +227,7 @@ void SNDCHIP::set_timings(unsigned system_clock_rate, unsigned chip_clock_rate, 
    nextfmtickfloat = 0.; //Alone Coder
    nextfmtick = 0; //Alone Coder
    ayticks_per_fmtick = (float)chip_clock_rate/conf.sound.fq /*44100*/; //Alone Coder
-   FMbufMUL=(UINT16)(((float)conf.sound.ay/8192 /* =0..1 */)*0.1f*65536); //Alone Coder 0.36.4
+   FMbufMUL=(UINT16)(((float)conf.sound.ay_vol/8192 /* =0..1 */)*0.1f*65536); //Alone Coder 0.36.4
 
    apply_regs();
 }

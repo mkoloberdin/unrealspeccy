@@ -17,6 +17,7 @@ struct ATM_KBD
 
 struct K_INPUT
 {
+#pragma pack(push, 1)
    union {
       volatile unsigned char kbd[8];
       volatile unsigned kbd_x4[2];
@@ -25,6 +26,7 @@ struct K_INPUT
       volatile unsigned char rkbd[8];
       volatile unsigned rkbd_x4[2];
    };
+#pragma pack(pop)
 
    unsigned lastkey, nokb, nomouse;
 

@@ -48,41 +48,14 @@ struct GSHLE
    void start_fx(unsigned fx, unsigned chan, unsigned char vol, unsigned char note);
    void flush_gs_frame(); // calc volume values for leds
 
-   /* BASS-specific functions and variables */
-
-   tBASS_GetVersion        BASS_GetVersion;
-   tBASS_Init              BASS_Init;
-   tBASS_Free              BASS_Free;
-   tBASS_Pause             BASS_Pause;
-   tBASS_Start             BASS_Start;
-   tBASS_Stop              BASS_Stop;
-   tBASS_GetConfig         BASS_GetConfig;
-   tBASS_SetConfig         BASS_SetConfig;
-   tBASS_GetInfo           BASS_GetInfo;
-
-   tBASS_MusicFree         BASS_MusicFree;
-   tBASS_MusicLoad         BASS_MusicLoad;
-   tBASS_MusicGetOrderPosition BASS_MusicGetOrderPosition;
-   tBASS_ChannelPause      BASS_ChannelPause;
-   tBASS_ChannelPlay       BASS_ChannelPlay;
-
-   tBASS_ChannelGetPosition BASS_ChannelGetPosition;
-   tBASS_ChannelSetPosition BASS_ChannelSetPosition;
-   tBASS_ChannelSetAttributes BASS_ChannelSetAttributes;
-   tBASS_ChannelGetLevel   BASS_ChannelGetLevel;
-   tBASS_ErrorGetCode      BASS_ErrorGetCode;
-   tBASS_ChannelSetFlags   BASS_ChannelSetFlags;
-   tBASS_StreamCreate      BASS_StreamCreate;
-   tBASS_StreamFree        BASS_StreamFree;
-
-   HMODULE hBass; HMUSIC hmod;
+   HMUSIC hmod;
 
    void runBASS();
    void initChannels();
    void setmodvol(unsigned vol);
    void init_mod();
    void restart_mod(unsigned order, unsigned row);
-   void startfx(CHANNEL *ch, unsigned pan);
+   void startfx(CHANNEL *ch, float pan);
    __inline void resetmod();
    __inline void resetfx();
    __inline DWORD modgetpos();

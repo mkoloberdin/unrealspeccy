@@ -55,45 +55,59 @@ char query_file_addr(FILEDLG_MODE mode)
 {
    filledframe(FILEDLG_X, FILEDLG_Y, FILEDLG_DX, 5);
    char ln[64];
-   static char *titles[] = { " Read from binary file   ",
-                             " Write to binary file    ",
-                             " Disasm to text file     " };
+   static const char *titles[] = { " Read from binary file   ",
+                                   " Write to binary file    ",
+                                   " Disasm to text file     " };
    tprint(FILEDLG_X, FILEDLG_Y, titles[mode], FRM_HEADER);
    tprint(FILEDLG_X+1, FILEDLG_Y+2, "file:", FFRAME_INSIDE);
    sprintf(ln, (mode != FDM_LOAD)? "start: %04X end: %04X" : "start: %04X", addr, end);
    tprint(FILEDLG_X+1, FILEDLG_Y+3, ln, FFRAME_INSIDE);
    strcpy(str, fname);
-   for (;;) {
-      if (!inputhex(FILEDLG_X+7,FILEDLG_Y+2,16,0)) return 0;
-      if (mode != FDM_LOAD) break;
-      if (GetFileAttributes(str) != 0xFFFFFFFF) break;
+   for (;;)
+   {
+      if (!inputhex(FILEDLG_X+7,FILEDLG_Y+2,16, false))
+          return 0;
+      if (mode != FDM_LOAD)
+          break;
+      if (GetFileAttributes(str) != INVALID_FILE_ATTRIBUTES)
+          break;
    }
-   strcpy(fname, str); sprintf(ln, "%-16s", fname);
+   strcpy(fname, str);
+   sprintf(ln, "%-16s", fname);
    fillattr(FILEDLG_X+7,FILEDLG_Y+2,16);
-   unsigned a1 = input4(FILEDLG_X+8,FILEDLG_Y+3,addr); if (a1 == -1) return 0;
+   unsigned a1 = input4(FILEDLG_X+8,FILEDLG_Y+3,addr);
+   if (a1 == -1)
+       return 0;
    addr = a1;
    fillattr(FILEDLG_X+8,FILEDLG_Y+3,4);
-   if (mode == FDM_LOAD) return 1;
-   for (;;) {
+   if (mode == FDM_LOAD)
+       return 1;
+   for (;;)
+   {
       unsigned e1 = input4(FILEDLG_X+18,FILEDLG_Y+3,end);
-      if (e1 == -1) return 0;
-      if (e1 < addr) continue;
-      end = e1; return 1;
+      if (e1 == -1)
+          return 0;
+      if (e1 < addr)
+          continue;
+      end = e1;
+          return 1;
    }
 }
 
 void write_mem()
 {
-   unsigned char *ptr = memdata;
-   for (unsigned a1 = addr; a1 <= end; a1++)
-      wmdbg(a1, *ptr++);
+   Z80 &cpu = CpuMgr.Cpu();
+   u8 *ptr = memdata;
+   for(unsigned a1 = addr; a1 <= end; a1++)
+      *cpu.MemDbg(a1) = *ptr++;
 }
 
 void read_mem()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    unsigned char *ptr = memdata;
    for (unsigned a1 = addr; a1 <= end; a1++)
-     *ptr++ = rmdbg(a1);
+     *ptr++ = cpu.RmDbg(a1);
 }
 
 char rw_select_drive()
@@ -101,7 +115,7 @@ char rw_select_drive()
    tprint(FILEDLG_X+1, FILEDLG_Y+2, "drive:", FFRAME_INSIDE);
    for (;;) {
       *(unsigned*)str = 'A' + rw_drive;
-      if (!inputhex(FILEDLG_X+8, FILEDLG_Y+2, 1, 1)) return 0;
+      if (!inputhex(FILEDLG_X+8, FILEDLG_Y+2, 1, true)) return 0;
       fillattr(FILEDLG_X+8, FILEDLG_Y+2, 1);
       unsigned disk = *str - 'A';
       if (disk > 3) continue;
@@ -204,14 +218,14 @@ char wr_trdos_file()
    // if (fdd->sides != 2) { rw_err("single-side TR-DOS disks are not supported"); return 0; }
 
    strcpy(str, trdname);
-   if (!inputhex(FILEDLG_X+8,FILEDLG_Y+3,8,0)) return 0;
+   if (!inputhex(FILEDLG_X+8,FILEDLG_Y+3,8,false)) return 0;
    fillattr(FILEDLG_X+8,FILEDLG_Y+3,8);
    strcpy(trdname, str);
    for (int ptr = strlen(trdname); ptr < 8; trdname[ptr++] = ' ');
    trdname[8] = 0;
 
    strcpy(str, trdext);
-   if (!inputhex(FILEDLG_X+17,FILEDLG_Y+3,1,0)) return 0;
+   if (!inputhex(FILEDLG_X+17,FILEDLG_Y+3,1,false)) return 0;
    fillattr(FILEDLG_X+17,FILEDLG_Y+3,1);
    trdext[0] = str[0]; trdext[1] = 0;
 
@@ -252,22 +266,27 @@ void mon_load()
         { "from raw sectors of FDD image", MENUITEM::LEFT } };
    static MENUDEF menu = { items, 3, "Load data to memory...", 0 };
 
-   if (!handle_menu(&menu)) return;
+   if(!handle_menu(&menu))
+       return;
 
-   unsigned char bf[0x10000]; memdata = bf;
+   unsigned char bf[0x10000];
+   memdata = bf;
 
    switch (menu.pos)
    {
       case 0:
       {
-         if (!query_file_addr(FDM_LOAD)) return;
+         if (!query_file_addr(FDM_LOAD))
+             return;
          FILE *ff = fopen(fname, "rb");
-         if (!ff) return;
+         if (!ff)
+             return;
          unsigned sz = fread(bf, 1, sizeof(bf), ff);
          fclose(ff);
          end = addr + sz - 1;
-         if (end >= 0x10000) end = 0xFFFF;
-         write_mem(); return;
+         end &= 0xFFFF;
+         write_mem();
+         return;
       }
 
       case 1:

@@ -2,6 +2,7 @@
 unsigned *root_tab;
 unsigned char *fontdata = fontdata1;
 
+#ifdef _M_IX86
 #if 1
 __declspec(naked) void __fastcall recognize_text(unsigned char *start, unsigned char *dst[])
 {
@@ -193,6 +194,7 @@ m2:
    }
 }
 #endif
+
 
 #define newchars(x)
 //#define newchars(x) x
@@ -491,14 +493,18 @@ unsigned detect_scroll(unsigned char *src)
    unsigned char *chars[64];
    unsigned delta = temp.scx/4, delta2 = delta * conf.fontsize;
    unsigned max = 0, scroll = 0;
-   for (unsigned line = 0; line < conf.fontsize; line++) {
+   for (unsigned line = 0; line < conf.fontsize; line++)
+   {
       unsigned found = 0; unsigned char *src_pos = src; src += delta;
-      for (unsigned pos = line; pos < 192; pos += conf.fontsize) {
+      for (unsigned pos = line; pos < 192; pos += conf.fontsize)
+      {
          recognize_text(src_pos, chars);
-         for (unsigned i = 0; i < 64; i++) found += (unsigned)(chars[i]) >> 16;
+         for (unsigned i = 0; i < 64; i++)
+             found += (unsigned)(chars[i]) >> 16;
          src_pos += delta2;
       }
-      if (found > max) max = found, scroll = line;
+      if (found > max)
+          max = found, scroll = line;
    }
    return scroll;
 }
@@ -579,3 +585,4 @@ void create_font_tables()
       exit();
    }
 }
+#endif // _M_IX86

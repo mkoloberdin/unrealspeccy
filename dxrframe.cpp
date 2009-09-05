@@ -203,15 +203,18 @@ void rend_frame_x2_32(unsigned char *dst, unsigned pitch)
 
 void gdi_frame()
 {
-   RECT rc, r0; GetClientRect(wnd, &rc);
+   RECT rc, r0;
+   GetClientRect(wnd, &rc);
    HBRUSH black = (HBRUSH)GetStockObject(BLACK_BRUSH);
-   if (temp.oy < temp.gdy) {
-      r0.top = rc.top, r0.left = rc.left, r0.right = rc.right, r0.bottom = temp.gy;
+   if (temp.oy < temp.gdy)
+   {
+      r0.top = rc.top; r0.left = rc.left; r0.right = rc.right; r0.bottom = temp.gy;
       FillRect(temp.gdidc, &r0, black);
-      r0.top = temp.gy+temp.oy, r0.bottom = rc.bottom;
+      r0.top = temp.gy+temp.oy; r0.bottom = rc.bottom;
       FillRect(temp.gdidc, &r0, black);
    }
-   if (temp.ox < temp.gdx) {
+   if (temp.ox < temp.gdx)
+   {
       r0.top = rc.top, r0.bottom = rc.bottom, r0.left = rc.left, r0.right = temp.gx;
       FillRect(temp.gdidc, &r0, black);
       r0.left = temp.gx+temp.ox, r0.right = rc.right;

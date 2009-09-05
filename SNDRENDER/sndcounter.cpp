@@ -16,7 +16,9 @@ void SNDCOUNTER::begin()
 void SNDCOUNTER::count(SNDRENDER &render)
 {
    unsigned rendsamples = (render.dstpos - bufstart) & (SND_EXTERNAL_BUFFER_SIZE-1);
-   if (rendsamples < n_samples) n_samples = rendsamples;
+//   assert(rendsamples != 0);
+   if (rendsamples < n_samples)
+       n_samples = rendsamples;
    #ifdef SND_TEST_FAILURES
    unsigned lastframe_samples = (render.dstpos - render.dst_start) & (SND_EXTERNAL_BUFFER_SIZE-1);
    if (lastframe_samples > rendsamples)

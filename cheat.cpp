@@ -182,7 +182,7 @@ void CHEATDLG::ShowResults()
    }
 }
 
-BOOL CALLBACK cheatdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK cheatdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    if (msg == WM_INITDIALOG) {
 
@@ -221,7 +221,7 @@ BOOL CALLBACK cheatdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    }
 
    if ((msg == WM_COMMAND && wp == IDCANCEL) ||
-       (msg == WM_SYSCOMMAND && wp == SC_CLOSE)) EndDialog(dlg, 0);
+       (msg == WM_SYSCOMMAND && (wp & 0xFFF0) == SC_CLOSE)) EndDialog(dlg, 0);
 
    if (msg == WM_COMMAND && HIWORD(wp) == BN_CLICKED)
    {

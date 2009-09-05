@@ -1,7 +1,17 @@
 namespace z80gs
 {
-unsigned char *gsbankr[4] = { ROM_GS_M, GSRAM_M + PAGE, ROM_GS_M, ROM_GS_M+PAGE };
-unsigned char *gsbankw[4] = { TRASH_M, GSRAM_M + PAGE, TRASH_M, TRASH_M };
+
+const u8 MPAG   = 0x00;
+const u8 MPAGEX = 0x10;
+
+const u8 GSCFG0 = 0x0F;
+
+const u8 M_NOROM = 1;
+const u8 M_RAMRO = 2;
+const u8 M_EXPAG = 8;
+
+u8 *gsbankr[4] = { ROM_GS_M, GSRAM_M + PAGE, ROM_GS_M, ROM_GS_M + PAGE }; // bank pointers for read
+u8 *gsbankw[4] = { TRASH_M, GSRAM_M + PAGE, TRASH_M, TRASH_M }; // bank pointers for write
 
 unsigned gs_v[4];
 unsigned char gsvol[4], gsbyte[4];
@@ -14,12 +24,34 @@ unsigned mult_gs, mult_gs2;
 unsigned __int64 gs_t_states; // inc'ed with GSCPUINT every gs int
 unsigned __int64 gscpu_t_at_frame_start; // gs_t_states+gscpu.t when spectrum frame begins
 
+// ngs
+u8 ngs_mode_pg1; // page ex number
+u8 ngs_cfg0;
+u8 ngs_s_ctrl;
+u8 ngs_s_stat;
+u8 SdRdVal, SdRdValNew;
+bool SdDataAvail = false;
+
 const int GSCPUFQ = 12000000; // hz
 const int GSINTFQ = 37500; // hz
 const int GSCPUFQI = GSCPUFQ/50;
 const int GSCPUINT = GSCPUFQ/GSINTFQ;
 const int MULT_GS_SHIFT = 12; // cpu tick -> gscpu tick precision
 void flush_gs_z80();
+void reset();
+void nmi();
+
+inline u8 rol8(u8 val, u8 shift)
+{
+    __asm__ volatile ("rolb %1,%0" : "=r"(val) : "cI"(shift), "0"(val));
+    return val;
+}
+
+inline u8 ror8(u8 val, u8 shift)
+{
+    __asm__ volatile ("rorb %1,%0" : "=r"(val) : "cI"(shift), "0"(val));
+    return val;
+}
 
 void apply_gs()
 {
@@ -27,16 +59,35 @@ void apply_gs()
    mult_gs2 = (GSCPUFQI<<MULT_GS_SHIFT)/conf.frame;
 }
 
-inline void flush_gs_sound()
+static inline void flush_gs_sound()
 {
-  unsigned l,r;         //!psb
-  l=gs_v[0]+gs_v[1];    //!psb
-  r=gs_v[2]+gs_v[3];    //!psb
+   if (temp.sndblock)
+       return;
 
-   if (temp.sndblock) return;
+  unsigned l,r;         //!psb
+  l = gs_v[0] + gs_v[1];    //!psb
+  r = gs_v[2] + gs_v[3];    //!psb
+
 //   sound.update(gscpu.t + (unsigned) (gs_t_states - gscpu_t_at_frame_start), gs_v[0] + gs_v[1], gs_v[2] + gs_v[3]);
-   sound.update(gscpu.t + (unsigned) (gs_t_states - gscpu_t_at_frame_start), (l+r/2)/2, (r+l/2)/2);     //!psb
-   for (int ch = 0; ch < 4; ch++) {
+   unsigned lv, rv;
+   lv = (l + r/2) / 2;
+   rv = (r + l/2) / 2;
+
+/*
+   if(gs_t_states < gscpu_t_at_frame_start)
+   {
+       printf("err: gs_t_states = %lld, gscpu_t_at_frame_start=%lld, gscpu.t = %u, t = %lld\n",
+           gs_t_states, gscpu_t_at_frame_start, gscpu.t, ((gs_t_states + gscpu.t)  - gscpu_t_at_frame_start));
+       fflush(stdout);
+   }
+*/
+
+//   assert(gs_t_states >= gscpu_t_at_frame_start);
+
+   sound.update(unsigned((gs_t_states + gscpu.t) - gscpu_t_at_frame_start), lv, rv);     //!psb
+
+   for (int ch = 0; ch < 4; ch++)
+   {
       gsleds[ch].level = led_gssum[ch] * gsvol[ch] / (led_gscnt[ch]*(0x100*0x40/16)+1);
       led_gssum[ch] = led_gscnt[ch] = 0;
       gsleds[ch].attrib = 0x0F;
@@ -45,6 +96,8 @@ inline void flush_gs_sound()
 
 inline void init_gs_frame()
 {
+//   printf("%s, gs_t_states = %lld, gscpu.t = %u\n", __FUNCTION__, gs_t_states, gscpu.t);
+   assert(gscpu.t < LONG_MAX);
    gscpu_t_at_frame_start = gs_t_states + gscpu.t;
    sound.start_frame();
 }
@@ -52,24 +105,53 @@ inline void init_gs_frame()
 inline void flush_gs_frame()
 {
    flush_gs_z80();
-   sound.end_frame(gscpu.t + (unsigned) (gs_t_states - gscpu_t_at_frame_start));
+
+/*   printf("%s, gs_t_states = %lld, gscpu_t_at_frame_start = %lld, gscpu.t = %u, t = %lld\n",
+       __FUNCTION__, gs_t_states, gscpu_t_at_frame_start, gscpu.t,
+       ((gs_t_states + gscpu.t)  - gscpu_t_at_frame_start));
+*/
+   sound.end_frame(unsigned((gs_t_states + gscpu.t) - gscpu_t_at_frame_start));
 }
 
-__inline void out_gs(unsigned port, unsigned char val)
+inline void out_gs(unsigned port, u8 val)
 {
    flush_gs_z80();
-   if ((unsigned char)port == 0xBB) gscmd = val, gsstat |= 0x01;
-   else gsdata_out = val, gsstat |= 0x80;
+   port &= 0xFF;
+   switch(port)
+   {
+   case 0x33:
+       if(val & 0x80) // reset
+       {
+           reset();
+           return;
+       }
+       if(val & 0x40) // nmi
+           nmi();
+   break;
+   case 0xB3:
+        gsdata_out = val;
+        gsstat |= 0x80;
+   break;
+   case 0xBB:
+       gscmd = val;
+       gsstat |= 0x01;
+   break;
+   }
 }
 
-__inline unsigned char in_gs(unsigned port)
+inline u8 in_gs(unsigned port)
 {
    flush_gs_z80();
-   if ((unsigned char)port == 0xBB) return gsstat | 0x7E;
-   gsstat &= 0x7F; return gsdata_in;
+   port &= 0xFF;
+   switch(port)
+   {
+   case 0xB3: gsstat &= 0x7F; return gsdata_in;
+   case 0xBB: return gsstat | 0x7E;
+   }
+   return 0xFF;
 }
 
-void gs_byte_to_dac(unsigned addr, unsigned char byte)
+static void gs_byte_to_dac(unsigned addr, unsigned char byte)
 {
    flush_gs_sound();
    unsigned chan = (addr>>8) & 3;
@@ -80,18 +162,42 @@ void gs_byte_to_dac(unsigned addr, unsigned char byte)
    led_gscnt[chan]++;
 }
 
+Z80INLINE u8 *am_r(u32 addr)
+{
+   return &gsbankr[(addr >> 14U) & 3][addr & (PAGE-1)];
+}
+
 Z80INLINE unsigned char rm(unsigned addr)
 {
-   unsigned char byte = gsbankr[(addr >> 14) & 3][addr & (PAGE-1)];
+   unsigned char byte = *am_r(addr);
    if ((addr & 0xE000) == 0x6000) gs_byte_to_dac(addr, byte);
    return byte;
 }
 
+u8 *__fastcall MemDbg(u32 addr)
+{
+    return am_r(addr);
+}
+
+u8 __fastcall dbgrm(u32 addr)
+{
+    return rm(addr);
+}
+
+void BankNames(int i, char *Name)
+{
+    if(gsbankr[i] < GSRAM_M + MAX_GSRAM_PAGES*PAGE)
+        sprintf(Name, "RAM%2X", ULONG((gsbankr[i] - GSRAM_M) / PAGE));
+    if((gsbankr[i] - ROM_GS_M) < PAGE*MAX_GSROM_PAGES)
+        sprintf(Name, "ROM%2X", ULONG((gsbankr[i] - ROM_GS_M) / PAGE));
+}
+
 Z80INLINE void wm(unsigned addr, unsigned char val)
 {
-   unsigned char *bank = gsbankw[(addr >> 14) & 3];
+   u8 *bank = gsbankw[(addr >> 14) & 3];
 #ifndef TRASH_PAGE
-   if (!bank) return;
+   if (!bank)
+       return;
 #endif
    bank[addr & (PAGE-1)] = val;
 }
@@ -102,24 +208,52 @@ Z80INLINE unsigned char m1_cycle(Z80 *cpu)
    return rm(cpu->pc++);
 }
 
+static inline void UpdateMemMapping()
+{
+    bool RamRo = (ngs_cfg0 & M_RAMRO) != 0;
+    bool NoRom = (ngs_cfg0 & M_NOROM) != 0;
+    if(NoRom)
+    {
+        gsbankr[0] = gsbankw[0] = GSRAM_M;
+        gsbankr[1] = gsbankw[1] = GSRAM_M + 3 * PAGE;
+        gsbankr[2] = gsbankw[2] = GSRAM_M + gspage * PAGE;
+        gsbankr[3] = gsbankw[3] = GSRAM_M + ngs_mode_pg1 * PAGE;
+
+        if(RamRo)
+        {
+            if(gspage == 0 || gspage == 1) // RAM0 or RAM1 in PG2
+               gsbankw[2] = TRASH_M;
+            if(ngs_mode_pg1 == 0 || ngs_mode_pg1 == 1) // RAM0 or RAM1 in PG3
+               gsbankw[3] = TRASH_M;
+        }
+    }
+    else
+    {
+        gsbankw[0] = gsbankw[2] = gsbankw[3] = TRASH_M;
+        gsbankr[0] = ROM_GS_M;                                  // ROM0
+        gsbankr[1] = gsbankw[1] = GSRAM_M + 3 * PAGE;           // RAM3
+        gsbankr[2] = ROM_GS_M +  (gspage & 0x1F) * PAGE;        // ROMn
+        gsbankr[3] = ROM_GS_M +  (ngs_mode_pg1 & 0x1F) * PAGE;  // ROMm
+    }
+}
+
 void out(unsigned port, unsigned char val)
 {
-   switch (port & 0x0F) {
-      case 0x00:
- #ifdef GS2MB
-         gspage = (val &= 0x3F);
- #else
-          gspage = (val &= 0x0F);
- #endif
-          if (val) {
-            gsbankr[2] = gsbankw[2] = GSRAM_M + PAGE*2*(val-1);
-            gsbankr[3] = gsbankw[3] = GSRAM_M + PAGE*2*(val-1) + PAGE;
-         } else {
-            gsbankr[2] = ROM_GS_M;
-            gsbankr[3] = ROM_GS_M+PAGE;
-            gsbankw[2] = gsbankw[3] = TRASH_M;
-         }
+//   printf(__FUNCTION__" port=0x%X, val=0x%X\n", (port & 0xFF), val);
+   switch (port & 0xFF)
+   {
+      case MPAG:
+      {
+         bool ExtMem = (ngs_cfg0 & M_EXPAG) != 0;
+
+         gspage = rol8(val, 1) & (ExtMem ? 0x7F : 0x7E);
+
+         if(!ExtMem)
+             ngs_mode_pg1 = (rol8(val, 1) & 0x7F) | 1;
+//         printf(__FUNCTION__"->GSPG, %X, Ro=%d, NoRom=%d, Ext=%d\n", gspage, RamRo, NoRom, ExtMem);
+         UpdateMemMapping();
          return;
+      }
       case 0x02: gsstat &= 0x7F; return;
       case 0x03: gsstat |= 0x80; gsdata_in = val; return;
       case 0x05: gsstat &= 0xFE; return;
@@ -134,12 +268,62 @@ void out(unsigned port, unsigned char val)
       }
       case 0x0A: gsstat = (gsstat & 0x7F) | (gspage << 7); return;
       case 0x0B: gsstat = (gsstat & 0xFE) | ((gsvol[0] >> 5) & 1); return;
+
+   }
+
+//   printf(__FUNCTION__" port=0x%X, val=0x%X\n", (port & 0xFF), val);
+   // ngs
+   switch (port & 0xFF)
+   {
+      case GSCFG0:
+      {
+          ngs_cfg0 = val & 0x3F;
+//          printf(__FUNCTION__"->GSCFG0, %X, Ro=%d, NoRom=%d, Ext=%d\n", ngs_cfg0, RamRo, NoRom, ExtMem);
+          UpdateMemMapping();
+      }
+      break;
+
+      case MPAGEX:
+      {
+//          assert((ngs_cfg0 & M_EXPAG) != 0);
+          ngs_mode_pg1 = rol8(val, 1) & 0x7F;
+          UpdateMemMapping();
+      }
+      break;
+
+      case S_CTRL:
+//          printf(__FUNCTION__"->S_CTRL\n");
+          if(val & 0x80)
+              ngs_s_ctrl |= (val & 0xF);
+          else
+              ngs_s_ctrl &= ~(val & 0xF);
+
+          if(!(ngs_s_ctrl & _MPXRS))
+              Vs1001.Reset();
+
+          Vs1001.SetNcs((ngs_s_ctrl & _MPNCS) != false);
+      break;
+
+      case MC_SEND:
+          Vs1001.WrCmd(val);
+      break;
+
+      case MD_SEND:
+          Vs1001.Wr(val);
+      break;
+
+      case SD_SEND:
+          SdCard.Wr(val);
+          SdRdValNew = SdCard.Rd();
+          SdDataAvail = true;
+      break;
    }
 }
 
 unsigned char in(unsigned port)
 {
-   switch (port & 0x0F) {
+   switch (port & 0xFF)
+   {
       case 0x01: return gscmd;
       case 0x02: gsstat &= 0x7F; return gsdata_out;
       case 0x03: gsstat |= 0x80; gsdata_in = 0xFF; return 0xFF;
@@ -147,41 +331,110 @@ unsigned char in(unsigned port)
       case 0x05: gsstat &= 0xFE; return 0xFF;
       case 0x0A: gsstat = (gsstat & 0x7F) | (gspage << 7); return 0xFF;
       case 0x0B: gsstat = (gsstat & 0xFE) | (gsvol[0] >> 5); return 0xFF;
+
+
+      // ngs
+      case GSCFG0:
+          return ngs_cfg0;
+      case S_CTRL:
+          return ngs_s_ctrl;
+
+      case S_STAT:
+          if(Vs1001.GetDreq())
+              ngs_s_stat |= _MPDRQ;
+          else
+              ngs_s_stat &= ~_MPDRQ;
+          return ngs_s_stat;
+
+      case MC_READ:
+          return Vs1001.Rd();
+
+      case SD_READ:
+      {
+          u8 Tmp = SdRdVal;
+          SdRdVal = SdRdValNew;
+          return Tmp;
+      }
+      case SD_RSTR:
+          if(SdDataAvail)
+          {
+              SdDataAvail = false;
+              return SdRdValNew;
+          }
+          return SdCard.Rd();
+
    }
    return 0xFF;
 }
 
 #include "z80/cmd.cpp"
 
+static inline void stepi()
+{
+   u8 opcode = m1_cycle(&gscpu);
+   (normal_opcode[opcode])(&gscpu);
+}
+
+void __cdecl step()
+{
+    stepi();
+}
+
 void flush_gs_z80()
 {
    unsigned __int64 end = ((cpu.t * mult_gs2) >> MULT_GS_SHIFT); // t*GSCPUFQI/conf.frame;
    end += gscpu_t_at_frame_start;
-   for (;;) { // while (gs_t_states+gscpu.t < end)
+   for (;;)
+   { // while (gs_t_states+gscpu.t < end)
       int max_gscpu_t = min(GSCPUINT, (int)(end - gs_t_states));
-      while ((int)gscpu.t < max_gscpu_t) {
-         unsigned char opcode = m1_cycle(&gscpu); // step()
-         (normal_opcode[opcode])(&gscpu);
-         if (gscpu.halted) {
-            unsigned st = (GSCPUINT-gscpu.t-1)/4+1;
-            gscpu.t += 4*st;
+      while ((int)gscpu.t < max_gscpu_t)
+      {
+#ifdef MOD_DEBUGCORE
+         debug_events();
+#endif
+         stepi();
+         if (gscpu.halted)
+         {
+            unsigned st = (GSCPUINT - gscpu.t - 1) / 4 + 1;
+            gscpu.t += 4 * st;
             gscpu.r_low += st;
             break;
          }
       }
-      if (gscpu.t < GSCPUINT) break;
+      if (gscpu.t < GSCPUINT)
+          break;
+
       if (gscpu.iff1 && gscpu.t != gscpu.eipos) // interrupt, but not after EI
          handle_int(&gscpu, 0xFF);
+
       gscpu.t -= GSCPUINT;
       gs_t_states += GSCPUINT;
    }
 }
 
+void nmi()
+{
+   gscpu.sp -= 2;
+   wm(gscpu.sp, gscpu.pcl);
+   wm(gscpu.sp+1, gscpu.pch);
+   gscpu.pc = 0x66;
+   gscpu.iff1 = gscpu.halted = 0;
+}
+
 void reset()
 {
    gscpu.reset();
+   gsbankr[0] = ROM_GS_M; gsbankr[1] = GSRAM_M + PAGE; gsbankr[2] = ROM_GS_M; gsbankr[3] = ROM_GS_M + PAGE;
+   gsbankw[0] = TRASH_M; gsbankw[1] = GSRAM_M + PAGE; gsbankw[2] = TRASH_M, gsbankw[3] = TRASH_M;
+
    gscpu.t = 0;
    gs_t_states = 0;
+   ngs_cfg0 = 0;
+   ngs_s_stat = (__rdtsc() & ~7) | _SDDET | _MPDRQ;
+   ngs_s_ctrl = (__rdtsc() & ~0xF) | _SDNCS;
+   SdRdVal = SdRdValNew = 0xFF;
+   SdDataAvail = false;
+   Vs1001.Reset();
 }
 
 } // end of z80gs namespace

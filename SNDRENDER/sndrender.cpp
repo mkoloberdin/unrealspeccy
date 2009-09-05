@@ -8,7 +8,8 @@
 unsigned SNDRENDER::render(SNDOUT *src, unsigned srclen, unsigned clk_ticks, bufptr_t dst_start)
 {
    start_frame(dst_start);
-   for (unsigned index = 0; index < srclen; index++) {
+   for (unsigned index = 0; index < srclen; index++)
+   {
       // if (src[index].timestamp > clk_ticks) continue; // wrong input data leads to crash
       update(src[index].timestamp, src[index].newvalue.ch.left, src[index].newvalue.ch.right);
    }
@@ -30,14 +31,15 @@ void SNDRENDER::start_frame(bufptr_t dst_start)
    firstsmp = 4; //Alone Coder
 }
 
-__inline void SNDRENDER::update(unsigned timestamp, unsigned l, unsigned r)
+inline void SNDRENDER::update(unsigned timestamp, unsigned l, unsigned r)
 {
-   if (!((l ^ mix_l) | (r ^ mix_r))) return;
+   if (!((l ^ mix_l) | (r ^ mix_r)))
+       return;
 
-   unsigned endtick = (timestamp * mult_const) >> MULT_C;
-//   uint64_t endtick = (timestamp * (uint64_t)sample_rate * TICK_F) / clock_rate;
+//[vv]   unsigned endtick = (timestamp * mult_const) >> MULT_C;
+   uint64_t endtick = (timestamp * (uint64_t)sample_rate * TICK_F) / clock_rate;
    flush( (unsigned) (base_tick + endtick) );
-   mix_l = l, mix_r = r;
+   mix_l = l; mix_r = r;
 }
 
 unsigned SNDRENDER::end_frame(unsigned clk_ticks)
@@ -104,8 +106,9 @@ const unsigned filter_sum_full_u = (unsigned)(filter_sum_full * 0x10000),
 void SNDRENDER::flush(unsigned endtick)
 {
    unsigned scale;
-   if (!((endtick ^ tick) & ~(TICK_F-1))) {
-//same discrete as before
+   if (!((endtick ^ tick) & ~(TICK_F-1)))
+   {
+      //same discrete as before
       scale = filter_diff[(endtick & (TICK_F-1)) + TICK_F] - filter_diff[(tick & (TICK_F-1)) + TICK_F];
       s2_l += mix_l * scale;
       s2_r += mix_r * scale;
@@ -116,31 +119,34 @@ void SNDRENDER::flush(unsigned endtick)
 
       tick = endtick;
 
-   } else {
+   }
+   else
+   {
       scale = filter_sum_full_u - filter_diff[(tick & (TICK_F-1)) + TICK_F];
 
       unsigned sample_value;
-	  if(conf.soundfilter)
-	  {
-      /*lame noise reduction by Alone Coder*/
-      int templeft = mix_l*scale + s2_l;
-	  /*olduseleft = useleft;
-	  if (firstsmp)useleft=oldfrmleft,firstsmp--;
-		  else*/ useleft = ((long)templeft + (long)oldleft)/2;
-      oldleft = templeft;
-      int tempright = mix_r*scale + s2_r;
-	  /*olduseright = useright;
-	  if (firstsmp)useright=oldfrmright,firstsmp--;
-		  else*/ useright = ((long)tempright + (long)oldright)/2;
-      oldright = tempright;
-      sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
-      /**/
-	  }
-	  else
-	  {
-			   sample_value = ((mix_l*scale + s2_l) >> 16) +
-                              ((mix_r*scale + s2_r) & 0xFFFF0000);
-	  }
+      if(conf.soundfilter)
+      {
+          /*lame noise reduction by Alone Coder*/
+          int templeft = mix_l*scale + s2_l;
+          /*olduseleft = useleft;
+          if (firstsmp)useleft=oldfrmleft,firstsmp--;
+              else*/ useleft = ((long)templeft + (long)oldleft)/2;
+          oldleft = templeft;
+          int tempright = mix_r*scale + s2_r;
+          /*olduseright = useright;
+          if (firstsmp)useright=oldfrmright,firstsmp--;
+              else*/ useright = ((long)tempright + (long)oldright)/2;
+          oldright = tempright;
+          sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
+          /**/
+      }
+      else
+      {
+          sample_value = ((mix_l*scale + s2_l) >> 16) +
+                         ((mix_r*scale + s2_r) & 0xFFFF0000);
+      }
+
       #ifdef SND_EXTERNAL_BUFFER
       SND_EXTERNAL_BUFFER[dstpos].sample += sample_value;
       dstpos = (dstpos+1) & (SND_EXTERNAL_BUFFER_SIZE-1);
@@ -155,33 +161,36 @@ void SNDRENDER::flush(unsigned endtick)
 
       tick = (tick | (TICK_F-1))+1;
 
-      if ((endtick ^ tick) & ~(TICK_F-1)) {
+      if ((endtick ^ tick) & ~(TICK_F-1))
+      {
          // assume filter_coeff is symmetric
          unsigned val_l = mix_l * filter_sum_half_u;
          unsigned val_r = mix_r * filter_sum_half_u;
-         do {
-			unsigned sample_value;
-	        if(conf.soundfilter)
-			{
-            /*lame noise reduction by Alone Coder*/
-            int templeft = s2_l+val_l;
-        	/*olduseleft = useleft;
-	        if (firstsmp)useleft=oldfrmleft,firstsmp--;
-		       else*/ useleft = ((long)templeft + (long)oldleft)/2;
-            oldleft = templeft;
-            int tempright = s2_r+val_r;
-        	/*olduseright = useright;
-	        if (firstsmp)useright=oldfrmright,firstsmp--;
-		       else*/ useright = ((long)tempright + (long)oldright)/2;
-            oldright = tempright;
-            sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
-            /**/
-			}
-			else
-			{
-			         sample_value = ((s2_l + val_l) >> 16) +
-			                        ((s2_r + val_r) & 0xFFFF0000); // save s2+val
-			}
+         do
+         {
+            unsigned sample_value;
+            if(conf.soundfilter)
+            {
+                /*lame noise reduction by Alone Coder*/
+                int templeft = s2_l+val_l;
+                /*olduseleft = useleft;
+                if (firstsmp)useleft=oldfrmleft,firstsmp--;
+                   else*/ useleft = ((long)templeft + (long)oldleft)/2;
+                oldleft = templeft;
+                int tempright = s2_r+val_r;
+                /*olduseright = useright;
+                if (firstsmp)useright=oldfrmright,firstsmp--;
+                   else*/ useright = ((long)tempright + (long)oldright)/2;
+                oldright = tempright;
+                sample_value = (useleft >> 16) + (useright & 0xFFFF0000);
+                /**/
+            }
+            else
+            {
+                sample_value = ((s2_l + val_l) >> 16) +
+                               ((s2_r + val_r) & 0xFFFF0000); // save s2+val
+            }
+
             #ifdef SND_EXTERNAL_BUFFER
             SND_EXTERNAL_BUFFER[dstpos].sample += sample_value;
             dstpos = (dstpos+1) & (SND_EXTERNAL_BUFFER_SIZE-1);

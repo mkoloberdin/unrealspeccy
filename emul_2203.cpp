@@ -1697,17 +1697,17 @@ int YM2203Write(void *chip,int a,UINT8 v)
 	FM_OPN *OPN = &F2203->OPN;
 
 	if( !(a&1) )
-	{	// address port 
+	{	// address port
 		OPN->ST.address = (v &= 0xff);
 
-		// Write register to SSG emulator 
+		// Write register to SSG emulator
 //		if( v < 16 ) (*OPN->ST.SSG->write)(OPN->ST.param,0,v);
 
 	}
 	else
-	{	// data port 
+	{	// data port
 		int addr = OPN->ST.address;
-		// prescaler select : 2d,2e,2f  
+		// prescaler select : 2d,2e,2f
 		if( addr >= 0x2d && addr <= 0x2f )
 			OPNPrescaler_w(OPN , addr , 1);
 		else {

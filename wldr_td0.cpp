@@ -48,7 +48,8 @@ unsigned unpack_lzh(unsigned char *src, unsigned size, unsigned char *buf);
 
 int FDD::read_td0()
 {
-   if (*(short*)snbuf == WORD2('t','d')) { // packed disk
+   if (*(short*)snbuf == WORD2('t','d'))
+   { // packed disk
       unsigned char *tmp = (unsigned char*)malloc(snapsize);
       memcpy(tmp, snbuf+12, snapsize-12);
       snapsize = 12+unpack_lzh(tmp, snapsize-12, snbuf+12);
@@ -56,74 +57,125 @@ int FDD::read_td0()
       //*(short*)snbuf = WORD2('T','D');
    }
 
-   char dscbuffer[sizeof(dsc)]; *dscbuffer = 0;
+   char dscbuffer[sizeof(dsc)];
+   *dscbuffer = 0;
 
    unsigned char *start = snbuf+12;
-   if (snbuf[7] & 0x80) {
+   if (snbuf[7] & 0x80) // coment record
+   {
       start += 10;
       unsigned len = *(unsigned short*)(snbuf+14);
       start += len;
-      if (len >= sizeof dsc) len = sizeof(dsc)-1;
+      if (len >= sizeof dsc)
+          len = sizeof(dsc)-1;
       memcpy(dscbuffer, snbuf+12+10, len);
       dscbuffer[len] = 0;
    }
    unsigned char *td0_src = start;
 
    unsigned max_cyl = 0, max_head = 0;
-   for (;;) {
-      unsigned char s = *td0_src;
-      if (s == 0xFF) break;
-      max_cyl = max(max_cyl, td0_src[1]);
-      max_head = max(max_head, td0_src[2]);
-      td0_src += 4;
-      for (; s; s--) {
-         td0_src += 6;
-         if (td0_src > snbuf + snapsize) return 0;
-         td0_src += *(unsigned short*)td0_src + 2;
+
+   for (;;)
+   {
+      unsigned char s = *td0_src; // Sectors
+      if (s == 0xFF)
+          break;
+      max_cyl = max(max_cyl, td0_src[1]); // PhysTrack
+      max_head = max(max_head, td0_src[2]); // PhysSide
+      td0_src += 4; // sizeof(track_rec)
+      for (; s; s--)
+      {
+         unsigned char flags = td0_src[4];
+         td0_src += 6; // sizeof(sec_rec)
+
+         assert(td0_src <= snbuf + snapsize);
+
+         if (td0_src > snbuf + snapsize)
+             return 0;
+         td0_src += *(unsigned short*)td0_src + 2; // data_len
       }
    }
    newdisk(max_cyl+1, max_head+1);
    memcpy(dsc, dscbuffer, sizeof dsc);
 
    td0_src = start;
-   for (;;) {
-      unsigned char t0[16384], *dst = t0;
-      unsigned char *trkh = td0_src; td0_src += 4;
-      if (*trkh == 0xFF) break;
+   for (;;)
+   {
+      unsigned char t0[16384];
+      unsigned char *dst = t0;
+      unsigned char *trkh = td0_src;
+      td0_src += 4; // sizeof(track_rec)
+
+      if(*trkh == 0xFF)
+          break;
+
       t.seek(this, trkh[1], trkh[2], JUST_SEEK);
-      t.s = trkh[0];
-      for (unsigned se = 0; se < trkh[0]; se++) {
-         unsigned size = 0x80 << td0_src[3];
-         *(unsigned*)&t.hdr[se] = *(unsigned*)td0_src;
-         t.hdr[se].c1 = t.hdr[se].c2 = 0;
-         t.hdr[se].data = dst; td0_src += 6;
-         unsigned src_size = *(unsigned short*)td0_src; td0_src += 2;
+
+      unsigned s = 0;
+      for (unsigned se = 0; se < trkh[0]; se++)
+      {
+         unsigned sec_size = 128U << (td0_src[3] & 3); // [vv]
+         unsigned char flags = td0_src[4];
+
+         if(flags & (0x40 | 0x20 |  0x10)) // skip sectors with no data & sectors without headers
+         {
+             td0_src += 6; // sizeof(sec_rec)
+
+             unsigned src_size = *(unsigned short*)td0_src;
+             td0_src += 2; // data_len
+             unsigned char *end_packed_data = td0_src + src_size;
+             td0_src = end_packed_data;
+             continue;
+         }
+
+         *(unsigned*)&t.hdr[s] = *(unsigned*)td0_src; // c, h, s, n
+         t.hdr[s].c1 = t.hdr[s].c2 = 0;
+         t.hdr[s].data = dst;
+
+         td0_src += 6; // sizeof(sec_rec)
+
+         unsigned src_size = *(unsigned short*)td0_src;
+         td0_src += 2; // data_len
          unsigned char *end_packed_data = td0_src + src_size;
-         memset(dst, 0, size);
-         switch (*td0_src++) {
-            case 0:
-               memcpy(dst, td0_src, src_size-1); break;
-            case 1:
+
+         memset(dst, 0, sec_size);
+
+         switch (*td0_src++) // Method
+         {
+            case 0:  // raw sector
+               memcpy(dst, td0_src, src_size-1);
+               break;
+            case 1:  // repeated 2-byte pattern
             {
-               unsigned n = *(unsigned short*)td0_src; td0_src += 2;
+               unsigned n = *(unsigned short*)td0_src;
+               td0_src += 2;
                unsigned short data = *(unsigned short*)td0_src;
                for (unsigned i = 0; i < n; i--)
                   *(unsigned short*)(dst+2*i) = data;
                break;
             }
-            case 2:
+            case 2: // RLE block
             {
-               unsigned short data; unsigned char s, *d0 = dst;
-               do {
-                  switch (*td0_src++) {
-                     case 0:
+               unsigned short data;
+               unsigned char s;
+               unsigned char *d0 = dst;
+               do
+               {
+                  switch (*td0_src++)
+                  {
+                     case 0: // Zero count means a literal data block
                         for (s = *td0_src++; s; s--)
                            *dst++ = *td0_src++;
                         break;
-                     case 1:
+                     case 1:    // repeated fragment
                         s = *td0_src++;
-                        data = *(unsigned short*)td0_src; td0_src += 2;
-                        for ( ; s; s--) *(unsigned short*)dst = data, dst += 2;
+                        data = *(unsigned short*)td0_src;
+                        td0_src += 2;
+                        for ( ; s; s--)
+                        {
+                            *(unsigned short*)dst = data;
+                            dst += 2;
+                        }
                         break;
                      default: goto shit;
                   }
@@ -131,12 +183,15 @@ int FDD::read_td0()
                dst = d0;
                break;
             }
-            default:
+            default: // error!
             shit:
                errexit("bad TD0 file");
          }
-         dst += size; td0_src = end_packed_data;
+         dst += sec_size;
+         td0_src = end_packed_data;
+         s++;
       }
+      t.s = s;
       t.format();
    }
    return 1;

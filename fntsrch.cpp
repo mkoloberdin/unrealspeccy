@@ -410,7 +410,7 @@ void FontFromFile(HWND dlg)
    paint_font(dlg);
 }
 
-BOOL CALLBACK fonts_dlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK fonts_dlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    if (msg == WM_INITDIALOG) {
       block_font_dialog = 1;
@@ -437,7 +437,7 @@ BOOL CALLBACK fonts_dlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    }
 
    if (msg == WM_PAINT) { paint_font(dlg, 1); return 1; }
-   if (msg == WM_SYSCOMMAND && wp == SC_CLOSE) EndDialog(dlg, 0);
+   if (msg == WM_SYSCOMMAND && (wp & 0xFFF0) == SC_CLOSE) EndDialog(dlg, 0);
 
    if (block_font_dialog) return 0;
 

@@ -6,7 +6,8 @@ struct {
 
 void debugflip()
 {
-   if (!active) return;
+   if(!active)
+       return;
    setpal(0);
 
    unsigned char * const bptr = gdibuf;
@@ -30,13 +31,16 @@ void debugflip()
    // print text
    int x,y;
    unsigned char *tptr = txtscr;
-   for (y = 0; y < 16*30*640; y+=16*640) {
-      for (x = 0; x < 80; x++, tptr++) {
+   for (y = 0; y < 16*30*640; y+=16*640)
+   {
+      for (x = 0; x < 80; x++, tptr++)
+      {
          unsigned ch = *tptr, at = tptr[80*30];
          if (at == 0xFF) continue; // transparent color
          unsigned char *fnt = &font16[ch*16];
          at <<= 4;
-         for (int yy = 0; yy < 16; yy++, fnt++) {
+         for (int yy = 0; yy < 16; yy++, fnt++)
+         {
             *(unsigned*)(bptr+y+640*yy+x*8+0) = t.sctab8[0][(*fnt >>  4) + at];
             *(unsigned*)(bptr+y+640*yy+x*8+4) = t.sctab8[0][(*fnt & 0xF) + at];
          }
@@ -44,7 +48,8 @@ void debugflip()
    }
 
    // show frames
-   for (unsigned i = 0; i < nfr; i++) {
+   for (unsigned i = 0; i < nfr; i++)
+   {
       unsigned char a1 = (frames[i].c | 0x08) * 0x11;
       y = frames[i].y*16-1;
       for (x = 8*frames[i].x-1; x < (frames[i].x+frames[i].dx)*8; x++) bptr[y*640+x] = a1;
@@ -57,7 +62,8 @@ void debugflip()
    }
 
    gdibmp.header.bmiHeader.biBitCount = 8;
-   if (needclr) gdi_frame();
+   if(needclr)
+       gdi_frame();
    SetDIBitsToDevice(temp.gdidc, temp.gx, temp.gy, 640, 480, 0, 0, 0, 480, bptr, &gdibmp.header, DIB_RGB_COLORS);
    gdibmp.header.bmiHeader.biBitCount = temp.obpp;
 }
@@ -72,14 +78,14 @@ void frame(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char attr)
    nfr++;
 }
 
-void tprint(unsigned x, unsigned y, char *str, unsigned char attr)
+void tprint(unsigned x, unsigned y, const char *str, unsigned char attr)
 {
    for (unsigned ptr = y*80 + x; *str; str++, ptr++) {
       txtscr[ptr] = *str; txtscr[ptr+80*30] = attr;
    }
 }
 
-void tprint_fg(unsigned x, unsigned y, char *str, unsigned char attr)
+void tprint_fg(unsigned x, unsigned y, const char *str, unsigned char attr)
 {
    for (unsigned ptr = y*80 + x; *str; str++, ptr++) {
       txtscr[ptr] = *str; txtscr[ptr+80*30] = (txtscr[ptr+80*30] & 0xF0) + attr;
@@ -103,56 +109,116 @@ void fillattr(unsigned x, unsigned y, unsigned dx, unsigned char color = FFRAME_
 }
 
 char str[0x80];
-unsigned inputhex(unsigned x, unsigned y, unsigned sz, char hex)
+unsigned inputhex(unsigned x, unsigned y, unsigned sz, bool hex)
 {
    unsigned cr = 0;
    mousepos = 0;
-   unsigned i; //Alone Coder 0.36.7
-   for (;;) {
-      str[sz] = 0; for (/*unsigned*/ i = strlen(str); i < sz; i++) str[i] = ' ';
-      for (i = 0; i < sz; i++) {
-         unsigned vl = (unsigned char)str[i]; tprint(x+i,y,(char*)&vl,(i==cr) ? W_INPUTCUR : W_INPUTBG);
+
+   for (;;)
+   {
+      str[sz] = 0;
+
+      unsigned i;
+      for (i = strlen(str); i < sz; i++)
+          str[i] = ' ';
+      for (i = 0; i < sz; i++)
+      {
+         unsigned vl = (unsigned char)str[i];
+         tprint(x+i,y,(char*)&vl,(i==cr) ? W_INPUTCUR : W_INPUTBG);
       }
+
       debugflip();
+
       unsigned key;
-      for (;;) {
+      for (;;Sleep(20))
+      {
          key = process_msgs();
-         if (mousepos) return 0;
-         if (!key) { Sleep(20); continue; }
-         break;
+         needclr = 0;
+         debugflip();
+
+         if (mousepos)
+             return 0;
+         if (key)
+             break;
       }
-      if (key == VK_ESCAPE) return 0;
-      if (key == VK_RETURN) {
+
+      switch(key)
+      {
+      case VK_ESCAPE: return 0;
+      case VK_RETURN:
          for (char *ptr = str+sz-1; *ptr == ' ' && ptr >= str; *ptr-- = 0);
          return 1;
+      case VK_LEFT:
+          if (cr)
+              cr--;
+          continue;
+      case VK_BACK:
+          if (cr)
+          {
+              for (i = cr; i < sz; i++)
+                  str[i-1]=str[i];
+              str[sz-1] = ' ';
+              --cr;
+          }
+          continue;
+      case VK_RIGHT:
+          if(cr != sz-1)
+              cr++;
+          continue;
+      case VK_HOME:
+          cr=0;
+          continue;
+      case VK_END:
+          for (cr=sz-1; cr && str[cr]==' ' && str[cr-1] == ' '; cr--);
+          continue;
+      case VK_DELETE:
+          for (i = cr; i < sz-1; i++)
+              str[i]=str[i+1];
+          str[sz-1] = ' ';
+          continue;
+      case VK_INSERT:
+          for (i = sz-1; i > cr; i--)
+              str[i]=str[i-1];
+          str[cr] = ' ';
+          continue;
       }
-      if (key == VK_LEFT || key == VK_BACK) { if (cr) cr--; continue; }
-      if (key == VK_RIGHT && cr != sz-1) cr++;
-      if (key == VK_HOME) cr=0;
-      if (key == VK_END) for (cr=sz-1; cr && str[cr]==' ' && str[cr-1] == ' '; cr--);
-      if (key == VK_DELETE) { for (i = cr; i < sz-1; i++) str[i]=str[i+1]; str[sz-1] = ' '; }
-      if (key == VK_INSERT) { for (i = sz-1; i > cr; i--) str[i]=str[i-1]; str[cr] = ' '; }
-      if (hex) {
-         if ((key >= '0' && key <= '9') || (key >= 'A' && key <= 'F')) str[cr++] = (unsigned char)key;
-      } else {
-         GetKeyboardState(kbdpc); unsigned short k;
-         if (ToAscii(key,0,kbdpc,&k,0) == 1) str[cr++] = (char)k;
+
+      if (hex)
+      {
+         if ((key >= '0' && key <= '9') || (key >= 'A' && key <= 'F'))
+             str[cr++] = (unsigned char)key;
       }
-      if (cr == sz) cr--;
+      else
+      {
+         GetKeyboardState(kbdpc);
+         unsigned short k;
+         if (ToAscii(key,0,kbdpc,&k,0) == 1)
+             str[cr++] = (char)k;
+      }
+      if (cr == sz)
+          cr--;
    }
 }
 
 unsigned input4(unsigned x, unsigned y, unsigned val)
 {
    sprintf(str, "%04X", val);
-   if (inputhex(x,y,4,1)) { sscanf(str, "%x", &val); return val; }
+   if (inputhex(x,y,4,true))
+   {
+       sscanf(str, "%x", &val);
+       return val;
+   }
    return -1;
 }
 
 unsigned input2(unsigned x, unsigned y, unsigned val)
 {
    sprintf(str, "%02X", val);
-   if (inputhex(x,y,2,1)) { sscanf(str, "%x", &val); return val; }
+   if (inputhex(x,y,2,true))
+   {
+       sscanf(str, "%x", &val);
+       return val;
+   }
    return -1;
 }
 
@@ -218,22 +284,40 @@ char handle_menu(MENUDEF *menu)
 {
    if (menu->items[menu->pos].flags & MENUITEM::DISABLED)
       menu_move(menu, 1);
-   for (;;) {
+   for (;;)
+   {
       paint_items(menu);
       debugflip();
 
       unsigned key;
-      for (;;) {
+      for (;;Sleep(20))
+      {
          key = process_msgs();
-         if (mousepos) return 0;
-         if (!key) { Sleep(20); continue; }
-         break;
+         needclr =  0;
+         debugflip();
+
+         if (mousepos)
+             return 0;
+         if(key)
+             break;
       }
-      if (key == VK_ESCAPE) return 0;
-      if (key == VK_RETURN || key == VK_SPACE) return 1;
-      if (key == VK_UP || key == VK_LEFT) menu_move(menu, -1);
-      if (key == VK_DOWN || key == VK_RIGHT) menu_move(menu, 1);
-      if (key == VK_HOME || key == VK_PRIOR) menu->pos = -1, menu_move(menu, 1);
-      if (key == VK_END || key == VK_NEXT) menu->pos = menu->n_items, menu_move(menu, -1);
+      if (key == VK_ESCAPE)
+          return 0;
+      if (key == VK_RETURN || key == VK_SPACE)
+          return 1;
+      if (key == VK_UP || key == VK_LEFT)
+          menu_move(menu, -1);
+      if (key == VK_DOWN || key == VK_RIGHT)
+          menu_move(menu, 1);
+      if (key == VK_HOME || key == VK_PRIOR)
+      {
+          menu->pos = -1;
+          menu_move(menu, 1);
+      }
+      if (key == VK_END || key == VK_NEXT)
+      {
+          menu->pos = menu->n_items;
+          menu_move(menu, -1);
+      }
    }
 }

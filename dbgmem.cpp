@@ -12,7 +12,8 @@ void findsector(unsigned addr)
 
 unsigned char *editam(unsigned addr)
 {
-   if (editor == ED_MEM) return am_r(addr);
+   Z80 &cpu = CpuMgr.Cpu();
+   if (editor == ED_MEM) return cpu.MemDbg(addr);
    if (!edited_track.trkd) return 0;
    if (editor == ED_PHYS) return edited_track.trkd + addr;
    // editor == ED_LOG
@@ -51,6 +52,7 @@ unsigned memadr(unsigned addr)
 
 void showmem()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    char line[80]; unsigned ii;
    unsigned cursor_found = 0;
    if (mem_dump) mem_ascii = 1, mem_sz = 32; else mem_sz = 8;
@@ -74,20 +76,27 @@ void showmem()
             mem_max += edited_track.hdr[ii].datlen;
    } else mem_max = 0x10000;
 redraw:
-   mem_curs = memadr(mem_curs); mem_top = memadr(mem_top);
-   for (ii = 0; ii < mem_size; ii++) {
-      unsigned ptr = memadr(mem_top + ii*mem_sz);
+   cpu.mem_curs = memadr(cpu.mem_curs);
+   cpu.mem_top = memadr(cpu.mem_top);
+   for (ii = 0; ii < mem_size; ii++)
+   {
+      unsigned ptr = memadr(cpu.mem_top + ii*mem_sz);
       sprintf(line, "%04X ", ptr);
       unsigned cx = 0;
-      if (mem_dump) {      // 0000 0123456789ABCDEF0123456789ABCDEF
-         for (unsigned dx = 0; dx < 32; dx++) {
-            if (ptr == mem_curs) cx = dx+5;
+      if (mem_dump)
+      {  // 0000 0123456789ABCDEF0123456789ABCDEF
+         for (unsigned dx = 0; dx < 32; dx++)
+         {
+            if (ptr == cpu.mem_curs) cx = dx+5;
             unsigned char c = editrm(ptr); ptr = memadr(ptr+1);
             line[dx+5] = c ? c : '.';
          }
-      } else {             // 0000 11 22 33 44 55 66 77 88 abcdefgh
-         for (unsigned dx = 0; dx < 8; dx++) {
-            if (ptr == mem_curs) cx = (mem_ascii) ? dx+29 : dx*3 + 5 + mem_second;
+      }
+      else 
+      {  // 0000 11 22 33 44 55 66 77 88 abcdefgh
+         for (unsigned dx = 0; dx < 8; dx++)
+         {
+            if (ptr == cpu.mem_curs) cx = (mem_ascii) ? dx+29 : dx*3 + 5 + cpu.mem_second;
             unsigned char c = editrm(ptr); ptr = memadr(ptr+1);
             sprintf(line+5+3*dx, "%02X", c); line[7+3*dx] = ' ';
             line[29+dx] = c ? c : '.';
@@ -99,66 +108,92 @@ redraw:
       if (cx && (activedbg == WNDMEM))
          txtscr[(mem_y+ii)*80+mem_x+cx+80*30] = W_CURS;
    }
-   if (!cursor_found) { cursor_found=1; mem_top=mem_curs & ~(mem_sz-1); goto redraw; }
+   if (!cursor_found) { cursor_found=1; cpu.mem_top=cpu.mem_curs & ~(mem_sz-1); goto redraw; }
 title:
-   if (editor == ED_MEM) sprintf(line, "memory: %04X", mem_curs & 0xFFFF);
-   else if (editor == ED_PHYS) sprintf(line, "disk %c, trk %02X, offs %04X", mem_disk+'A', mem_track, mem_curs);
+   if (editor == ED_MEM) sprintf(line, "memory: %04X", cpu.mem_curs & 0xFFFF);
+   else if (editor == ED_PHYS) sprintf(line, "disk %c, trk %02X, offs %04X", mem_disk+'A', mem_track, cpu.mem_curs);
    else { // ED_LOG
-      if (mem_max) findsector(mem_curs);
+      if (mem_max) findsector(cpu.mem_curs);
       sprintf(line, "disk %c, trk %02X, sec %02X[%02X], offs %04X",
         mem_disk+'A', mem_track,
         sector, edited_track.hdr[sector].n,
-        mem_curs-sector_offset);
+        cpu.mem_curs-sector_offset);
    }
    tprint(mem_x, mem_y-1, line, W_TITLE);
    frame(mem_x,mem_y,37,mem_size,FRAME);
 }
 
       /* ------------------------------------------------------------- */
-void mstl() { if (mem_max) mem_curs &= ~(mem_sz-1), mem_second = 0; }
-void mendl() { if (mem_max) mem_curs |= (mem_sz-1), mem_second = 1; }
-void mup() { if (mem_max) mem_curs -= mem_sz; }
-void mpgdn() { if (mem_max) mem_curs += mem_size*mem_sz, mem_top += mem_size*mem_sz; }
-void mpgup() { if (mem_max) mem_curs -= mem_size*mem_sz, mem_top -= mem_size*mem_sz; }
+void mstl()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    if (mem_max) cpu.mem_curs &= ~(mem_sz-1), cpu.mem_second = 0;
+}
+void mendl()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    if (mem_max) cpu.mem_curs |= (mem_sz-1), cpu.mem_second = 1;
+}
+void mup()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    if (mem_max) cpu.mem_curs -= mem_sz;
+}
+void mpgdn()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    if (mem_max) cpu.mem_curs += mem_size*mem_sz, cpu.mem_top += mem_size*mem_sz;
+}
+
+void mpgup()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    if (mem_max) cpu.mem_curs -= mem_size*mem_sz, cpu.mem_top -= mem_size*mem_sz;
+}
 
 void mdown()
 {
    if (!mem_max) return;
-   mem_curs += mem_sz;
-   if (((mem_curs - mem_top + mem_max) % mem_max) / mem_sz >= mem_size) mem_top += mem_sz;
+
+   Z80 &cpu = CpuMgr.Cpu();
+   cpu.mem_curs += mem_sz;
+   if (((cpu.mem_curs - cpu.mem_top + mem_max) % mem_max) / mem_sz >= mem_size) cpu.mem_top += mem_sz;
 }
 
 void mleft()
 {
    if (!mem_max) return;
-   if (mem_ascii || !mem_second) mem_curs--;
-   if (!mem_ascii) mem_second ^= 1;
+   Z80 &cpu = CpuMgr.Cpu();
+   if (mem_ascii || !cpu.mem_second) cpu.mem_curs--;
+   if (!mem_ascii) cpu.mem_second ^= 1;
 }
 
 void mright()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    if (!mem_max) return;
-   if (mem_ascii || mem_second) mem_curs++;
-   if (!mem_ascii) mem_second ^= 1;
-   if (((mem_curs - mem_top + mem_max) % mem_max) / mem_sz >= mem_size) mem_top += mem_sz;
+   if (mem_ascii || cpu.mem_second) cpu.mem_curs++;
+   if (!mem_ascii) cpu.mem_second ^= 1;
+   if (((cpu.mem_curs - cpu.mem_top + mem_max) % mem_max) / mem_sz >= mem_size) cpu.mem_top += mem_sz;
 }
 
 char dispatch_mem()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    if (!mem_max) return 0;
    if (mem_ascii) {
       unsigned short k;
       if (ToAscii(input.lastkey,0,kbdpc,&k,0) != 1) return 0;
       k &= 0xFF; if (k < 0x20 || k >= 0x80) return 0;
-      editwm(mem_curs, (unsigned char)k);
+      editwm(cpu.mem_curs, (unsigned char)k);
       mright();
       return 1;
    } else {
       if ((input.lastkey >= '0' && input.lastkey <= '9') || (input.lastkey >= 'A' && input.lastkey <= 'F')) {
          unsigned char k = (input.lastkey >= 'A') ? input.lastkey-'A'+10 : input.lastkey-'0';
-         unsigned char c = editrm(mem_curs);
-         if (mem_second) editwm(mem_curs, (c & 0xF0) | k);
-         else editwm(mem_curs, (c & 0x0F) | (k << 4));
+         unsigned char c = editrm(cpu.mem_curs);
+         if (cpu.mem_second) editwm(cpu.mem_curs, (c & 0xF0) | k);
+         else editwm(cpu.mem_curs, (c & 0x0F) | (k << 4));
          mright();
          return 1;
       }
@@ -168,30 +203,67 @@ char dispatch_mem()
 
 void mtext()
 {
-   unsigned rs = find1dlg(mem_curs);
-   if (rs != -1) mem_curs = rs;
+   Z80 &cpu = CpuMgr.Cpu();
+   unsigned rs = find1dlg(cpu.mem_curs);
+   if (rs != -1) cpu.mem_curs = rs;
 }
 
 void mcode()
 {
-   unsigned rs = find2dlg(mem_curs);
-   if (rs != -1) mem_curs = rs;
+   Z80 &cpu = CpuMgr.Cpu();
+   unsigned rs = find2dlg(cpu.mem_curs);
+   if (rs != -1) cpu.mem_curs = rs;
 }
 
 void mgoto()
 {
-   unsigned v = input4(mem_x, mem_y, mem_top);
-   if (v != -1) mem_top = (v & ~(mem_sz-1)), mem_curs = v;
+   Z80 &cpu = CpuMgr.Cpu();
+   unsigned v = input4(mem_x, mem_y, cpu.mem_top);
+   if (v != -1) cpu.mem_top = (v & ~(mem_sz-1)), cpu.mem_curs = v;
 }
 
 void mswitch() { mem_ascii ^= 1; }
-void msp() { mem_curs = cpu.sp; }
-void mpc() { mem_curs = cpu.pc; }
-void mbc() { mem_curs = cpu.bc; }
-void mde() { mem_curs = cpu.de; }
-void mhl() { mem_curs = cpu.hl; }
-void mix() { mem_curs = cpu.ix; }
-void miy() { mem_curs = cpu.iy; }
+
+void msp()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    cpu.mem_curs = cpu.sp;
+}
+void mpc()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    cpu.mem_curs = cpu.pc;
+}
+
+void mbc()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    cpu.mem_curs = cpu.bc;
+}
+
+void mde()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    cpu.mem_curs = cpu.de;
+}
+
+void mhl()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    cpu.mem_curs = cpu.hl;
+}
+
+void mix()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    cpu.mem_curs = cpu.ix;
+}
+
+void miy()
+{
+    Z80 &cpu = CpuMgr.Cpu();
+    cpu.mem_curs = cpu.iy;
+}
 
 void mmodemem() { editor = ED_MEM; }
 void mmodephys() { editor = ED_PHYS; }
@@ -199,10 +271,11 @@ void mmodelog() { editor = ED_LOG; }
 
 void mdiskgo()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    if (editor == ED_MEM) return;
    for (;;) {
       *(unsigned*)str = mem_disk + 'A';
-      if (!inputhex(mem_x+5, mem_y-1, 1, 1)) return;
+      if (!inputhex(mem_x+5, mem_y-1, 1, true)) return;
       if (*str >= 'A' && *str <= 'D') break;
    }
    mem_disk = *str-'A'; showmem();
@@ -213,8 +286,8 @@ void mdiskgo()
    showmem();
    // enter sector
    for (;;) {
-      findsector(mem_curs); x = input2(mem_x+20, mem_y-1, sector);
+      findsector(cpu.mem_curs); x = input2(mem_x+20, mem_y-1, sector);
       if (x == -1) return; if (x < edited_track.s) break;
    }
-   for (mem_curs = 0; x; x--) mem_curs += edited_track.hdr[x-1].datlen;
+   for (cpu.mem_curs = 0; x; x--) cpu.mem_curs += edited_track.hdr[x-1].datlen;
 }

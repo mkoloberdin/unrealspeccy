@@ -612,7 +612,7 @@ unsigned char tape_bit() // used in io.cpp & sound.cpp
       if (!temp.sndblock) {
          unsigned t = (unsigned)(comp.tape.edge_change - comp.t_states - temp.cpu_t_at_frame_start);
          if ((int)t >= 0) {
-            unsigned tape_in = conf.sound.micin & comp.tape.tape_bit;
+            unsigned tape_in = conf.sound.micin_vol & comp.tape.tape_bit;
 //            comp.tape.sound.update(t, tape_in, tape_in); //Alone Coder
             comp.tape_sound.update(t, tape_in, tape_in); //Alone Coder
          }

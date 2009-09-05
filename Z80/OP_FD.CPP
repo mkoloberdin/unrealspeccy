@@ -428,6 +428,7 @@ Z80OPCODE opy_E5(Z80 *cpu) { // push iy
 #endif
 #ifdef Z80_COMMON
 Z80OPCODE opy_E9(Z80 *cpu) { // jp (iy)
+   cpu->last_branch = cpu->pc-2;
    cpu->pc = cpu->iy;
 }
 Z80OPCODE opy_F9(Z80 *cpu) { // ld sp,iy

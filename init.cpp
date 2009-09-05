@@ -1,11 +1,19 @@
 
 void cpu_info()
 {
-   char idstr[64]; fillCpuString(idstr); trim(idstr);
+   char idstr[64];
+   idstr[0] = 0;
+
+#ifdef _M_IX86
+   fillCpuString(idstr);
+
+   trim(idstr);
    unsigned cpuver = cpuid(1,0);
    unsigned features = cpuid(1,1);
    temp.mmx = (features >> 23) & 1;
+   temp.sse = (features >> 25) & 1;
    temp.sse2 = (features >> 26) & 1;
+#endif
    temp.cpufq = GetCPUFrequency();
 
    color(CONSCLR_HARDITEM); printf("cpu: ");
@@ -13,11 +21,14 @@ void cpu_info()
    color(CONSCLR_HARDINFO);
    printf("%s ", idstr);
 
+#ifdef _M_IX86
    color(CONSCLR_HARDITEM);
-   printf("%d.%d.%d [MMX:%s,SSE2:%s] ",
+   printf("%d.%d.%d [MMX:%s,SSE:%s,SSE2:%s] ",
       (cpuver>>8) & 0x0F, (cpuver>>4) & 0x0F, cpuver & 0x0F,
       temp.mmx ? "YES" : "NO",
+      temp.sse ? "YES" : "NO",
       temp.sse2 ? "YES" : "NO");
+#endif
 
    color(CONSCLR_HARDINFO);
    printf("at %d MHz\n", (unsigned)(temp.cpufq/1000000));
@@ -27,7 +38,7 @@ void cpu_info()
       color(CONSCLR_WARNING);
       printf("warning: this is an SSE2 build, recompile or download non-P4 version\n");
    }
-#else MOD_SSE2
+#else //MOD_SSE2
    if (temp.sse2) {
       color(CONSCLR_WARNING);
       printf("warning: SSE2 disabled in compile-time, recompile or download P4 version\n");
@@ -119,10 +130,13 @@ void init_all(int argc, char **argv)
 
 void __declspec(noreturn) exit()
 {
+//   EnableMenuItem(GetSystemMenu(GetConsoleWindow(), FALSE), SC_CLOSE, MF_ENABLED);
    exitflag = 1;
-   if (savesndtype) savesnddialog();
+   if (savesndtype)
+   savesnddialog();
    done_tape();
    done_dx();
+   done_gs();
    done_leds();
    save_nv();
    modem.close();
@@ -132,6 +146,12 @@ void __declspec(noreturn) exit()
    if (ay[0].Chip2203) YM2203Shutdown(ay[0].Chip2203); //Dexus
    color();
    printf("\nsee you later!");
-   if (!nowait) SetConsoleTitle("press a key..."), getch();
+   if (!nowait)
+   {
+       SetConsoleTitle("press a key...");
+       getch();
+   }
+   fflush(stdout);
+   SetConsoleCtrlHandler(ConsoleHandler, FALSE);
    ExitProcess(0);
 }

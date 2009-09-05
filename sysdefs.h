@@ -12,6 +12,11 @@ typedef unsigned __int64 uint64_t;
 
 typedef uint64_t QWORD;
 
+typedef unsigned long u32;
+typedef unsigned short u16;
+typedef signed  short i16;
+typedef unsigned char u8;
+
 #ifdef __GNUC__
 #include <stdint.h>
 #define HANDLE_PRAGMA_PACK_PUSH_POP

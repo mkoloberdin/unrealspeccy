@@ -30,49 +30,114 @@ void spectrum_frame()
    comp.frame_counter++;
 }
 
+void do_idle()
+{
+   static unsigned long long last_cpu = rdtsc();
+   for (;;)
+   {
+      __asm__("pause");
+      unsigned long long cpu = rdtsc();
+      if ((cpu-last_cpu) >= temp.ticks_frame)
+          break;
+
+      if(conf.sleepidle)
+      {
+          ULONG Delay = ((temp.ticks_frame - (cpu-last_cpu)) * 1000ULL) / temp.cpufq;
+
+          if(Delay != 0)
+          {
+              Sleep(Delay);
+ //             printf("sleep: %lu\n", Delay);
+              break;
+          }
+      }
+   }
+   last_cpu = rdtsc();
+}
+
 // version before frame resampler
 //uncommented by Alone Coder
+/*
 void mainloop()
 {
    unsigned char skipped = 0;
    for (;;)
    {
-      if (skipped < temp.frameskip) skipped++, temp.vidblock = 1;
-      else skipped = temp.vidblock = 0;
+      if (skipped < temp.frameskip)
+      {
+          skipped++;
+          temp.vidblock = 1;
+      }
+      else
+          skipped = temp.vidblock = 0;
+
       temp.sndblock = !conf.sound.enabled;
       temp.inputblock = 0; //temp.vidblock; //Alone Coder
       spectrum_frame();
 
       // message handling before flip (they paint to rbuf)
-      if (!temp.inputblock) dispatch(conf.atm.xt_kbd? ac_main_xt : ac_main);
-      if (!temp.vidblock) flip();
-      if (!temp.sndblock) do_sound();
-   }
-}
+      if (!temp.inputblock)
+          dispatch(conf.atm.xt_kbd ? ac_main_xt : ac_main);
+      if (!temp.vidblock)
+          flip();
+      if (!temp.sndblock)
+      {
+          do_sound();
+          Vs1001.Play();
 
-/*
-void __declspec(noreturn) mainloop()
-{
-   unsigned char skipped = 0;
-   for (;;)
-   {
-      if (skipped < temp.frameskip) skipped++, temp.vidblock = 1;
-      else skipped = temp.vidblock = 0;
-
-      if (!temp.vidblock) flip();
-      for (unsigned f = rsm.needframes[rsm.frame]; f; f--) {
-         temp.sndblock = !conf.sound.enabled;
-         temp.inputblock = temp.vidblock;
-         spectrum_frame();
-         if (!temp.inputblock) dispatch(conf.atm.xt_kbd? ac_main_xt : ac_main);
-         if (!temp.sndblock) do_sound();
-         if (rsm.mix_frames > 1) {
-            memcpy(rbuf_s + rsm.rbuf_dst * rb2_offs, rbuf, temp.scx*temp.scy/4);
-            if (++rsm.rbuf_dst == rsm.mix_frames) rsm.rbuf_dst = 0;
-         }
+//          if(conf.sound.do_sound != do_sound_ds)
+          do_idle();
       }
-
-      if (++rsm.frame == rsm.period) rsm.frame = 0;
    }
 }
 */
+
+void __declspec(noreturn) mainloop(const bool &Exit)
+{
+   unsigned char skipped = 0;
+   for (;!Exit;)
+   {
+      if (skipped < temp.frameskip)
+      {
+          skipped++;
+          temp.vidblock = 1;
+      }
+      else
+          skipped = temp.vidblock = 0;
+
+      if (!temp.vidblock)
+          flip();
+
+      for (unsigned f = rsm.needframes[rsm.frame]; f; f--)
+      {
+         temp.sndblock = !conf.sound.enabled;
+         temp.inputblock = temp.vidblock;
+         spectrum_frame();
+
+         // message handling before flip (they paint to rbuf)
+         if (!temp.inputblock)
+             dispatch(conf.atm.xt_kbd ? ac_main_xt : ac_main);
+         if (!temp.sndblock)
+         {
+             do_sound();
+             Vs1001.Play();
+         }
+         if (rsm.mix_frames > 1)
+         {
+            memcpy(rbuf_s + rsm.rbuf_dst * rb2_offs, rbuf, temp.scx * temp.scy / 4);
+            if (++rsm.rbuf_dst == rsm.mix_frames)
+                rsm.rbuf_dst = 0;
+         }
+         if (!temp.sndblock)
+         {
+             if(conf.sound.do_sound == do_sound_none)
+                 do_idle();
+         }
+      }
+
+      if (++rsm.frame == rsm.period)
+          rsm.frame = 0;
+
+   }
+   correct_exit();
+}

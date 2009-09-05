@@ -117,7 +117,7 @@ void WD1793::process()
             if (!trkcache.hdr[foundid].data) goto nextmk;
             if (trkcache.hdr[foundid].data[-1] == 0xF8) status |= WDS_RECORDT; else status &= ~WDS_RECORDT;
             rwptr = trkcache.hdr[foundid].data - trkcache.trkd;
-            rwlen = 128 << trkcache.hdr[foundid].l;
+            rwlen = 128 << (trkcache.hdr[foundid].l & 3); // [vv]
             goto read_first_byte;
 
          case S_READ:
@@ -152,7 +152,7 @@ void WD1793::process()
             for (rwlen = 0; rwlen < 12; rwlen++) trkcache.write(rwptr++, 0, 0);
             for (rwlen = 0; rwlen < 3; rwlen++)  trkcache.write(rwptr++, 0xA1, 1);
             trkcache.write(rwptr++, (cmd & CMD_WRITE_DEL)? 0xF8 : 0xFB, 0);
-            rwlen = 128 << trkcache.hdr[foundid].l;
+            rwlen = 128 << (trkcache.hdr[foundid].l & 3); // [vv]
             state = S_WRITE; break;
 
          case S_WRITE:
@@ -167,7 +167,7 @@ void WD1793::process()
                state = S_WAIT; state2 = S_WRITE;
                rqs = DRQ; status |= WDS_DRQ;
             } else {
-               unsigned len = (128 << trkcache.hdr[foundid].l) + 1;
+               unsigned len = (128 << (trkcache.hdr[foundid].l & 3)) + 1; //[vv]
                unsigned char sc[2056];
                if (rwptr < len)
                   memcpy(sc, trkcache.trkd + trkcache.trklen - rwptr, rwptr), memcpy(sc + rwptr, trkcache.trkd, len - rwptr);
@@ -184,26 +184,52 @@ void WD1793::process()
          case S_WRTRACK:
             if (rqs & DRQ) { status |= WDS_LOST; state = S_IDLE; break; }
             seldrive->optype |= 2;
-            state2 = S_WR_TRACK_DATA; getindex();
+            state2 = S_WR_TRACK_DATA;
+            start_crc = 0;
+            getindex();
             end_waiting_am = next + 5*Z80FQ/FDD_RPS;
             break;
 
          case S_WR_TRACK_DATA:
          {
-            if (notready()) break;
+            if (notready())
+                break;
             trdos_format = ROMLED_TIME;
             if (rqs & DRQ) status |= WDS_LOST, data = 0;
             trkcache.seek(seldrive, seldrive->track, side, JUST_SEEK);
             trkcache.sf = JUST_SEEK; // invalidate sectors
+
+            if(!trkcache.trkd)
+            {
+                state = S_IDLE;
+                break;
+            }
+
             unsigned char marker = 0, byte = data;
             unsigned crc;
-            if (data == 0xF5) byte = 0xA1, marker = 1, start_crc = rwptr+1;
-            if (data == 0xF6) byte = 0xC2, marker = 1;
-            if (data == 0xF7) crc = wd93_crc(trkcache.trkd+start_crc, rwptr-start_crc), byte = crc & 0xFF;
-            trkcache.write(rwptr++, byte, marker); rwlen--;
+            if (data == 0xF5)
+            {
+                byte = 0xA1;
+                marker = 1;
+                start_crc = rwptr+1;
+            }
+            if (data == 0xF6)
+            {
+                byte = 0xC2;
+                marker = 1;
+            }
+            if (data == 0xF7)
+            {
+                crc = wd93_crc(trkcache.trkd+start_crc, rwptr-start_crc);
+                byte = crc & 0xFF;
+            }
+
+            trkcache.write(rwptr++, byte, marker);
+            rwlen--;
             if (data == 0xF7) trkcache.write(rwptr++, (BYTE)(crc >> 8), 0), rwlen--; // second byte of CRC16
 
-            if ((int)rwlen > 0) {
+            if ((int)rwlen > 0)
+            {
                if (!conf.wd93_nodelay) next += trkcache.ts_byte;
                state2 = S_WR_TRACK_DATA; state = S_WAIT;
                rqs = DRQ; status |= WDS_DRQ;

@@ -15,11 +15,12 @@ enum {
 unsigned calcerr;
 unsigned calc(unsigned *script)
 {
+   Z80 &cpu = CpuMgr.Cpu();
    unsigned stack[64];
    unsigned *sp = stack-1, x;
    while (*script) {
       switch (*script++) {
-         case 'M':             *sp = rmdbg(*sp);   break;
+         case 'M':             *sp = cpu.RmDbg(*sp);   break;
          case '!':             *sp = !*sp;     break;
          case '~':             *sp = ~*sp;     break;
          case '+':             *(sp-1) += *sp; goto arith;
@@ -30,7 +31,7 @@ unsigned calc(unsigned *script)
          case '&':             *(sp-1) &= *sp; goto arith;
          case '|':             *(sp-1) |= *sp; goto arith;
          case '^':             *(sp-1) ^= *sp; goto arith;
-         case WORD2('-','>'):  *(sp-1) = rmdbg(*sp + sp[-1]); goto arith;
+         case WORD2('-','>'):  *(sp-1) = cpu.RmDbg(*sp + sp[-1]); goto arith;
          case WORD2('>','>'):  *(sp-1) >>= *sp;goto arith;
          case WORD2('<','<'):  *(sp-1) <<= *sp;goto arith;
          case WORD2('!','='):  *(sp-1) = (sp[-1]!=*sp);goto arith;
@@ -42,7 +43,7 @@ unsigned calc(unsigned *script)
          case WORD2('&','&'):  *(sp-1) = (sp[-1]&&*sp);goto arith;
          case '<':             *(sp-1) = (sp[-1]<*sp);goto arith;
          case '>':             *(sp-1) = (sp[-1]>*sp);goto arith;
-         arith:         sp--;  break;
+         arith:                sp--;  break;
          case DB_CHAR:
          case DB_SHORT:        x = *script++; goto push;
          case DB_PCHAR:        x = *(unsigned char*)*script++; goto push;
@@ -55,11 +56,13 @@ unsigned calc(unsigned *script)
    return *sp;
 }
 
-static struct {
+static struct
+{
    unsigned reg;
    void *ptr;
    unsigned char size;
-} regs[] = {
+} regs[] =
+{
 
    { WORD4('O','U','T',0), &brk_port_out, 4 },
    { WORD2('I','N'), &brk_port_in, 4 },
@@ -155,16 +158,20 @@ unsigned char toscript(char *script, unsigned *dst)
             if (regs[i].reg & 0xFF0000) mask = 0xFFFFFF, ln = 3;
             if (regs[i].reg == (p & mask)) { r = i; break; }
          }
-         if (r != -1) {
+         if (r != -1)
+         {
             script += ln;
-            switch (regs[r].size) {
+            switch (regs[r].size)
+            {
                case 1: *dst++ = DB_PCHAR; break;
                case 2: *dst++ = DB_PSHORT; break;
                case 4: *dst++ = DB_PINT; break;
                default: errexit("BUG01");
             }
             *dst++ = (unsigned)regs[r].ptr;
-         } else { // number
+         }
+         else
+         { // number
             if (*script > 'F') return 0;
             for (r = 0; isalnum(*script) && *script <= 'F'; script++)
                r = r*0x10 + ((*script >= 'A') ? *script-'A'+10 : *script-'0');
@@ -190,7 +197,8 @@ unsigned char toscript(char *script, unsigned *dst)
       if ((int)sp < 0) return 0; // no opening bracket
    }
    // empty stack
-   while (sp) {
+   while (sp)
+   {
       if ((stack[sp] & 0xFF) == '(') return 0; // no closing bracket
       *dst++ = stack[sp--] & 0xFFFF;
    }
@@ -202,25 +210,31 @@ unsigned char toscript(char *script, unsigned *dst)
 void script2text(char *dst, unsigned *src)
 {
    char stack[64][0x200], tmp[0x200]; unsigned sp = 0, r;
-   while (r = *src++) {
-      if (r == DB_CHAR) {
+   while (r = *src++)
+   {
+      if (r == DB_CHAR)
+      {
          sprintf(stack[sp++], "'%c'", *src++);
          continue;
       }
-      if (r == DB_SHORT) {
+      if (r == DB_SHORT)
+      {
          sprintf(stack[sp], "0%X", *src++);
          if (isdigit(stack[sp][1])) strcpy(stack[sp], stack[sp]+1);
          sp++;
          continue;
       }
-      if (r >= DB_PCHAR && r <= DB_PINT) {
+      if (r >= DB_PCHAR && r <= DB_PINT)
+      {
          int i; //Alone Coder 0.36.7
          for (/*int*/ i = 0; i < sizeof regs / sizeof *regs; i++)
-            if (*src == (unsigned)regs[i].ptr) break;
+            if (*src == (unsigned)regs[i].ptr)
+                break;
          *(unsigned*)&(stack[sp++]) = regs[i].reg;
          src++; continue;
       }
-      if (r == 'M' || r == '~' || r == '!') { // unary operators
+      if (r == 'M' || r == '~' || r == '!')
+      { // unary operators
          sprintf(tmp, "%c(%s)", r, stack[sp-1]);
          strcpy(stack[sp-1], tmp);
          continue;
@@ -382,7 +396,7 @@ int GetMemRamge(char *str, MEM_RANGE &range)
 }
 
 
-BOOL CALLBACK conddlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK conddlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    if (msg == WM_INITDIALOG)
    {
@@ -395,7 +409,7 @@ set_buttons_and_return:
       SetBpxButtons(dlg);
       return 1;
    }
-   if (msg == WM_SYSCOMMAND && wp == SC_CLOSE) EndDialog(dlg, 0);
+   if (msg == WM_SYSCOMMAND && (wp & 0xFFF0) == SC_CLOSE) EndDialog(dlg, 0);
    if (msg != WM_COMMAND) return 0;
 
    unsigned id = LOWORD(wp), code = HIWORD(wp); unsigned char mask = 0;
@@ -504,7 +518,7 @@ void mon_bpdialog()
    DialogBox(hIn, MAKEINTRESOURCE(IDD_COND), wnd, conddlg);
 }
 
-BOOL CALLBACK watchdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK watchdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    char tmp[0x200]; unsigned i;
    static const int ids1[] = { IDC_W1_ON, IDC_W2_ON, IDC_W3_ON, IDC_W4_ON };
@@ -526,7 +540,7 @@ reinit:
          watch_enabled[i] = IsDlgButtonChecked(dlg, ids1[i]) == BST_CHECKED;
       goto reinit;
    }
-   if ((msg == WM_SYSCOMMAND && wp == SC_CLOSE) || (msg == WM_COMMAND && LOWORD(wp) == IDCANCEL)) {
+   if ((msg == WM_SYSCOMMAND && (wp & 0xFFF0) == SC_CLOSE) || (msg == WM_COMMAND && LOWORD(wp) == IDCANCEL)) {
       trace_ram = IsDlgButtonChecked(dlg, IDC_TR_RAM) == BST_CHECKED;
       trace_rom = IsDlgButtonChecked(dlg, IDC_TR_ROM) == BST_CHECKED;
       for (i = 0; i < 4; i++)

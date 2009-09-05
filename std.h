@@ -1,10 +1,12 @@
 #define _WIN32_WINNT        0x0500   // mouse wheel since win2k
 // #define _WIN32_IE           0x0300   // for property sheet in win95. without this will not start in 9x
 #define DIRECTINPUT_VERSION 0x0500   // joystick since dx 5.0 (for NT4, need 3.0)
-#define DIRECTSOUND_VERSION 0x0500
+#define DIRECTSOUND_VERSION 0x0800
 #define DIRECTDRAW_VERSION  0x0500
-
+#define _CRT_SECURE_NO_DEPRECATE
+#define _CRT_NONSTDC_NO_DEPRECATE
 #include <windows.h>
+#include <windowsx.h>
 #include <commctrl.h>
 #include <ddraw.h>
 #include <dinput.h>
@@ -14,14 +16,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <malloc.h>
 #include <conio.h>
 #include <math.h>
-//#include <emmintrin.h> //Alone Coder
+#include <process.h>
 
-#pragma warning(disable:4288)  // loop control variable declared in the for-loop is used outside the for-loop scope;
-                               // it conflicts with the declaration in the outer scope
-
+#ifdef _M_IX86
+#include <assert.h>
+#else
+#define assert(x)
+#endif
+#include <emmintrin.h>
 
 #pragma comment(lib, "dinput.lib")
 #pragma comment(lib, "ddraw.lib")

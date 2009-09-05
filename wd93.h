@@ -2,7 +2,7 @@
 const int Z80FQ = 3500000; // todo: #define as (conf.frame*conf.intfq)
 const int FDD_RPS = 5; // rotation speed
 
-const int MAX_TRACK_LEN = 7000 /*6400*/; //Alone Coder
+const int MAX_TRACK_LEN = 6250;
 const int MAX_CYLS = 86;            // don't load images with so many tracks
 const int MAX_PHYS_CYL = 86;        // don't seek over it
 const int MAX_SEC = 256;
@@ -38,7 +38,17 @@ struct TRKCACHE
    void set_i(unsigned pos) { trki[pos/8] |= 1 << (pos&7); }
    void clr_i(unsigned pos) { trki[pos/8] &= ~(1 << (pos&7)); }
    unsigned char test_i(unsigned pos) { return trki[pos/8] & (1 << (pos&7)); }
-   void write(unsigned pos, unsigned char byte, char index) { trkd[pos] = byte; if (index) set_i(pos); else clr_i(pos); }
+   void write(unsigned pos, unsigned char byte, char index)
+   {
+       if(!trkd)
+           return;
+
+       trkd[pos] = byte;
+       if (index)
+           set_i(pos);
+       else
+           clr_i(pos);
+   }
 
    void seek(FDD *d, unsigned cyl, unsigned side, SEEK_MODE fs);
    void format(); // before use, call seek(d,c,s,JUST_SEEK), set s and hdr[]
@@ -137,7 +147,7 @@ struct WD1793
       CMD_DELAY         = 0x04,
       CMD_SIDE          = 0x08,
       CMD_SIDE_SHIFT    = 3,
-      CMD_MULTIPLE      = 0x10,
+      CMD_MULTIPLE      = 0x10
    };
 
    enum WDSTATE
@@ -166,7 +176,7 @@ struct WD1793
    enum BETA_STATUS
    {
       DRQ   = 0x40,
-      INTRQ = 0x80,
+      INTRQ = 0x80
    };
 
    enum WD_STATUS

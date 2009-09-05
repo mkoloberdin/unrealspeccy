@@ -1,6 +1,7 @@
 
 void show_time()
 {
+   Z80 &cpu = CpuMgr.Cpu();
    tprint(time_x, time_y, "time delta:", W_OTHEROFF);
    char text[32]; sprintf(text, "%14I64d", (__int64)(comp.t_states + cpu.t - debug_last_t));
    tprint(time_x+11, time_y, text, W_OTHER);
@@ -21,11 +22,15 @@ void wtline(char *name, unsigned ptr, unsigned y)
 
 void showwatch()
 {
-   if (show_scrshot) {
+   if (show_scrshot)
+   {
       for (unsigned y = 0; y < wat_sz; y++)
          for (unsigned x = 0; x < 37; x++)
             txtscr[80*30 +  (wat_y+y)*80 + (wat_x+x)] = 0xFF;
-   } else {
+   }
+   else 
+   {
+      Z80 &cpu = CpuMgr.Cpu();
       wtline("PC", cpu.pc, 0);
       wtline("SP", cpu.sp, 1);
       wtline("BC", cpu.bc, 2);
@@ -60,7 +65,9 @@ void mon_setwatch()
 
 void showstack()
 {
-   for (unsigned i = 0; i < stack_size; i++) {
+   Z80 &cpu = CpuMgr.Cpu();
+   for (unsigned i = 0; i < stack_size; i++)
+   {
       char xx[10]; //-2:1234
                    //SP:1234
                    //+2:
@@ -96,20 +103,35 @@ void mon_switchay()
    comp.active_ay ^= 1;
 }
 
+void BankNames(int i, char *Name)
+{
+    if (bankr[i] < RAM_BASE_M+MAX_RAM_PAGES*PAGE)
+        sprintf(Name, "RAM%2X", ULONG((bankr[i] - RAM_BASE_M)/PAGE));
+    if ((unsigned)(bankr[i] - ROM_BASE_M) < PAGE*MAX_ROM_PAGES)
+        sprintf(Name, "ROM%2X", ULONG((bankr[i] - ROM_BASE_M)/PAGE));
+    if (bankr[i] == base_sos_rom)
+        strcpy(Name, "BASIC");
+    if (bankr[i] == base_dos_rom)
+        strcpy(Name, "TRDOS");
+    if (bankr[i] == base_128_rom)
+        strcpy(Name, "B128K");
+    if (bankr[i] == base_sys_rom)
+        sprintf(Name, "SVM%2X", ULONG((bankr[i] - ROM_BASE_M)/PAGE));
+    if (bankr[i] == CACHE_M)
+        strcpy(Name, (conf.cache!=32)?"CACHE":"CACH0");
+    if (bankr[i] == CACHE_M+PAGE)
+        strcpy(Name, "CACH1");
+}
+
 void showbanks()
 {
-   for (int i = 0; i < 4; i++) {
+   Z80 &cpu = CpuMgr.Cpu();
+   for (int i = 0; i < 4; i++)
+   {
       char ln[64]; sprintf(ln, "%d:", i);
       tprint(banks_x, banks_y+i+1, ln, W_OTHEROFF);
       strcpy(ln, "?????");
-      if (bankr[i] < RAM_BASE_M+MAX_RAM_PAGES*PAGE) sprintf(ln, "RAM%2X", (bankr[i] - RAM_BASE_M)/PAGE);
-      if ((unsigned)(bankr[i] - ROM_BASE_M) < PAGE*MAX_ROM_PAGES) sprintf(ln, "ROM%2X", (bankr[i] - ROM_BASE_M)/PAGE);
-      if (bankr[i] == base_sos_rom) strcpy(ln, "BASIC");
-      if (bankr[i] == base_dos_rom) strcpy(ln, "TRDOS");
-      if (bankr[i] == base_128_rom) strcpy(ln, "B128K");
-      if (bankr[i] == base_sys_rom) strcpy(ln, "SERVM");
-      if (bankr[i] == CACHE_M) strcpy(ln, (conf.cache!=32)?"CACHE":"CACH0");
-      if (bankr[i] == CACHE_M+PAGE) strcpy(ln, "CACH1");
+      cpu.BankNames(i, ln);
       tprint(banks_x+2, banks_y+i+1, ln, bankr[i]!=bankw[i] ? W_BANKRO : W_BANK);
    }
    frame(banks_x, banks_y+1, 7, 4, FRAME);
@@ -195,7 +217,7 @@ void showdos()
 }
 
 #ifdef MOD_GSBASS
-BOOL CALLBACK gsdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK gsdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    char tmp[0x200];
    unsigned i; //Alone Coder 0.36.7
@@ -220,7 +242,7 @@ repaint:
       SendDlgItemMessage(dlg, IDE_GS, WM_SETTEXT, 0, (LPARAM)tmp);
       return 1;
    }
-   if (msg == WM_SYSCOMMAND && wp == SC_CLOSE) EndDialog(dlg, 0);
+   if (msg == WM_SYSCOMMAND && (wp & 0xFFF0) == SC_CLOSE) EndDialog(dlg, 0);
    if (msg != WM_COMMAND) return 0;
    unsigned id = LOWORD(wp);
    if (id == IDCANCEL || id == IDOK) EndDialog(dlg, 0);

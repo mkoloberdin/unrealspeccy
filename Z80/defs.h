@@ -133,7 +133,35 @@ struct Z80
    /*------------------------------*/
    unsigned char im;
    unsigned char tmp0, tmp1, tmp3;
-   void reset() { int_flags = ir_ = pc = 0; im = 0; }
+   unsigned short last_branch;
+   unsigned trace_curs, trace_top, trace_mode;
+   unsigned mem_curs, mem_top, mem_second;
+   unsigned pc_trflags;
+   unsigned nextpc;
+   unsigned dbg_stophere;
+   unsigned dbg_stopsp;
+   unsigned dbg_loop_r1;
+   unsigned dbg_loop_r2;
+   u32 trpc[40];
+   typedef u8 (__fastcall * TRmDbg)(u32 addr);
+   typedef u8 *(__fastcall * TMemDbg)(u32 addr);
+   typedef void ( *TBankNames)(int i, char *Name);
+   typedef void (* TStep)();
+   TRmDbg RmDbg; // read memory in debuger
+   TMemDbg MemDbg; // get direct memory pointer in debuger
+   TBankNames BankNames;
+   TStep Step;
+   void reset() { int_flags = ir_ = pc = 0; im = 0; last_branch = 0; }
+   Z80(TRmDbg RmDbg = 0, TMemDbg MemDbg = 0, TBankNames BankNames = 0, TStep Step = 0) :
+       RmDbg(RmDbg), MemDbg(MemDbg), BankNames(BankNames), Step(Step)
+   {
+       trace_curs = trace_top = -1; trace_mode = 0;
+       mem_curs = mem_top = 0;
+       pc_trflags = nextpc = 0;
+       dbg_stophere = dbg_stopsp = -1;
+       dbg_loop_r1 = 0;
+       dbg_loop_r2 = 0xFFFF;
+   }
 };
 
 #define CF 0x01

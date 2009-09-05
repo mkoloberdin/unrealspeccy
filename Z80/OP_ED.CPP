@@ -49,6 +49,7 @@ Z80OPCODE ope_45(Z80 *cpu) { // retn
    cpu->iff1 = cpu->iff2;
    unsigned addr = rm(cpu->sp++);
    addr += 0x100*rm(cpu->sp++);
+   cpu->last_branch = cpu->pc-2;
    cpu->pc = addr;
    cpu->memptr = addr;
    cpu->t += 6;
@@ -104,6 +105,7 @@ Z80OPCODE ope_4D(Z80 *cpu) { // reti
    cpu->iff1 = cpu->iff2;
    unsigned addr = rm(cpu->sp++);
    addr += 0x100*rm(cpu->sp++);
+   cpu->last_branch = cpu->pc-2;
    cpu->pc = addr;
    cpu->memptr = addr;
    cpu->t += 6;
