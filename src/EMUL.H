@@ -41,6 +41,8 @@
 
 enum IDE_SCHEME { IDE_NONE = 0, IDE_ATM, IDE_NEMO, IDE_NEMO_A8, IDE_SMUC };
 
+enum MOUSE_WHEEL_MODE { MOUSE_WHEEL_NONE, MOUSE_WHEEL_KEYBOARD, MOUSE_WHEEL_KEMPSTON };
+
 enum MEM_MODEL
 {
    MM_PENTAGON = 0,
@@ -54,7 +56,7 @@ enum MEM_MODEL
 
 enum ROM_MODE { RM_NOCHANGE=0, RM_SOS, RM_DOS, RM_SYS, RM_128, RM_CACHE };
 
-const RAM_128 = 128, RAM_256 = 256, RAM_512 = 512, RAM_1024 = 1024;
+const int RAM_128 = 128, RAM_256 = 256, RAM_512 = 512, RAM_1024 = 1024;
 
 struct
 {
@@ -167,6 +169,9 @@ struct CONFIG
       unsigned char paste_hold, paste_release, paste_newline;
       unsigned char mouse, mouseswap, kjoy, keymatrix, joymouse;
       signed char mousescale;
+      unsigned char mousewheel; // enum MOUSE_WHEEL_MODE
+      unsigned char keybpcmode;
+      unsigned char r1,r2; // padding
    } input;
 
    struct {

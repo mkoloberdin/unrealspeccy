@@ -1,10 +1,10 @@
 
 // AlCo 4bpp mode
 
-const p4bpp0_ofs = -PAGE;
-const p4bpp1_ofs = 0;
-const p4bpp2_ofs = -PAGE+0x2000;
-const p4bpp3_ofs = 0x2000;
+const int p4bpp0_ofs = -PAGE;
+const int p4bpp1_ofs = 0;
+const int p4bpp2_ofs = -PAGE+0x2000;
+const int p4bpp3_ofs = 0x2000;
 
 #define p4bpp8_nf p4bpp8
 

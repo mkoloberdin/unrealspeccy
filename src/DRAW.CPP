@@ -3,8 +3,8 @@
 #define MAX_HEIGHT 304
 #define MAX_BUFFERS 8
 
-const rb2_offs = MAX_HEIGHT*MAX_WIDTH_P;
-const sizeof_rbuf = rb2_offs*(MAX_BUFFERS+2);
+const int rb2_offs = MAX_HEIGHT*MAX_WIDTH_P;
+const int sizeof_rbuf = rb2_offs*(MAX_BUFFERS+2);
 
 #ifdef CACHE_ALIGNED
 CACHE_ALIGNED unsigned char rbuf[sizeof_rbuf];
@@ -27,7 +27,7 @@ struct videopoint
    unsigned scr_offs;
 };
 
-const sc2lines_width = MAX_WIDTH*2;
+const int sc2lines_width = MAX_WIDTH*2;
 
 #define MAX_FONT_TABLES 0x62000
 CACHE_ALIGNED struct {

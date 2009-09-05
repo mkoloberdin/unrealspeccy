@@ -504,8 +504,8 @@ void mon_bpdialog()
 BOOL CALLBACK watchdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    char tmp[0x200]; unsigned i;
-   static const ids1[] = { IDC_W1_ON, IDC_W2_ON, IDC_W3_ON, IDC_W4_ON };
-   static const ids2[] = { IDE_W1, IDE_W2, IDE_W3, IDE_W4 };
+   static const int ids1[] = { IDC_W1_ON, IDC_W2_ON, IDC_W3_ON, IDC_W4_ON };
+   static const int ids2[] = { IDE_W1, IDE_W2, IDE_W3, IDE_W4 };
    if (msg == WM_INITDIALOG) {
       for (i = 0; i < 4; i++) {
          CheckDlgButton(dlg, ids1[i], watch_enabled[i] ? BST_CHECKED : BST_UNCHECKED);

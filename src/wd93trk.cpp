@@ -45,19 +45,34 @@ void TRKCACHE::format()
    memset(trkd, 0, trklen);
    memset(trki, 0, trklen/8 + ((trklen&7) ? 1:0));
 
+   unsigned i, used = (12+3);
+   for (i = 0; i < s; i++) {
+      SECHDR *sechdr = hdr + i;
+      used += (12+3+1+4+2);
+      if (sechdr->data) {
+         if (sechdr->l > 5) errexit("strange sector");
+         used += (12+3+1)+(128 << sechdr->l)+2;
+      }
+   }
+   unsigned left = trklen - used;
+   unsigned mingap = s? (left/(s*3)) : 26;
+   if (mingap < 3) errexit("track too long");
+   unsigned gap0 = 2*mingap, gap1 = mingap, trkgap = 2*mingap;
+   if (trkgap > 80) trkgap = 80;
+   if (gap0 > 50) gap0 = 50;
+   if (gap1 > 22) gap1 = 22;
+
    unsigned char *dst = trkd;
 
-   for (unsigned i = 0; i < 80; i++) *dst++ = 0x4E; // 1st gap
+   for (i = 0; i < trkgap; i++) *dst++ = 0x4E; // 1st gap, default is 80 bytes
    for (i = 0; i < 12; i++) *dst++ = 0;
    for (i = 0; i < 3; i++) write(dst++ - trkd, 0xC2, 1);
    *dst++ = 0xFC; // index
-
    for (unsigned is = 0; is < s; is++) {
-      for (i = 0; i < 50; i++) *dst++ = 0x4E;
+      for (i = 0; i < gap0; i++) *dst++ = 0x4E; // sector gap, default is 50 bytes
       for (i = 0; i < 12; i++) *dst++ = 0;
       for (i = 0; i < 3; i++) write(dst++ - trkd, 0xA1, 1);
       *dst++ = 0xFE; // marker
-
       SECHDR *sechdr = hdr + is;
       *(unsigned*)dst = *(unsigned*)sechdr; dst += 4;
       unsigned crc = wd93_crc(dst-5, 5);
@@ -65,11 +80,10 @@ void TRKCACHE::format()
       if (sechdr->c1==2) crc ^= 0xFFFF;
       *(unsigned*)dst = crc; dst += 2;
       if (sechdr->data) {
-         for (i = 0; i < 22; i++) *dst++ = 0x4E;
+         for (i = 0; i < gap1; i++) *dst++ = 0x4E;  // sector gap, default is 22 bytes
          for (i = 0; i < 12; i++) *dst++ = 0;
          for (i = 0; i < 3; i++) write(dst++ - trkd, 0xA1, 1);
          *dst++ = 0xFB; // sector
-         if (sechdr->l > 5) errexit("strange sector");
          unsigned len = 128 << sechdr->l;
          if (sechdr->data != (unsigned char*)1) memcpy(dst, sechdr->data, len);
          else memset(dst, 0, len);
@@ -79,7 +93,7 @@ void TRKCACHE::format()
          *(unsigned*)(dst+len) = crc; dst += len+2;
       }
    }
-   if (dst > trklen + trkd) errexit("track too long");
+   if (dst > trklen + trkd) errexit("track buffer overflow");
    while (dst < trkd + trklen) *dst++ = 0x4E;
 }
 

@@ -259,9 +259,10 @@ __inline void cmos_write(unsigned char val)
 
 void NVRAM::write(unsigned char val)
 {
-   const SCL = 0x40, SDA = 0x10, WP = 0x20,
-         SDA_1 = 0xFF, SDA_0 = 0xBF,
-         SDA_SHIFT_IN = 4;
+   const unsigned char
+     SCL = 0x40, SDA = 0x10, WP = 0x20,
+     SDA_1 = 0xFF, SDA_0 = 0xBF,
+     SDA_SHIFT_IN = 4;
 
    if ((val ^ prev) & SCL) // clock edge, data in/out
    {

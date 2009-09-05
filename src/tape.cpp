@@ -102,7 +102,7 @@ void closetape()
 
 void reserve(unsigned datasize)
 {
-   const blocksize = 16384;
+   const int blocksize = 16384;
    unsigned newsize = align_by(datasize+tape_imagesize+1, blocksize);
    if (!tape_image) tape_image = (unsigned char*)malloc(newsize);
    if (align_by(tape_imagesize, blocksize) < newsize) tape_image = (unsigned char*)realloc(tape_image, newsize);

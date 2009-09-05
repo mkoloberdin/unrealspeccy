@@ -49,7 +49,7 @@ void get_ranges(HWND dlg)
 
 void paint_font(HWND dlg, int paint=0)
 {
-   const sz = 340;
+   const int sz = 340;
    char *buf = (char*)malloc(sz*sz);
    if (!buf) return;
    RECT rc; GetWindowRect(GetDlgItem(dlg, IDC_FRAME), &rc);
@@ -208,7 +208,7 @@ unsigned linked_empties(unsigned sym)
 
 unsigned char is_font()
 {
-   const max_err = 2;
+   const int max_err = 2;
    int err = 0;
    #define RET_ERR { if (++err > max_err) return 0; }
    if (r21) {

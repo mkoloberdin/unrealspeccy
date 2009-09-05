@@ -442,9 +442,15 @@ void load_config(char *fname)
    if (!strnicmp(line, "KEMPSTON", 8)) conf.input.mouse = 1;
    if (!strnicmp(line, "AY", 2)) conf.input.mouse = 2;
 
+   GetPrivateProfileString(input, "Wheel", nil, line, sizeof line, ininame);
+   conf.input.mousewheel = MOUSE_WHEEL_NONE;
+   if (!strnicmp(line, "KEMPSTON", 8)) conf.input.mousewheel = MOUSE_WHEEL_KEMPSTON;
+   if (!strnicmp(line, "KEYBOARD", 8)) conf.input.mousewheel = MOUSE_WHEEL_KEYBOARD;
+
    conf.input.joymouse = GetPrivateProfileInt(input, "JoyMouse", 0, ininame);
    conf.input.mousescale = GetPrivateProfileInt(input, "MouseScale", 0, ininame);
    conf.input.mouseswap = GetPrivateProfileInt(input, "SwapMouse", 0, ininame);
+
    conf.input.kjoy = GetPrivateProfileInt(input, "KJoystick", 1, ininame);
    conf.input.keymatrix = GetPrivateProfileInt(input, "Matrix", 1, ininame);
    conf.input.firedelay = GetPrivateProfileInt(input, "FireRate", 1, ininame);
@@ -453,6 +459,7 @@ void load_config(char *fname)
    conf.input.paste_release = GetPrivateProfileInt(input, "ReleaseDelay", 5, ininame);
    conf.input.paste_newline = GetPrivateProfileInt(input, "NewlineDelay", 20, ininame);
    conf.atm.xt_kbd = GetPrivateProfileInt(input, "ATMKBD", 0, ininame);
+   conf.input.keybpcmode = GetPrivateProfileInt(input, "KeybPCMode", 0, ininame);
    GetPrivateProfileString(input, "Fire", "0", line, sizeof line, ininame);
    conf.input.firenum = 0; conf.input.fire = 0;
    for (i = 0; i < sizeof zxk / sizeof *zxk; i++)

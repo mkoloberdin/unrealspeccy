@@ -1,8 +1,8 @@
 
-const text0_ofs = 0x01C0;
-const text1_ofs = 0x21C0;
-const text2_ofs = -4*PAGE+0x01C1;
-const text3_ofs = -4*PAGE+0x21C0;
+const int text0_ofs = 0x01C0;
+const int text1_ofs = 0x21C0;
+const int text2_ofs = -4*PAGE+0x01C1;
+const int text3_ofs = -4*PAGE+0x21C0;
 
 void line_atm6_8(unsigned char *dst, unsigned char *src, unsigned *tab0, unsigned char *font)
 {

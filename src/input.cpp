@@ -15,9 +15,29 @@ unsigned char pastekeys[0x80-0x20] =
    0x51, 0x21, 0x24, 0x12, 0x25, 0x54, 0x05, 0x22, 0x03, 0x55, 0x02, 0x94, 0x92, 0x95, 0x91, 0x00
 };
 
-__inline void K_INPUT::clear_zx()
+inline void K_INPUT::clear_zx()
 {
    kbd_x4[0] = kbd_x4[1] = -1;
+}
+
+#include "inputpc.cpp"
+
+inline void K_INPUT::press_zx(unsigned char key)
+{
+   if (key & 0x08) kbd[0] &= ~1; // caps
+   if (key & 0x80) kbd[7] &= ~2; // sym
+   if (key & 7) kbd[(key >> 4) & 7] &= ~(1 << ((key & 7) - 1));
+}
+
+char K_INPUT::process_pc_layout()
+{
+   for (int i = 0; i < sizeof(pc_layout) / sizeof(pc_layout[0]); i++) {
+      if (kbdpc[pc_layout[i].vkey] & 0x80) {
+         press_zx(kbdpc[VK_SHIFT] & 0x80? pc_layout[i].shifted : pc_layout[i].normal);
+         return 1;
+      }
+   }
+   return 0;
 }
 
 void K_INPUT::make_matrix()
@@ -27,12 +47,13 @@ void K_INPUT::make_matrix()
    kjoy = 0xFF;
    switch (keymode) {
       case KM_DEFAULT:
-         kbd_x4[0] = kbd_x4[1] = -1;
+         clear_zx();
          if (!altlock)
-            for (int i = 0; i < VK_MAX; i++)
-               if (kbdpc[i] & 0x80)
-                  *(inports[i].port1) &= inports[i].mask1,
-                  *(inports[i].port2) &= inports[i].mask2;
+            if (!conf.input.keybpcmode || !process_pc_layout())
+               for (int i = 0; i < VK_MAX; i++)
+                  if (kbdpc[i] & 0x80)
+                     *(inports[i].port1) &= inports[i].mask1,
+                     *(inports[i].port2) &= inports[i].mask2;
          if (conf.input.fire) {
             if (!--firedelay)
                firedelay = conf.input.firedelay, firestate ^= 1;
@@ -53,10 +74,8 @@ void K_INPUT::make_matrix()
 
       case KM_PASTE_HOLD:
       {
-         kbd_x4[0] = kbd_x4[1] = -1;
-         if (tdata & 0x08) kbd[0] &= ~1; // caps
-         if (tdata & 0x80) kbd[7] &= ~2; // sym
-         if (tdata & 7) kbd[(tdata >> 4) & 7] &= ~(1 << ((tdata & 7) - 1));
+         clear_zx();
+         press_zx(tdata);
          if (tdelay) { tdelay--; break; }
          tdelay = conf.input.paste_release;
          if (tdata == 0x61) tdelay += conf.input.paste_newline;
@@ -146,9 +165,16 @@ char K_INPUT::readdevices()
       if (md.rgbButtons[2]) mbuttons &= ~4, kbdpc[VK_MMB] = 0x80;
 
       int wheel_delta = md.lZ - prev_wheel;
-      if (wheel_delta < 0) kbdpc[VK_MWD] = 0x80;
-      if (wheel_delta > 0) kbdpc[VK_MWU] = 0x80;
       prev_wheel = md.lZ;
+      if (conf.input.mousewheel == MOUSE_WHEEL_KEYBOARD) {
+         if (wheel_delta < 0) kbdpc[VK_MWD] = 0x80;
+         if (wheel_delta > 0) kbdpc[VK_MWU] = 0x80;
+      }
+      if (conf.input.mousewheel == MOUSE_WHEEL_KEMPSTON) {
+         if (wheel_delta < 0) wheel -= 0x10;
+         if (wheel_delta > 0) wheel += 0x10;
+         mbuttons = (mbuttons & 0x0F) + (wheel & 0xF0);
+      }
    }
    lastkey = process_msgs();
 

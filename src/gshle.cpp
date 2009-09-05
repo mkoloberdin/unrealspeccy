@@ -65,6 +65,7 @@ void GSHLE::out(unsigned char port, unsigned char byte)
    resptr = gstmp; to_ptr = data_in; resmod2 = 0;
    gscmd = byte;
    if (load_stream == 4) load_stream = 0; // close covox mode
+//color(CONSCLR_HARDITEM); printf("%02X", byte); color(); printf("%02X ", *data_in);
    switch (byte) {
       case 0x0E: // LPT covox
          load_stream = 4;

@@ -1,8 +1,8 @@
 #if 0
 typedef int (__cdecl *GetASPI32SupportInfo_t)();
 typedef int (__cdecl *SendASPI32Command_t)(void *SRB);
-const ATAPI_CDB_SIZE = 12; // sizeof(CDB) == 16
-const MAX_INFO_LEN = 48;
+const int ATAPI_CDB_SIZE = 12; // sizeof(CDB) == 16
+const int MAX_INFO_LEN = 48;
 
 GetASPI32SupportInfo_t _GetASPI32SupportInfo = 0;
 SendASPI32Command_t _SendASPI32Command = 0;

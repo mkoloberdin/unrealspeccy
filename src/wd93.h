@@ -1,11 +1,11 @@
 
-const Z80FQ = 3500000; // todo: #define as (conf.frame*conf.intfq)
-const FDD_RPS = 5; // rotation speed
+const int Z80FQ = 3500000; // todo: #define as (conf.frame*conf.intfq)
+const int FDD_RPS = 5; // rotation speed
 
-const MAX_TRACK_LEN = 6400;
-const MAX_CYLS = 86;            // don't load images with so many tracks
-const MAX_PHYS_CYL = 86;        // don't seek over it
-const MAX_SEC = 256;
+const int MAX_TRACK_LEN = 6464;
+const int MAX_CYLS = 86;            // don't load images with so many tracks
+const int MAX_PHYS_CYL = 86;        // don't seek over it
+const int MAX_SEC = 256;
 
 struct SECHDR
 {

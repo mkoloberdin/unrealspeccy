@@ -1012,6 +1012,10 @@ BOOL CALLBACK InputDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       if (getcheck(IDC_MOUSE_NONE)) c1.input.mouse = 0;
       if (getcheck(IDC_MOUSE_KEMPSTON)) c1.input.mouse = 1;
       if (getcheck(IDC_MOUSE_AY)) c1.input.mouse = 2;
+      if (getcheck(IDC_WHEEL_NONE)) c1.input.mousewheel = MOUSE_WHEEL_NONE;
+      if (getcheck(IDC_WHEEL_KEYBOARD)) c1.input.mousewheel = MOUSE_WHEEL_KEYBOARD;
+      if (getcheck(IDC_WHEEL_KEMPSTON)) c1.input.mousewheel = MOUSE_WHEEL_KEMPSTON;
+      c1.input.keybpcmode = getcheck(IDC_PC_LAYOUT);
       c1.input.mouseswap = getcheck(IDC_MOUSESWAP);
       c1.input.kjoy = getcheck(IDC_KJOY);
       c1.input.keymatrix = getcheck(IDC_KEYMATRIX);
@@ -1038,6 +1042,10 @@ BOOL CALLBACK InputDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       setcheck(IDC_MOUSE_NONE, c1.input.mouse == 0);
       setcheck(IDC_MOUSE_KEMPSTON, c1.input.mouse == 1);
       setcheck(IDC_MOUSE_AY, c1.input.mouse == 2);
+      setcheck(IDC_WHEEL_NONE, c1.input.mousewheel == MOUSE_WHEEL_NONE);
+      setcheck(IDC_WHEEL_KEYBOARD, c1.input.mousewheel == MOUSE_WHEEL_KEYBOARD);
+      setcheck(IDC_WHEEL_KEMPSTON, c1.input.mousewheel == MOUSE_WHEEL_KEMPSTON);
+      setcheck(IDC_PC_LAYOUT, c1.input.keybpcmode);
       setcheck(IDC_MOUSESWAP, c1.input.mouseswap);
       setcheck(IDC_KJOY, c1.input.kjoy);
       setcheck(IDC_KEYMATRIX, c1.input.keymatrix);

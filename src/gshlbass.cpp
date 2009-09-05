@@ -104,10 +104,10 @@ void GSHLE::init_mod()
 void GSHLE::restart_mod(unsigned order, unsigned row)
 {
    if (!hmod) return;
-   if (!BASS_ChannelSetPosition(hmod, MAKEMUSICPOS(order,row))) reportError("BASS_ChannelSetPosition() [music]");
    if (!BASS_ChannelSetFlags(hmod, BASS_MUSIC_LOOP | BASS_MUSIC_POSRESET | BASS_MUSIC_RAMP)) reportError("BASS_ChannelSetFlags() [music]");
+   if (!BASS_ChannelSetPosition(hmod, MAKEMUSICPOS(order,row))) reportError("BASS_ChannelSetPosition() [music]");
    BASS_Start();
-   if (!BASS_ChannelPlay(hmod, TRUE)) reportError("BASS_ChannelPlay() [music]");
+   if (!BASS_ChannelPlay(hmod, FALSE)) reportError("BASS_ChannelPlay() [music]");
 
    mod_playing = 1;
 }

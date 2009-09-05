@@ -380,7 +380,7 @@ void opensnap(int index)
    eat();
 }
 
-const mx_typs = (1+4*6);
+const int mx_typs = (1+4*6);
 unsigned char snaps[mx_typs]; unsigned exts[mx_typs], drvs[mx_typs]; int snp;
 void addref(LPSTR &ptr, unsigned char sntype, char *ref, unsigned drv, unsigned ext)
 {

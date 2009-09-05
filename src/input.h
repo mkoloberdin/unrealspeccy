@@ -46,7 +46,7 @@ struct K_INPUT
 
    unsigned char *textbuffer;
    unsigned textoffset, textsize;
-   unsigned char tdelay, tdata;
+   unsigned char tdelay, tdata, wheel;
 
    unsigned char kempston_mx();
    unsigned char kempston_my();
@@ -54,7 +54,9 @@ struct K_INPUT
    unsigned char aymouse_rd();
    void aymouse_wr(unsigned char val);
 
-   __inline void clear_zx();
+   inline void clear_zx();
+   inline void press_zx(unsigned char key);
+   char process_pc_layout();
    void make_matrix();
    char readdevices();
    unsigned char read(unsigned char scan);
