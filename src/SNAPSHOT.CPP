@@ -287,6 +287,7 @@ int load_arc(char *fname)
       CreateDirectory(d1, 0);
       SetCurrentDirectory(d1);
 
+      color();
       char cmdln[0x200]; sprintf(cmdln, cmdtmp, fname);
       STARTUPINFO si = { sizeof si };
       si.dwFlags = STARTF_USESHOWWINDOW; si.wShowWindow = SW_HIDE;

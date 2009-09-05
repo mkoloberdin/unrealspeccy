@@ -7,8 +7,7 @@ void findsector(unsigned addr)
    for (sector_offset = sector = 0; sector < edited_track.s; sector++, sector_offset += edited_track.hdr[sector].datlen)
       if (addr >= sector_offset && addr < sector_offset + edited_track.hdr[sector].datlen)
          return;
-   printf("internal diskeditor error");
-   exit();
+   errexit("internal diskeditor error");
 }
 
 unsigned char *editam(unsigned addr)

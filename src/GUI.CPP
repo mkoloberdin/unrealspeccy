@@ -140,28 +140,29 @@ void MemDlg_set_visible()
 
 void mem_set_sizes()
 {
-   unsigned mems = 15, best = 0, ok = 1; // pentagon, atm7.10
-   if (c1.mem_model == MM_SCORP || c1.mem_model == MM_PROFSCORP || c1.mem_model == MM_KAY) mems = 10, best = 1;
-   if (c1.mem_model == MM_PROFI) mems = 8, best = 4;
-   if (c1.mem_model == MM_ATM450) mems = 12, best = 4;
+   unsigned mems = mem_model[c1.mem_model].availRAMs;
+   unsigned best = mem_model[c1.mem_model].defaultRAM;
 
-   EnableWindow(GetDlgItem(dlg, IDC_RAM128),  (mems>>0) & 1);
-   EnableWindow(GetDlgItem(dlg, IDC_RAM256),  (mems>>1) & 1);
-   EnableWindow(GetDlgItem(dlg, IDC_RAM512),  (mems>>2) & 1);
-   EnableWindow(GetDlgItem(dlg, IDC_RAM1024), (mems>>3) & 1);
+   EnableWindow(GetDlgItem(dlg, IDC_RAM128),  (mems & RAM_128)?  1:0);
+   EnableWindow(GetDlgItem(dlg, IDC_RAM256),  (mems & RAM_256)?  1:0);
+   EnableWindow(GetDlgItem(dlg, IDC_RAM512),  (mems & RAM_512)?  1:0);
+   EnableWindow(GetDlgItem(dlg, IDC_RAM1024), (mems & RAM_1024)? 1:0);
 
-   if (getcheck(IDC_RAM128) && !(mems & 1)) ok = 0;
-   if (getcheck(IDC_RAM256) && !(mems & 2)) ok = 0;
-   if (getcheck(IDC_RAM512) && !(mems & 4)) ok = 0;
-   if (getcheck(IDC_RAM1024)&& !(mems & 8)) ok = 0;
+   unsigned ok = 1;
+   if (getcheck(IDC_RAM128) && !(mems & IDC_RAM128)) ok = 0;
+   if (getcheck(IDC_RAM256) && !(mems & IDC_RAM256)) ok = 0;
+   if (getcheck(IDC_RAM512) && !(mems & IDC_RAM512)) ok = 0;
+   if (getcheck(IDC_RAM1024)&& !(mems & IDC_RAM1024))ok = 0;
+
    if (!ok) {
       setcheck(IDC_RAM128,0);
       setcheck(IDC_RAM256,0);
       setcheck(IDC_RAM512,0);
       setcheck(IDC_RAM1024,0);
-      if (best == 0) setcheck(IDC_RAM128);
-      if (best == 1) setcheck(IDC_RAM256);
-      if (best == 4) setcheck(IDC_RAM1024);
+      if (best == 128) setcheck(IDC_RAM128);
+      if (best == 256) setcheck(IDC_RAM256);
+      if (best == 512) setcheck(IDC_RAM512);
+      if (best == 1024) setcheck(IDC_RAM1024);
    }
 
    char *romname = MemDlg_get_bigrom();

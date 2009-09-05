@@ -147,7 +147,7 @@ void __fastcall do_sound_none()
    static __int64 last_cpu;
    for (;;) {
       unsigned __int64 cpu = rdtsc();
-      if ((cpu-last_cpu) >= conf.ticks_frame) break;
+      if ((cpu-last_cpu) >= temp.ticks_frame) break;
       if (conf.sleepidle) Sleep(SLEEP_DELAY);
    }
    last_cpu = rdtsc();
@@ -494,7 +494,7 @@ void set_vidmode()
          }
       }
 
-      if (newx==100000) { printf("can't find situable mode for %d x %d * %d bits\n", temp.ox, temp.oy, temp.obpp); exit(); }
+      if (newx==100000) { color(CONSCLR_ERROR); printf("can't find situable mode for %d x %d * %d bits\n", temp.ox, temp.oy, temp.obpp); exit(); }
 
       // use minimal or current mode
 
@@ -611,7 +611,7 @@ void set_vidmode()
 
          r = dd->GetDisplayMode(&desc);
          if (r != DD_OK) { printrdd("IDirectDraw2::GetDisplayMode()", r); exit(); }
-         if (temp.rflags & RF_32 && desc.ddpfPixelFormat.dwRGBBitCount != 32) { printf("this mode requires 32bit color depth on desktop\n"); exit(); }
+         if ((temp.rflags & RF_32) && desc.ddpfPixelFormat.dwRGBBitCount != 32) errexit("video driver requires 32bit color depth on desktop for this mode");
          desc.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
          desc.dwWidth = temp.ox, desc.dwHeight = temp.oy;
          desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
@@ -627,12 +627,12 @@ void set_vidmode()
             temp.hi15 = 0;
          else if (fm.dwRBitMask == 0x7C00 && fm.dwGBitMask == 0x03E0 && fm.dwBBitMask == 0x001F)
             temp.hi15 = 1;
-         else { printf("invalid pixel format (need RGB:5-6-5 or URGB:1-5-5-5)"); exit(); }
+         else errexit("invalid pixel format (need RGB:5-6-5 or URGB:1-5-5-5)");
 
       } else if (temp.obpp == 8) {
 
          if ((r = dd->CreatePalette(DDPCAPS_8BIT | DDPCAPS_ALLOW256, syspalette, &pal, 0)) != DD_OK)
-         { printrdd("IDirectDraw2::CreatePalette()", r); if (!exitflag) exit(); else return; }
+         { printrdd("IDirectDraw2::CreatePalette()", r); exit(); }
          if ((r = surf0->SetPalette(pal)) != DD_OK)
          { printrdd("IDirectDrawSurface2::SetPalette()", r); exit(); }
       }
@@ -714,6 +714,8 @@ BOOL FAR PASCAL InitJoystickInput(LPCDIDEVICEINSTANCE pdinst, LPVOID pvRef)
    CharToOem(dide.tszProductName, dide.tszProductName);
    if (strcmp(dide.tszProductName, dide.tszInstanceName)) strcat(dide.tszInstanceName, ", ");
    else dide.tszInstanceName[0] = 0;
+
+   color(CONSCLR_HARDINFO);
    printf("joy: %s%s (%d axes, %d buttons, %d POVs)\n",
       dide.tszInstanceName, dide.tszProductName, dc.dwAxes, dc.dwButtons, dc.dwPOVs);
    return DIENUM_STOP;
@@ -770,6 +772,8 @@ void start_dx()
 
    dd0->Release();
 
+   color(CONSCLR_HARDITEM); printf("gfx: ");
+
    char vmodel[MAX_DDDEVICEID_STRING + 32]; *vmodel = 0;
    if (conf.detect_video) {
       LPDIRECTDRAW4 dd4;
@@ -785,7 +789,9 @@ void start_dx()
       if (*vmodel) strcat(vmodel, ", ");
    }
    DDCAPS caps; caps.dwSize = sizeof caps; dd->GetCaps(&caps, 0);
-   printf("gfx: %s%dMb VRAM available\n", vmodel, (caps.dwVidMemTotal+512*1024)/(1024*1024));
+
+   color(CONSCLR_HARDINFO);
+   printf("%s%dMb VRAM available\n", vmodel, (caps.dwVidMemTotal+512*1024)/(1024*1024));
 
    max_modes = 0;
    dd->EnumDisplayModes(DDEDM_REFRESHRATES | DDEDM_STANDARDVGAMODES, 0, 0, callb);
@@ -862,7 +868,7 @@ void start_dx()
       dipdw.dwData            = DIPROPAXISMODE_ABS;
       if ((r = dimouse->SetProperty(DIPROP_AXISMODE, &dipdw.diph)) != DI_OK)
       { printrdi("IDirectInputDevice::SetProperty() (mouse)", r); exit(); }
-   } else printf("warning: no mouse\n"), dimouse = 0;
+   } else color(CONSCLR_WARNING), printf("warning: no mouse\n"), dimouse = 0;
 
    if ((r = di->EnumDevices(DIDEVTYPE_JOYSTICK, InitJoystickInput, di, DIEDFL_ATTACHEDONLY)) != DI_OK)
    { printrdi("IDirectInput::EnumDevices(DIDEVTYPE_JOYSTICK,...)", r); exit(); }

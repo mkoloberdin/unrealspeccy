@@ -172,19 +172,23 @@ enum MEM_MODEL
 
 enum ROM_MODE { RM_NOCHANGE=0, RM_SOS, RM_DOS, RM_SYS, RM_128, RM_CACHE };
 
+const RAM_128 = 128, RAM_256 = 256, RAM_512 = 512, RAM_1024 = 1024;
+
 struct
 {
    char *fullname, *shortname;
+   unsigned defaultRAM;
+   unsigned availRAMs;
 } mem_model[N_MM_MODELS] =
 {
-                { "PENTAGON", "PENTAGON" },
-                { "PENTAGON + GRM SERVICE ROM", "PENTSR" },
-                { "ZS SCORPION", "SCORPION" },
-                { "ZS SCORPION + PROF ROM", "PROFSCORP" },
-                { "PROFI", "PROFI" },
-                { "ATM 4.50 (himem only)", "ATM450" },
-                { "ATM-TURBO 2+ v7.10", "ATM710" },
-                { "Nemo's KAY", "KAY" }
+        { "PENTAGON", "PENTAGON",                       128,  RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
+        { "PENTAGON + GRM SERVICE ROM", "PENTSR",       128,  RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
+        { "ZS SCORPION", "SCORPION",                    256,  RAM_256 | RAM_1024 },
+        { "ZS SCORPION + PROF ROM", "PROFSCORP",        256,  RAM_256 | RAM_1024 },
+        { "PROFI", "PROFI",                             1024, RAM_1024 },
+        { "ATM 4.50 (himem only)", "ATM450",            512,  RAM_512 | RAM_1024 },
+        { "ATM-TURBO 2+ v7.10", "ATM710",               1024, RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
+        { "Nemo's KAY", "KAY",                          256,  RAM_256 | RAM_1024 },
 };
 
 typedef void (__fastcall *VOID_FUNC)(void);
@@ -215,8 +219,6 @@ struct CONFIG
    unsigned frame;  // t-states per frame
    unsigned intfq;  // usually 50Hz
    unsigned nopaper;// hide paper
-   __int64 cpufq;
-   unsigned ticks_frame; // x86 t-states in frame
 
    unsigned render, driver, fontsize;
 
@@ -240,8 +242,8 @@ struct CONFIG
    unsigned char even_M1, border_4T;
 
    unsigned char floatbus, floatdos;
-   unsigned char modem_port;
-   unsigned char r1; // reserved for modem_scheme
+   unsigned char modem_port; //, modem_scheme;
+   unsigned char fdd_noise;
 
    unsigned char trdos_present, trdos_interleave;
    unsigned char trdos_traps, wd93_nodelay;
@@ -372,8 +374,11 @@ struct TEMP
    } led;
    unsigned char profrom_mask;
    unsigned char atm_pal_changed;
-   unsigned char mmx; // cpu has MMX instructions
-   unsigned char reserved1;
+
+   // CPU features
+   unsigned char mmx, sse2;
+   __int64 cpufq;        // x86 t-states per second
+   unsigned ticks_frame; // x86 t-states in frame
 
    unsigned char vidblock, sndblock, inputblock, frameskip;
 };

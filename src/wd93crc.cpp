@@ -1,12 +1,4 @@
 
-__declspec(naked) unsigned __fastcall wordswap(unsigned x) // shit for intel
-{
-   __asm bswap ecx
-   __asm shr ecx,16
-   __asm mov eax,ecx
-   __asm ret
-}
-
 // for WD1793 engine
 unsigned wd93_crc(unsigned char *ptr, unsigned size)
 {
@@ -16,7 +8,7 @@ unsigned wd93_crc(unsigned char *ptr, unsigned size)
       for (int j = 8; j; j--) // todo: rewrite with pre-calc'ed table
          if ((crc *= 2) & 0x10000) crc ^= 0x1021; // bit representation of x^12+x^5+1
    }
-   return wordswap(crc); // return crc & 0xFFFF;
+   return _byteswap_ushort(crc); // return crc & 0xFFFF;
 }
 
 unsigned short crcTab[256] =
@@ -58,7 +50,7 @@ unsigned short crc16(unsigned char *buf, unsigned size)
 {
    unsigned crc = 0;
    while (size--) crc = (crc>>8) ^ crcTab[(crc&0xff) ^ *buf++];
-   return wordswap(crc);
+   return _byteswap_ushort(crc);
 }
 
 // for UDI

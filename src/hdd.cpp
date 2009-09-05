@@ -136,7 +136,10 @@ int ATA_DEVICE::read_atapi_id()
    transbf[0x67] = 4; // PIO timing
    transbf[0x69] = 2; // DMA timing
 
-   printf("%-40s %-20s  rev.%-4s\n", ata_name, id, revision);
+   color(CONSCLR_HARDINFO);
+   printf("%-40s %-20s  ", ata_name, id);
+   color(CONSCLR_HARDITEM);
+   printf("rev.%-4s\n", revision);
    return 1;
 }
 
@@ -153,11 +156,10 @@ void init_hdd_cd()
                                FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                                0, OPEN_EXISTING, 0, 0);
 
-      if (hDevice == INVALID_HANDLE_VALUE) {
-         if (GetLastError() != ERROR_FILE_NOT_FOUND)
-            printf("hd%d: access failed\n", drive);
-         continue;
-      }
+      DWORD errcode = GetLastError();
+      if (hDevice == INVALID_HANDLE_VALUE && errcode == ERROR_FILE_NOT_FOUND) continue;
+      color(CONSCLR_HARDITEM); printf("hd%d: ", drive);
+      if (hDevice == INVALID_HANDLE_VALUE) { color(CONSCLR_ERROR), printf("access failed\n"); err_win32(errcode); continue; }
 
       SENDCMDINPARAMS in = { 512 };
       in.irDriveRegs.bCommandReg = ID_CMD;
@@ -167,10 +169,10 @@ void init_hdd_cd()
       DISK_GEOMETRY geo;
       int res1 = DeviceIoControl(hDevice, SMART_RCV_DRIVE_DATA, &in, sizeof in, &res_buffer, sizeof res_buffer, &sz, 0);
       int res2 = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, 0, 0, &geo, sizeof geo, &sz, 0);
-      if (geo.BytesPerSector != 512) { printf("hd%d: unsupported sector size (%d bytes)\n", geo.BytesPerSector); continue; }
+      if (geo.BytesPerSector != 512) { color(CONSCLR_ERROR); printf("unsupported sector size (%d bytes)\n", geo.BytesPerSector); continue; }
       CloseHandle(hDevice);
 
-      if (!res1) { printf("hd%d: identification failed\n", drive); continue; }
+      if (!res1) { color(CONSCLR_ERROR), printf("identification failed\n"); continue; }
 
       memcpy(phys.hdd_id[drive], res_buffer.out.bBuffer, 512);
       char model[42], serial[22];
@@ -185,8 +187,12 @@ void init_hdd_cd()
          shortsize /= 1024, mult = 'M';
          if (shortsize >= 100000) shortsize /= 1024, mult = 'G';
       }
-      printf("hd%d: %-40s %-20s %8d %cb\n", drive, model, serial, shortsize, mult);
-      if (drivesize > 0xFFFFFFF) printf("     warning! LBA48 is not supported. only first 128GB visible\n", drive);
+
+      color(CONSCLR_HARDINFO);
+      printf("%-40s %-20s ", model, serial);
+      color(CONSCLR_HARDITEM);
+      printf("%8d %cb\n", shortsize, mult);
+      if (drivesize > 0xFFFFFFF) color(CONSCLR_WARNING), printf("     warning! LBA48 is not supported. only first 128GB visible\n", drive);
 
       found++;
    }
@@ -200,22 +206,20 @@ void init_hdd_cd()
                                FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                                0, OPEN_EXISTING, 0, 0);
 
-      if (hDevice == INVALID_HANDLE_VALUE) {
-         if (GetLastError() != ERROR_FILE_NOT_FOUND)
-            printf("cd%d: access failed\n", drive);
-         continue;
-      }
+      DWORD errcode = GetLastError();
+      if (hDevice == INVALID_HANDLE_VALUE && errcode == ERROR_FILE_NOT_FOUND) continue;
+      color(CONSCLR_HARDITEM); printf("cd%d: ", drive);
+      if (hDevice == INVALID_HANDLE_VALUE) { color(CONSCLR_ERROR), printf("access failed\n"); err_win32(errcode); continue; }
 
       dev.hDevice = hDevice;
-      printf("cd%d: ", drive);
       int res = dev.read_atapi_id();
       CloseHandle(hDevice); dev.hDevice = INVALID_HANDLE_VALUE;
-      if (!res) { printf("identification failed\n"); continue; }
+      if (!res) { color(CONSCLR_ERROR), printf("identification failed\n"); continue; }
       memcpy(phys.hdd_id[MAX_PHYS_HD_DRIVES+drive], dev.transbf, 512);
       found++;
    }
 
-   if (!found) printf("warning! HDD/CD emulator can't access physical drives\n");
+   if (!found) errmsg("HDD/CD emulator can't access physical drives");
 }
 
 void print_device_name(char *dst, int drive)
@@ -258,7 +262,7 @@ void ATA_DEVICE::configure(IDE_CONFIG *cfg)
       } else if (drive < MAX_PHYS_HD_DRIVES + MAX_PHYS_CD_DRIVES) {
          sprintf(devname = xx, "\\\\.\\CdRom%d", drive - MAX_PHYS_HD_DRIVES);
          atapi = 1;
-      } else { printf("error: no physical device %s\n", cfg->image); return; }
+      } else { errmsg("no physical device %s", cfg->image); return; }
 
       phys_dev = drive; open_mode = OPEN_EXISTING;
    } else
@@ -268,8 +272,10 @@ void ATA_DEVICE::configure(IDE_CONFIG *cfg)
                           GENERIC_READ | GENERIC_WRITE,
                           FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                           0, open_mode, 0, 0);
-   if (hDevice == INVALID_HANDLE_VALUE)
-      printf("error: failed to open %s: %08X\n", cfg->image, GetLastError());
+   if (hDevice == INVALID_HANDLE_VALUE) {
+      errmsg("failed to open %s", cfg->image);
+      err_win32();
+   }
 }
 
 void ATA_PORT::reset()

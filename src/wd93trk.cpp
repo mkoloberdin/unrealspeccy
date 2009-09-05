@@ -18,7 +18,7 @@ void TRKCACHE::seek(FDD *d, unsigned cyl, unsigned side, SEEK_MODE fs)
    for (unsigned i = 0; i < trklen - 8; i++) {
       if (trkd[i] != 0xA1 || trkd[i+1] != 0xFE || !test_i(i)) continue;
 
-      if (s == MAX_SEC) { printf("too many sectors"); exit(); }
+      if (s == MAX_SEC) errexit("too many sectors");
       SECHDR *h = &hdr[s++];
       h->id = trkd+i+2; *(unsigned*)h = *(unsigned*)h->id;
       h->crc = *(unsigned short*)(trkd+i+6);
@@ -69,7 +69,7 @@ void TRKCACHE::format()
          for (i = 0; i < 12; i++) *dst++ = 0;
          for (i = 0; i < 3; i++) write(dst++ - trkd, 0xA1, 1);
          *dst++ = 0xFB; // sector
-         if (sechdr->l > 5) { printf("strange sector"); exit(); }
+         if (sechdr->l > 5) errexit("strange sector");
          unsigned len = 128 << sechdr->l;
          if (sechdr->data != (unsigned char*)1) memcpy(dst, sechdr->data, len);
          else memset(dst, 0, len);
@@ -79,7 +79,7 @@ void TRKCACHE::format()
          *(unsigned*)(dst+len) = crc; dst += len+2;
       }
    }
-   if (dst > trklen + trkd) { printf("error: track too long"); exit(); }
+   if (dst > trklen + trkd) errexit("track too long");
    while (dst < trkd + trklen) *dst++ = 0x4E;
 }
 

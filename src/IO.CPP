@@ -92,7 +92,12 @@ set1FFD:
 
          // 7FFD
          if (conf.mem_model == MM_MYPENT && (val & 0x80) && (comp.flags & CF_SYSTEMROM)) comp.flags &= ~CF_SYSTEMROM, set_banks();
-         if ((comp.p7FFD & 0x20) && (conf.ramsize != 1024 || (conf.mem_model != MM_PENTAGON && conf.mem_model != MM_MYPENT))) return; //locked
+         if (comp.p7FFD & 0x20) { // 48k lock
+            // #EFF7.2 forces lock
+            if (comp.pEFF7 & EFF7_LOCKMEM) return;
+            // if not pentagon-1024, apply lock
+            if (!(conf.ramsize == 1024 && (conf.mem_model == MM_PENTAGON || conf.mem_model == MM_MYPENT))) return;
+         }
          if ((comp.p7FFD ^ val) & 0x08) update_screen();
          comp.p7FFD = val; set_banks(); return;
       }

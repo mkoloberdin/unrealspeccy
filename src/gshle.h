@@ -89,6 +89,7 @@ struct GSHLE
    __inline void stop_mod();
    __inline void cont_mod();
 
+   void reportError(char *err);
 };
 
 #define BASS_MUSIC_RAMP         1       // normal ramping

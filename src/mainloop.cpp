@@ -66,7 +66,7 @@ void mainloop()
 }
 */
 
-void mainloop()
+void __declspec(noreturn) mainloop()
 {
    unsigned char skipped = 0;
    for (;;)

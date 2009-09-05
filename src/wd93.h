@@ -153,8 +153,8 @@ struct WD1793
       S_WR_TRACK_DATA,
 
       S_TYPE1_CMD,
-      S_BEGINSTEP,
       S_STEP,
+      S_SEEKSTART,
       S_SEEK,
       S_VERIFY,
 

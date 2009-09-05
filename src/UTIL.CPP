@@ -1,8 +1,7 @@
 
-__declspec(naked) unsigned __int64 __fastcall rdtsc()
+INLINE unsigned __int64 __fastcall rdtsc()
 {
    __asm rdtsc
-   __asm retn
 }
 
 void __cdecl fillCpuString(char *dst)
@@ -74,9 +73,9 @@ unsigned GetCPUFrequency()
    LARGE_INTEGER Start; QueryPerformanceCounter(&Start);
    unsigned clocks = (unsigned)rdtsc();
    Sleep(50);
-   LARGE_INTEGER s1; QueryPerformanceCounter(&s1);
+   LARGE_INTEGER Stop; QueryPerformanceCounter(&Stop);
    clocks = (unsigned)rdtsc() - clocks;
-   Start.QuadPart = s1.QuadPart - Start.QuadPart;
+   Start.QuadPart = Stop.QuadPart - Start.QuadPart;
 
    return (unsigned)(clocks * Frequency.QuadPart / Start.LowPart);
 }
@@ -85,10 +84,10 @@ void trim(char *dst)
 {
    unsigned i = strlen(dst);
    // trim right spaces
-   while (i && (!dst[i-1] || dst[i-1] == ' ')) i--;
+   while (i && isspace(dst[i-1])) i--;
    dst[i] = 0;
    // trim left spaces
-   for (i = 0; dst[i] == ' '; i++);
+   for (i = 0; isspace(dst[i]); i++);
    strcpy(dst, dst+i);
 }
 
@@ -105,17 +104,22 @@ const char clrline[] = "\r\t\t\t\t\t\t\t\t\t       \r";
 #define hexdigit(a) ((a) < 'A' ? (a)-'0' : toupper(a)-'A'+10)
 #define tohex(a) ((a) < 10 ? (a)+'0' : (a)-10+'A')
 
-char nop = 0;
-#define nil (&nop)
+const char nop = 0;
+const char * const nil = &nop;
 
-int ishex(char c) {
+int ishex(char c)
+{
    return (isdigit(c) || (tolower(c) >= 'a' && tolower(c) <= 'f'));
 }
-unsigned char hex(char p) {
+
+unsigned char hex(char p)
+{
    p = tolower(p);
    return (p < 'a') ? p-'0' : p-'a'+10;
 }
-unsigned char hex(char *p) {
+
+unsigned char hex(const char *p)
+{
    return 0x10*hex(p[0]) + hex(p[1]);
 }
 
@@ -196,6 +200,48 @@ void dump1(BYTE *p, unsigned sz)
    printf("\n");
 }
 
+void color(int ink = CONSCLR_DEFAULT)
+{
+   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), ink);
+}
+
+void err_win32(DWORD errcode = 0xFFFFFFFF)
+{
+   if (errcode == 0xFFFFFFFF) errcode = GetLastError();
+
+   char msg[512];
+   if (!FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, errcode,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  msg, sizeof(msg), 0)) *msg = 0;
+
+   trim(msg); CharToOem(msg, msg);
+
+   color();
+   printf((*msg)? "win32 error message: " : "win32 error code: ");
+   color(CONSCLR_ERRCODE);
+   if (*msg) printf("%s\n", msg); else printf("%04X\n", errcode);
+   color();
+}
+
+void errmsg(const char *err, const char *str = 0)
+{
+   color();
+   printf("error: ");
+   color(CONSCLR_ERROR);
+   printf(err, str);
+   color();
+   printf("\n");
+}
+
+void __declspec(noreturn) errexit(const char *err, const char *str = 0)
+{
+   errmsg(err, str);
+   exit();
+}
+
+
 extern "C" void * _ReturnAddress(void);
 #pragma intrinsic(_ReturnAddress)
 
+#pragma intrinsic(_byteswap_ulong)
+#pragma intrinsic(_byteswap_ushort)

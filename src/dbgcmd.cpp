@@ -20,27 +20,20 @@ unsigned find1dlg(unsigned start)
    return -1;
 }
 
-__declspec(naked) unsigned __fastcall swp(unsigned x)
-{
-   __asm bswap ecx
-   __asm mov eax,ecx
-   __asm ret
-}
-
 unsigned find2dlg(unsigned start)
 {
    static unsigned code = 0xF3, mask = 0xFF; char ln[64];
    filledframe(10,10,16,5);
    tprint(10,10,"   find data    ", FRM_HEADER);
-   sprintf(ln, "code: %08X", swp(code)); tprint(11,12,ln, FFRAME_INSIDE);
-   sprintf(ln, "mask: %08X", swp(mask)); tprint(11,13,ln, FFRAME_INSIDE);
-   sprintf(str, "%08X", swp(code));
+   sprintf(ln, "code: %08X", _byteswap_ulong(code)); tprint(11,12,ln, FFRAME_INSIDE);
+   sprintf(ln, "mask: %08X", _byteswap_ulong(mask)); tprint(11,13,ln, FFRAME_INSIDE);
+   sprintf(str, "%08X", _byteswap_ulong(code));
    if (!inputhex(17,12,8,1)) return -1;
-   sscanf(str, "%x", &code); code = swp(code);
+   sscanf(str, "%x", &code); code = _byteswap_ulong(code);
    tprint(17,12,str, FFRAME_INSIDE);
-   sprintf(str, "%08X", swp(mask));
+   sprintf(str, "%08X", _byteswap_ulong(mask));
    if (!inputhex(17,13,8,1)) return -1;
-   sscanf(str, "%x", &mask); mask = swp(mask);
+   sscanf(str, "%x", &mask); mask = _byteswap_ulong(mask);
    for (unsigned ptr = memadr(start+1); ptr != start; ptr = memadr(ptr+1)) {
       unsigned char *cd = (unsigned char*)&code, *ms = (unsigned char*)&mask;
       for (unsigned i = 0; i < 4; i++)

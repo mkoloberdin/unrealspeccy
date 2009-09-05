@@ -1,15 +1,24 @@
 
+void GSHLE::reportError(char *err)
+{
+   color(CONSCLR_ERROR);
+   printf("BASS library reports error in %s\n", err);
+   color(CONSCLR_ERRCODE);
+   printf("error code is 0x%04X\n", BASS_ErrorGetCode());
+   exit();
+}
+
 void GSHLE::runBASS()
 {
    if (hBass) return;
    hBass = LoadLibrary("bass.dll");
-   if (!hBass) { printf("can't load bass.dll"); exit(); }
+   if (!hBass) errexit("can't load bass.dll");
 
    BASS_GetVersion = (tBASS_GetVersion)GetProcAddress(hBass, "BASS_GetVersion");
    unsigned v1, v2; char ln[64];
    GetPrivateProfileString("*","BASS",nil,ln,sizeof ln, ininame);
    if (!BASS_GetVersion || (sscanf(ln,"%d.%d", &v1, &v2) == 2 && (int)BASS_GetVersion() != MAKELONG(v1,v2)))
-   { printf("error: unexpected BASS version"); exit(); }
+      errexit("unexpected BASS version");
 
    BASS_Init = (tBASS_Init)GetProcAddress(hBass, "BASS_Init");
    BASS_Free = (tBASS_Free)GetProcAddress(hBass, "BASS_Free");
@@ -30,11 +39,11 @@ void GSHLE::runBASS()
          !BASS_MusicLoad || !BASS_MusicPlayEx ||
          !BASS_ChannelGetPosition || !BASS_ChannelSetPosition ||
          !BASS_ChannelGetLevel || !BASS_ErrorGetCode
-   ) { printf("can't import BASS API"); exit(); }
+   ) errexit("can't import BASS API");
 
    if (!BASS_Init(-1, conf.sound.fq, BASS_DEVICE_NOSYNC, wnd)) {
-      printf("warning: can't use default BASS device, trying silence\n");
-      if (!BASS_Init(-2, 11025, BASS_DEVICE_NOSYNC, wnd)) { printf("can't init BASS"); exit(); }
+      color(CONSCLR_WARNING); printf("warning: can't use default BASS device, trying silence\n");
+      if (!BASS_Init(-2, 11025, BASS_DEVICE_NOSYNC, wnd)) errexit("can't init BASS");
    }
    hmod = 0;
 }
@@ -50,15 +59,14 @@ void GSHLE::init_mod()
    runBASS();
    if (hmod) BASS_MusicFree(hmod); hmod = 0;
    hmod = BASS_MusicLoad(1, mod, 0, modsize, BASS_MUSIC_LOOP | BASS_MUSIC_POSRESET | BASS_MUSIC_RAMPS);
-   if (!hmod) { printf("BASS_MusicLoad(): %08X\n", BASS_ErrorGetCode()); exit(); }
+   if (!hmod) reportError("BASS_MusicLoad()");
 }
 
 void GSHLE::restart_mod(unsigned pos)
 {
    if (!hmod) return;
    BASS_Start();
-   if (!BASS_MusicPlayEx(hmod, pos, BASS_MUSIC_LOOP | BASS_MUSIC_POSRESET | BASS_MUSIC_RAMPS, 1))
-   { printf("BASS_MusicPlayEx(): %08X\n", BASS_ErrorGetCode()); exit(); }
+   if (!BASS_MusicPlayEx(hmod, pos, BASS_MUSIC_LOOP | BASS_MUSIC_POSRESET | BASS_MUSIC_RAMPS, 1)) reportError("BASS_MusicPlayEx()");
    /*else*/
    mod_playing = 1;
 }

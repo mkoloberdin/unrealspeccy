@@ -105,7 +105,7 @@ char *MON_LABELS::find(unsigned char *address)
 unsigned MON_LABELS::load(char *filename, unsigned char *base, unsigned size)
 {
    FILE *in = fopen(filename, "rt");
-   if (!in) { printf("warning: can't find label file %s\n", filename); return 0; }
+   if (!in) { errmsg("can't find label file %s", filename); return 0; }
    clear(base, size);
    unsigned l_counter = 0, loaded = 0; char *txt = 0;
    while (!feof(in)) {
@@ -134,6 +134,7 @@ unsigned MON_LABELS::load(char *filename, unsigned char *base, unsigned size)
          txt = line+8;
       } else {
    ll_err:
+         color(CONSCLR_ERROR);
          printf("error in %s, line %d\n", filename, l_counter);
          continue;
       }

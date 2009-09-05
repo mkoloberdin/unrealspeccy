@@ -161,7 +161,7 @@ unsigned char toscript(char *script, unsigned *dst)
                case 1: *dst++ = DB_PCHAR; break;
                case 2: *dst++ = DB_PSHORT; break;
                case 4: *dst++ = DB_PINT; break;
-               default: printf("BUG01"); exit();
+               default: errexit("BUG01");
             }
             *dst++ = (unsigned)regs[r].ptr;
          } else { // number

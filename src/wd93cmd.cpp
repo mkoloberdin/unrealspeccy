@@ -216,49 +216,53 @@ void WD1793::process()
          // ----------------------------------------------------
 
          case S_TYPE1_CMD:
-            status = (status | WDS_BUSY) & ~(WDS_DRQ | WDS_CRCERR | WDS_SEEKERR);
+            status = (status | WDS_BUSY) & ~(WDS_DRQ | WDS_CRCERR | WDS_SEEKERR | WDS_WRITEP);
             rqs = 0;
 
-            if (!(cmd & 0xE0)) { // seek, restore
-               if (!(cmd & 0x10)) track = 0xFF, data = 0;
-               stepdirection = (data < track) ? -1 : 1;
-            } else { // single step
-               if (cmd & 0x40) stepdirection = (cmd & CMD_SEEK_DIR) ? -1 : 1;
-               if (!(cmd & CMD_SEEK_TRKUPD)) track -= stepdirection; // compensate change in S_BEGINSTEP
-            }
-            state = S_BEGINSTEP;
-
-         case S_BEGINSTEP:
-            trdos_seek = ROMLED_TIME;
             if (conf.trdos_wp[drive]) status |= WDS_WRITEP;
-            // disk spins 1.8 sec (9 turns) after command then stop
             seldrive->motor = next + 2*Z80FQ;
+
+            state2 = S_SEEKSTART; // default is seek/restore
+            if (cmd & 0xE0) { // single step
+               if (cmd & 0x40) stepdirection = (cmd & CMD_SEEK_DIR) ? -1 : 1;
+               state2 = S_STEP;
+            }
+            if (!conf.wd93_nodelay) next += 1*Z80FQ/1000;
+            state = S_WAIT; break;
+
+
+         case S_STEP:
+         {
+            trdos_seek = ROMLED_TIME;
 
             // TRK00 sampled only in RESTORE command
             if (!seldrive->track && !(cmd & 0xF0)) { track = 0; state = S_VERIFY; break; }
 
-            track += stepdirection;
-            // step not performed, if fdc reset just after step command
-            if (!conf.wd93_nodelay) next += 1*Z80FQ/1000;
-            state = S_WAIT; state2 = S_STEP; break;
-
-         case S_STEP:
-         {
+            if (!(cmd & 0xE0) || (cmd & CMD_SEEK_TRKUPD)) track += stepdirection;
             seldrive->track += stepdirection;
             if (seldrive->track == (unsigned char)-1) seldrive->track = 0;
             if (seldrive->track >= MAX_PHYS_CYL) seldrive->track = MAX_PHYS_CYL;
             trkcache.clear();
 
             static const unsigned steps[] = { 6,12,20,30 };
-            if (!conf.wd93_nodelay) next += (steps[cmd & CMD_SEEK_RATE]-1)*Z80FQ/1000;
+            if (!conf.wd93_nodelay) next += steps[cmd & CMD_SEEK_RATE]*Z80FQ/1000;
+
+            #ifndef MOD_9X
+            if (!conf.wd93_nodelay && conf.fdd_noise) Beep((stepdirection > 0)? 600 : 800, 2);
+            #endif
+
             state2 = (cmd & 0xE0)? S_VERIFY : S_SEEK;
             state = S_WAIT; break;
          }
 
+         case S_SEEKSTART:
+            if (!(cmd & 0x10)) track = 0xFF, data = 0;
+            // state = S_SEEK; break;
+
          case S_SEEK:
             if (data == track) { state = S_VERIFY; break; }
             stepdirection = (data < track) ? -1 : 1;
-            state = S_BEGINSTEP; break;
+            state = S_STEP; break;
 
          case S_VERIFY:
             if (!(cmd & CMD_SEEK_VERIFY)) { state = S_IDLE; break; }
@@ -277,7 +281,7 @@ void WD1793::process()
 
 
          default:
-            printf("WD1793 in wrong state"); exit();
+            errexit("WD1793 in wrong state");
       }
    }
 }
@@ -398,6 +402,7 @@ void WD1793::out(unsigned char port, unsigned char val)
    if (port & 0x80) { // system
       system = val;
       drive = val & 3, side = 1 & ~(val >> 4);
+      seldrive = fdd + drive;
       trkcache.clear();
       if (!(val & 0x04)) { // reset
          status = WDS_NOTRDY;

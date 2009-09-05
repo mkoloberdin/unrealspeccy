@@ -29,7 +29,7 @@ unsigned find_pulse(unsigned t)
       tape_pulse[max_pulses] = t;
       return max_pulses++;
    }
-   if (!tape_err) printf("WARNING: pulse table full\n"), tape_err = 1;
+   if (!tape_err) errmsg("pulse table full"), tape_err = 1;
    unsigned nearest = 0; int delta = 0x7FFFFFFF;
    for (unsigned i = 0; i < 0x100; i++)
       if (delta > abs((int)t - (int)tape_pulse[i]))
@@ -372,8 +372,8 @@ int readTZX()
    unsigned char pl, last, *end; char *p;
    unsigned loop_n = 0, loop_p;
    char nm[512];
-   while (ptr < snbuf+snapsize) {
-//printf("%04X:%02X ", ptr-snbuf, *ptr);
+   while (ptr < snbuf+snapsize)
+   {
       switch (*ptr++) {
          case 0x10: // normal block
             alloc_infocell();

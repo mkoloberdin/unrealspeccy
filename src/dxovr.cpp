@@ -50,7 +50,6 @@ void update_overlay() {
    DDOVERLAYFX fx = { sizeof fx };
    fx.dckDestColorkey.dwColorSpaceLowValue = fx.dckDestColorkey.dwColorSpaceHighValue = colorkey;
 
-   //printf("S:(%d,%d)-(%d,%d)  D:(%d,%d)-(%d,%d), K:%06X\n", rc_src.left, rc_src.right, rc_src.top, rc_src.bottom, rc_dst.left, rc_dst.right, rc_dst.top, rc_dst.bottom, colorkey);
    for (;;) {
       HRESULT r = surf0->UpdateOverlay(&rc_src, sprim, &rc_dst, DDOVER_SHOW | DDOVER_DDFX | DDOVER_KEYDESTOVERRIDE, &fx);
       if (r == DD_OK) break;

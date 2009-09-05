@@ -679,7 +679,9 @@ __inline void flush_frame()
    if (temp.vidblock) return;
    if (prev_t != -1) { // MCR on
       if (prev_t) { // paint until end of frame
-         update_screen();
+         // paint until screen bottom, even if n_lines*t_line < cpu.t (=t_frame)
+         unsigned t = cpu.t; cpu.t = 0x7FFF0000;
+         update_screen(); cpu.t = t;
          if (comp.pEFF7 & EFF7_GIGASCREEN) draw_gigascreen_no_border();
       } else { // MCR on, but no screen updates in last frame - use fast painter
          if (temp.base_2 || (comp.pEFF7 & EFF7_GIGASCREEN)) draw_screen();

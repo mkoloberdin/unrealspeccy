@@ -130,7 +130,9 @@ int FDD::read_td0()
                dst = d0;
                break;
             }
-            default: shit: printf("bad TD0 file"); exit();
+            default:
+            shit:
+               errexit("bad TD0 file");
          }
          dst += size; td0_src = end_packed_data;
       }

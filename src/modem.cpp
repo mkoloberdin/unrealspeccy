@@ -10,7 +10,7 @@ void ISA_MODEM::open(unsigned char port)
    char portName[6] = "COM*"; portName[3] = port + '0';
    hPort = CreateFile(portName, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
    if (hPort == INVALID_HANDLE_VALUE) {
-      printf("can't open modem on %s (%08X)\n", portName, GetLastError());
+      errmsg("can't open modem on %s", portName); err_win32();
       conf.modem_port = open_port = 0; return;
    }
 

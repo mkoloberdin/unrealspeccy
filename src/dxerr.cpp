@@ -1,5 +1,6 @@
 #ifdef EMUL_DEBUG
-void printrdd(char *pr, HRESULT r) {
+void printrdd(char *pr, HRESULT r)
+{
    char buf[200]; sprintf(buf, "unknown error (%08X)", r);
    char *str = buf;
    switch (r) {
@@ -40,9 +41,12 @@ void printrdd(char *pr, HRESULT r) {
       case DDERR_INVALIDRECT: str = "DDERR_INVALIDRECT"; break;
       case DDERR_NOTFOUND: str = "DDERR_NOTFOUND"; break;
    }
+   color(CONSCLR_ERROR);
    printf("%s: %s\n", pr, str);
 }
-void printrdi(char *pr, HRESULT r) {
+
+void printrdi(char *pr, HRESULT r)
+{
    char buf[200]; sprintf(buf, "unknown error (%08X)", r);
    char *str = buf;
    switch (r) {
@@ -54,9 +58,12 @@ void printrdi(char *pr, HRESULT r) {
       case DIERR_NOTINITIALIZED: str = "DIERR_NOTINITIALIZED"; break;
       case DIERR_OTHERAPPHASPRIO: str = "DIERR_OTHERAPPHASPRIO"; break;
    }
+   color(CONSCLR_ERROR);
    printf("%s: %s\n", pr, str);
 }
-void printrmm(char *pr, HRESULT r) {
+
+void printrmm(char *pr, HRESULT r)
+{
    char buf[200]; sprintf(buf, "unknown error (%08X)", r);
    char *str = buf;
    switch (r) {
@@ -70,9 +77,12 @@ void printrmm(char *pr, HRESULT r) {
       case WAVERR_SYNC: str = "WAVERR_SYNC"; break;
       case MMSYSERR_INVALFLAG: str = "MMSYSERR_INVALFLAG"; break;
    }
+   color(CONSCLR_ERROR);
    printf("%s: %s\n", pr, str);
 }
-void printrds(char *pr, HRESULT r) {
+
+void printrds(char *pr, HRESULT r)
+{
    char buf[200]; sprintf(buf, "unknown error (%08X)", r);
    char *str = buf;
    switch (r) {
@@ -86,6 +96,7 @@ void printrds(char *pr, HRESULT r) {
       case DSERR_OTHERAPPHASPRIO: str = "DSERR_OTHERAPPHASPRIO"; break;
       case DSERR_NODRIVER: str = "DSERR_NODRIVER"; break;
    }
+   color(CONSCLR_ERROR);
    printf("%s: %s\n", pr, str);
 }
 #else

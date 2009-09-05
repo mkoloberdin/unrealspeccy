@@ -548,7 +548,9 @@ void create_font_tables()
             if (level == conf.fontsize-1) {
                if (tab[bits]) {
 #if 0 // 1 - debug
-                  printf("duplicate char %d (%02X)! - font table may corrupt\n", (ptr-1-fontdata)/9, code), exit();
+                  color(CONSCLR_ERROR);
+                  printf("duplicate char %d (%02X)! - font table may corrupt\n", (ptr-1-fontdata)/9, code);
+                  exit();
 #endif
                } else {
                   unsigned *newchar, *basechar = (unsigned*)(fontbase + fonth*code);
@@ -571,6 +573,9 @@ void create_font_tables()
       }
    }
    unsigned usedsize = (int)ts - (int)t.font_tables;
-   if (usedsize > sizeof(t.font_tables))
-      printf("font table overflow: size=%u (0x%X) of 0x%X\n", usedsize, usedsize, sizeof t.font_tables), exit();
+   if (usedsize > sizeof(t.font_tables)) {
+      color(CONSCLR_ERROR);
+      printf("font table overflow: size=%u (0x%X) of 0x%X\n", usedsize, usedsize, sizeof t.font_tables);
+      exit();
+   }
 }

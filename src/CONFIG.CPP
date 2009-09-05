@@ -14,8 +14,20 @@ unsigned load_rom(char *path, unsigned char *bank, unsigned max_banks = 1)
    if (max_banks == 16) page *= 16; // bank for scorp prof.rom
 
    FILE *ff = fopen(tmp, "rb");
-   if (!ff) { printf("error: ROM file %s not found\n", tmp); err: load_errors = 1; goto norom; }
-   if (fseek(ff, page*PAGE, SEEK_SET)) { badrom: fclose(ff); printf("Incorrect ROM file: %s\n", path); goto err; }
+
+   if (!ff) {
+      errmsg("ROM file %s not found", tmp);
+   err:
+      load_errors = 1;
+      goto norom;
+   }
+
+   if (fseek(ff, page*PAGE, SEEK_SET)) {
+badrom:
+      fclose(ff);
+      errmsg("Incorrect ROM file: %s", path);
+      goto err;
+   }
 
    unsigned size = fread(bank, 1, max_banks*PAGE, ff);
    if (!size || (size & (PAGE-1))) goto badrom;
@@ -31,6 +43,7 @@ void load_atm_font()
    unsigned char font[0x800];
    unsigned sz = fread(font, 1, 0x800, ff);
    if (sz == 0x800) {
+      color(CONSCLR_INFO);
       printf("using ATM font from external SGEN.ROM\n");
       for (unsigned chr = 0; chr < 0x100; chr++)
          for (unsigned l = 0; l < 8; l++)
@@ -146,10 +159,11 @@ void load_config(char *fname)
       if (strchr(fname, '/') || strchr(fname, '\\')) dst = ininame; else dst++;
       strcpy(dst, fname);
    }
-   printf("ini: %s\n", ininame);
+   color(CONSCLR_DEFAULT); printf("ini: ");
+   color(CONSCLR_INFO);    printf("%s\n", ininame);
 
-   if (GetFileAttributes(ininame) == -1)
-      printf("config not found, using defaults\n"), load_errors = 1;
+   if (GetFileAttributes(ininame) == -1) errexit("config file not found");
+
    static char misc[] = "MISC";
    static char video[] = "VIDEO";
    static char ula[] = "ULA";
@@ -169,7 +183,7 @@ void load_config(char *fname)
 
    GetPrivateProfileString("*", "UNREAL", nil, line, sizeof line, ininame);
    int a,b,c; sscanf(line, "%u.%u.%u", &a, &b, &c);
-   if ((a*0x100+b-VER_HL) | (c-(VER_A & 0x7F))) { printf("wrong ini-file version"); exit(); }
+   if ((a*0x100+b-VER_HL) | (c-(VER_A & 0x7F))) errexit("wrong ini-file version");
 
    GetPrivateProfileString(misc, "Help",  "help_eng.html", helpname, sizeof helpname, ininame);
    addpath(helpname);
@@ -212,20 +226,6 @@ void load_config(char *fname)
       if (!strnicmp(line, mem_model[i].shortname, strlen(mem_model[i].shortname)))
          conf.mem_model = (MEM_MODEL)i;
    conf.ramsize = GetPrivateProfileInt(misc, "RamSize", 128, ininame);
-
-   if ((conf.mem_model == MM_PENTAGON || conf.mem_model == MM_MYPENT) &&
-        conf.ramsize != 128 && conf.ramsize != 256 && conf.ramsize != 512 && conf.ramsize != 1024)
-      conf.ramsize = 128, printf("invalid RAM size for PENTAGON model\n");
-   if ((conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && conf.ramsize != 256 && conf.ramsize != 1024)
-      conf.ramsize = 256, printf("invalid RAM size for SCORPION model\n");
-   if (conf.mem_model == MM_KAY && conf.ramsize != 256 && conf.ramsize != 1024)
-      conf.ramsize = 256, printf("invalid RAM size for KAY model\n");
-   if (conf.mem_model == MM_PROFI && conf.ramsize != 1024)
-      conf.ramsize = 1024, printf("invalid RAM size for PROFI model\n");
-   if (conf.mem_model == MM_ATM450 && conf.ramsize != 512 && conf.ramsize != 1024)
-      conf.ramsize = 512, printf("invalid RAM size for ATM 4.50 model\n");
-   if (conf.mem_model == MM_ATM710 && conf.ramsize != 128 && conf.ramsize != 256 && conf.ramsize != 512 && conf.ramsize != 1024)
-      conf.ramsize = 1024, printf("invalid RAM size for ATM 7.10 model\n");
 
    GetPrivateProfileString(misc, "DIR", nil, conf.workdir, sizeof conf.workdir, ininame);
 
@@ -323,6 +323,7 @@ void load_config(char *fname)
    conf.wd93_nodelay = GetPrivateProfileInt(beta128, "Fast", 1, ininame);
    conf.trdos_interleave = GetPrivateProfileInt(beta128, "IL", 1, ininame)-1;
    if (conf.trdos_interleave > 2) conf.trdos_interleave = 0;
+   conf.fdd_noise = GetPrivateProfileInt(beta128, "Noise", 0, ininame);
    GetPrivateProfileString(beta128, "BOOT", nil, conf.appendboot, sizeof conf.appendboot, ininame);
    addpath(conf.appendboot);
 
@@ -498,6 +499,15 @@ void apply_memory()
    if (conf.gs_type == 1) { if (load_rom(conf.gs_rom_path, ROM_GS_M, 2) != 32) conf.gs_type = 0; }
    #endif
 
+   if (conf.ramsize != 128 && conf.ramsize != 256 && conf.ramsize != 512 && conf.ramsize != 1024)
+      conf.ramsize = 0;
+   if (!(mem_model[conf.mem_model].availRAMs & conf.ramsize)) {
+      conf.ramsize = mem_model[conf.mem_model].defaultRAM;
+      color(CONSCLR_ERROR);
+      printf("invalid RAM size for %s, using default (%dK)\n",
+         mem_model[conf.mem_model].fullname, conf.ramsize);
+   }
+
    if (conf.mem_model == MM_ATM710) {
       base_sos_rom = ROM_BASE_M + 0*PAGE;
       base_dos_rom = ROM_BASE_M + 1*PAGE;
@@ -512,7 +522,7 @@ void apply_memory()
 
    unsigned romsize;
    if (conf.use_romset) {
-      if (!load_rom(conf.sos_rom_path, base_sos_rom)) { printf("fatal error: failed to load BASIC48 ROM\n"); exit(); }
+      if (!load_rom(conf.sos_rom_path, base_sos_rom)) errexit("failed to load BASIC48 ROM");
       if (!load_rom(conf.zx128_rom_path, base_128_rom) && conf.reset_rom == RM_128) conf.reset_rom = RM_SOS;
       if (!load_rom(conf.dos_rom_path, base_dos_rom)) conf.trdos_present = 0;
       if (!load_rom(conf.sys_rom_path, base_sys_rom) && conf.reset_rom == RM_SYS) conf.reset_rom = RM_SOS;
@@ -522,7 +532,7 @@ void apply_memory()
       if (conf.mem_model == MM_ATM710) {
          romsize = load_rom(conf.atm_rom_path, ROM_BASE_M, 64);
          if (romsize != 64 && romsize != 128 && romsize != 512 && romsize != 1024)
-            printf("invalid ROM size for ATM bios\n"), exit();
+            errexit("invalid ROM size for ATM bios");
          unsigned char *lastpage = ROM_BASE_M + (romsize-64)*1024;
          base_sos_rom = lastpage + 0*PAGE;
          base_dos_rom = lastpage + 1*PAGE;
@@ -531,16 +541,16 @@ void apply_memory()
       } else if (conf.mem_model == MM_PROFSCORP) {
          romsize = load_rom(conf.prof_rom_path, ROM_BASE_M, 16);
          if (romsize != 64 && romsize != 128 && romsize != 256)
-            printf("invalid PROF-ROM size\n"), exit();
+            errexit("invalid PROF-ROM size");
       } else {
          char *romname = 0;
          if (conf.mem_model == MM_PROFI) romname = conf.profi_rom_path;
          if (conf.mem_model == MM_SCORP) romname = conf.scorp_rom_path;
          if (conf.mem_model == MM_KAY) romname = conf.kay_rom_path;
-         if (!romname) printf("error: ROMSET should be defined for this memory model\n"), exit();
+         if (!romname) errexit("ROMSET should be defined for this memory model");
 
          romsize = load_rom(romname, ROM_BASE_M, 64);
-         if (romsize != 64) printf("invalid ROM size for %s\n", mem_model[conf.mem_model].fullname), exit();
+         if (romsize != 64) errexit("invalid ROM filesize");
       }
    }
 
@@ -564,7 +574,7 @@ void apply_memory()
 
 void applyconfig()
 {
-   conf.ticks_frame = (unsigned)(conf.cpufq/conf.intfq);
+   temp.ticks_frame = (unsigned)(temp.cpufq/conf.intfq);
    loadzxkeys(&conf);
    apply_memory();
 
@@ -619,7 +629,7 @@ void loadkeys(action *table)
       char line[0x400];
       GetPrivateProfileString("SYSTEM.KEYS", p->name, "`", line, sizeof line, ininame);
       if (*line == '`') {
-         printf("warning: keydef for %s not found\n", p->name); load_errors = 1;
+         errmsg("keydef for %s not found", p->name); load_errors = 1;
 bad_key: p->k1 = 0xFE, p->k2 = 0xFF, p->k3 = 0xFD;
          continue;
       }
@@ -637,6 +647,7 @@ bad_key: p->k1 = 0xFE, p->k2 = 0xFF, p->k3 = 0xFD;
                   case 2: p->k3 = pckeys[j].virtkey; break;
                   case 3: p->k4 = pckeys[j].virtkey; break;
                   default:
+                     color(CONSCLR_ERROR);
                      printf("warning: too many keys in %s=%s\n", p->name, line);
                      load_errors = 1;
                }
@@ -644,7 +655,9 @@ bad_key: p->k1 = 0xFE, p->k2 = 0xFF, p->k3 = 0xFD;
                break;
             }
          if (j == sizeof pckeys / sizeof *pckeys) {
-            char x = *s; *s = 0; printf("bad key: %s\n", s1); *s = x;
+            color(CONSCLR_ERROR);
+            char x = *s; *s = 0;
+            printf("bad key: %s\n", s1); *s = x;
             load_errors = 1;
          }
       }

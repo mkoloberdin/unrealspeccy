@@ -17,7 +17,7 @@
 #include <malloc.h>
 #include <conio.h>
 #include <math.h>
-#include <mmintrin.h>
+#include <emmintrin.h>
 
 #if 0
 
@@ -51,3 +51,5 @@
 
 #define CACHE_LINE 64
 #define CACHE_ALIGNED __declspec(align(CACHE_LINE))
+
+#define INLINE __forceinline

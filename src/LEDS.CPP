@@ -1,18 +1,19 @@
 #include "font.cpp"
 unsigned led_updtime, pitch;
 
-void text_i(unsigned char *dst, char *text, unsigned char ink)
+void text_i(unsigned char *dst, char *text, unsigned char ink, unsigned off = 0)
 {
-   unsigned off = 0;
-   unsigned char mask = (conf.flashcolor)? 0x78 : 0xF0; ink &= ~mask;
+   unsigned char mask = 0xF0; ink &= 0x0F;
    for (unsigned char *x = (unsigned char*)text; *x; x++) {
       unsigned char *d0 = dst;
       for (unsigned y = 0; y < 8; y++) {
          unsigned char byte = font[(*x)*8+y];
-         if (!off) d0[0] = byte, d0[1] = (d0[1] & mask) + ink;
-         else d0[0] |= (byte >> off),
-              d0[2] = byte << (8-off),
-              d0[3] = (d0[3] & mask) + ink;
+         d0[0] = (byte >> off) + (d0[0] & ~(0xFC >> off));
+         d0[1] = (d0[1] & 0xF0) + ink;
+         if (off > 2) {
+            d0[2] = (byte << (8-off)) + (d0[2] & ~(0xFC << (8-off)));
+            d0[3] = (d0[3] & 0xF0) + ink;
+         }
          d0 += pitch;
       }
       off += 6; if (off & 8) off -= 8, dst += 2;
@@ -172,8 +173,10 @@ void load_led()
          for (i = 0; i < 5; i++, ptr = (unsigned*)((char*)ptr+pitch))
             *ptr = (*ptr & WORD4(0,0xF0,0,0xF0)) | WORD4(disk[2*i],diskcolor,disk[2*i+1],diskcolor);
       }
-      sprintf(ln, "%02X", comp.wd.seldrive->track*2 + comp.wd.side);
-      text_i(temp.led.load + pitch - 4, ln, 0x05 + (diskcolor & 8));
+      if (comp.wd.seldrive->track != 0xFF) {
+         sprintf(ln, "%02X", comp.wd.seldrive->track*2 + comp.wd.side);
+         text_i(temp.led.load + pitch - 4, ln, 0x05 + (diskcolor & 8));
+      }
    }
 }
 
@@ -309,7 +312,7 @@ void show_mband(unsigned char *dst, unsigned start)
    }
 
    sprintf(xx, "%02X", (start-1) >> 8);
-   text_i(dst, xx, 0x0B);
+   text_i(dst, xx, 0x0B, 2);
 
    for (i = 0; i < 8; i++)
       dst[i*pitch] |= 0x80, dst[i*pitch - 17*2] |= 0x01;

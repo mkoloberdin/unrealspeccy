@@ -12,7 +12,6 @@ void set_banks()
    if (comp.flags & CF_TRDOS) bank0 = (comp.p7FFD & 0x10)? base_dos_rom : base_sys_rom, comp.flags |= CF_LEAVEROM | CF_DOSPORTS;
    else bank0 = (comp.p7FFD & 0x10)? base_sos_rom : base_128_rom, comp.flags &= ~(CF_LEAVEROM | CF_DOSPORTS);
 
-
    unsigned bank = (comp.p7FFD & 7); unsigned char *bank3;
 
    switch (conf.mem_model)

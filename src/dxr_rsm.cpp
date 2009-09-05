@@ -179,14 +179,11 @@ void __fastcall render_rsm(unsigned char *dst, unsigned pitch)
    rsm.colortab = (__m64*)((int)rsm.tables + rsm.frame * rsm.frame_table_size);
    unsigned char *src = rbuf_s + rb2_offs * rsm.rbuf_dst;
 
-//unsigned t1 = (unsigned)rdtsc();
-
    if (temp.obpp ==  8) rend_rsm_8 (dst, pitch, src);
    if (temp.obpp == 16) { if (rsm.mode == 0) rend_rsm_16(dst, pitch, src); else rend_rsm_16o(dst, pitch, src); }
    if (temp.obpp == 32) rend_rsm_32(dst, pitch, src);
 
    _mm_empty(); // EMMS
-//unsigned t2 = (unsigned)rdtsc(); printf("%d ", t2-t1);
 }
 
 unsigned gcd(unsigned x, unsigned y)
@@ -255,7 +252,6 @@ void calc_rsm_tables()
       double low_b = 0, high_b = 0;
       for (unsigned frame = 0; frame < rsm.period; frame++)
       {
-//printf("f%d:", frame); double sum = 0;
          unsigned pos = frame * step, srcframe = pos / rsm.period;
          if (frame) srcframe++; // (pos % rsm.period) != 0
 
@@ -268,13 +264,11 @@ void calc_rsm_tables()
          for (unsigned ch = 0; ch < rsm.mix_frames; ch++) {
             double weight = flt[offset] * rsm.period;
             if (weight < 0) low += weight; else high += weight;
-//printf("%4d", (int)(weight*256)); sum += weight;
             *dst++ = weight;
             offset += rsm.period;
          }
          if (low < low_b) low_b = low;
          if (high > high_b) high_b = high;
-//printf(": s=%d,l=%d,h=%d\n", (int)(256*sum), (int)(256*low), (int)(256*high));
       }
       low_bias = (unsigned)((-low_b)*0xFF);
       dynamic_range = (0xFF - low_bias);
@@ -293,7 +287,6 @@ void calc_rsm_tables()
    }
 
    rsm.bias = 0x01010101 * low_bias;
-//printf("bias: %d, range: %d\n", low_bias, dynamic_range);
 
    unsigned char *dst32 = (unsigned char*)rsm.tables;
    for (unsigned frame = 0; frame < rsm.period; frame++)
