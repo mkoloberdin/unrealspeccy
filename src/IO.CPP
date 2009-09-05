@@ -209,7 +209,11 @@ __inline unsigned char in1(unsigned port)
          if (port == 0xFFDF) return input.kempston_my();
          return input.mbuttons;
       }
-      if (conf.input.kjoy) { input.mouse_joy_led |= 2; return input.kjoy; }
+      input.mouse_joy_led |= 2;
+      unsigned char res = (conf.input.kjoy)? input.kjoy : 0xFF;
+      if (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP)
+         res = (res & 0x1F) | (comp.wd.in(0xFF) & 0xE0);
+      return res;
    }
    if (!(port & 1)) { // port #FE
       if ((cpu.pc & 0xFFFF) == 0x0564 && bankr[0][0x0564]==0x1F && conf.tape_autostart && !comp.tape.play_pointer) start_tape();

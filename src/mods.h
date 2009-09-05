@@ -1,9 +1,9 @@
 
 /* edit this file to make optimized versions without unnecessary parts */
 
-#define VERS_STRING  "0.31b "   // version for monitor (exact 6 chars)
-#define VERS_STRING_ "0.31b"    // version for startup string (any length)
-#define VER_HL 0x001F           // major version
+#define VERS_STRING  "0.32b "   // version for monitor (exact 6 chars)
+#define VERS_STRING_ "0.32b"    // version for startup string (any length)
+#define VER_HL 0x0020           // major version
 #define VER_A  0x00             // minor version and beta flag
 
 #define MOD_GSZ80     // exact gs emulation through Z80/ROM/DACs
@@ -11,6 +11,7 @@
 #define MOD_FASTCORE  // use optimized code for Z80 when no breakpoints set
 #define MOD_SETTINGS  // win32 dialog with emulation settings and tape browser
 #define MOD_MONITOR   // debugger
+#define MOD_MEMBAND_LED // 'memory band' led
 
 /* ************************************************************************* */
 /* * don't edit below this line                                            * */
@@ -20,7 +21,7 @@
 #define MOD_GS
 #endif
 
-#if defined(MOD_MONITOR)
+#if defined(MOD_MONITOR) || defined(MOD_MEMBAND_LED)
 #define MOD_DEBUGCORE
 #endif
 

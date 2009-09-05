@@ -38,7 +38,7 @@ void FDD::newdisk(unsigned cyls, unsigned sides)
    FDD::cyls = cyls; FDD::sides = sides;
    unsigned len = MAX_TRACK_LEN;
    unsigned len2 = len + (len/8) + ((len & 7) ? 1 : 0);
-   rawsize = align(cyls * sides * len2, 4096);
+   rawsize = align_by(cyls * sides * len2, 4096);
    rawdata = (unsigned char*)VirtualAlloc(0, rawsize, MEM_COMMIT, PAGE_READWRITE);
    // ZeroMemory(rawdata, rawsize); // already done by VirtualAlloc
 

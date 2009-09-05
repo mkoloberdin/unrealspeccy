@@ -241,7 +241,7 @@ struct CONFIG
 
    unsigned char floatbus, floatdos;
    unsigned char modem_port;
-   unsigned char r1; // modem_type
+   unsigned char r1; // reserved for modem_scheme
 
    unsigned char trdos_present, trdos_interleave;
    unsigned char trdos_traps, wd93_nodelay;
@@ -253,9 +253,12 @@ struct CONFIG
    unsigned char ula_preset;
 
    unsigned char gs_type;
-   unsigned char sleepidle;
    unsigned char pixelscroll;
    unsigned char ide_skip_real;
+   unsigned char sleepidle;
+
+   unsigned char highpriority;
+   unsigned char videoscale;
 
    MEM_MODEL mem_model;
    unsigned ramsize, romsize;
@@ -563,7 +566,6 @@ struct action {
 
 // flags for video filters
                                 // misc options
-#define RF_DBL      0x00000001   // double size for border
 #define RF_BORDER   0x00000002   // no multicolor painter, read directly from spectrum memory
 #define RF_MON      0x00000004   // not-flippable surface, show mouse cursor
 #define RF_DRIVER   0x00000008   // use options from driver
@@ -573,11 +575,13 @@ struct action {
 #define RF_OVR      0x00000080   // output to overlay
 
                                 // main area size
-#define RF_256      0x00000000   // 256x192 (default)
-#define RF_1024     0x00000100   // quad size
-#define RF_512      0x00000200   // 512x384
+#define RF_1X       0x00000000   // 256x192,320x240 with border (default)
+#define RF_2X       0x00000100   // default x2
+#define RF_3X       0x00000001   // default x3
+#define RF_4X       0x00000200   // default x4
 #define RF_64x48    0x00000400   // 64x48  (for chunky 4x4)
 #define RF_128x96   0x00000800   // 128x96 (for chunky 2x2)
+
 #define RF_8        0x00000000   // 8 bit (default)
 #define RF_8BPCH    0x00001000   // 8-bit per color channel. GDI mode => 32-bit surface. 8-bit mode => grayscale palette
 #define RF_YUY2     0x00002000   // pixel format: 16bit, YUY2
@@ -591,4 +595,4 @@ struct action {
 #define RF_ATMPAL   0x00100000  // use palette from ATM palette registers
 #define RF_GRAY     0x00200000  // grayscale palette
 
-#define RF_MONITOR (RF_MON | RF_GDI | RF_512)
+#define RF_MONITOR (RF_MON | RF_GDI | RF_2X)

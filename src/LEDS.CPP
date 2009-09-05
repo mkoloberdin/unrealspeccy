@@ -271,7 +271,7 @@ void debug_led()
 }
 #endif
 
-#ifdef MOD_DEBUGCORE
+#ifdef MOD_MEMBAND_LED
 void show_mband(unsigned char *dst, unsigned start)
 {
    char xx[8]; sprintf(xx, "%02X", start >> 8);
@@ -419,7 +419,7 @@ __inline void showleds()
 #ifdef MOD_MONITOR
    if (temp.led.osw) debug_led();
 #endif
-#ifdef MOD_DEBUGCORE
+#ifdef MOD_MEMBAND_LED
    if (temp.led.memband) memband_led();
 #endif
    if (conf.led.flash_ay_kbd && hndKbdDev) ay_kbd();

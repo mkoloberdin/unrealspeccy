@@ -33,7 +33,7 @@ void set_banks()
       case MM_SCORP:
          bank += ((comp.p1FFD & 0x10) >> 1) + ((comp.p1FFD & 0xC0) >> 2);
          bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
-         if (comp.p1FFD & 2) bank0 = base_sys_rom, comp.flags |= CF_DOSPORTS; // bug-hack: dos ports not activated on scheme
+         if (comp.p1FFD & 2) bank0 = base_sys_rom;
          if (comp.p1FFD & 1) bank0 = RAM_BASE_M + 0*PAGE;
          if (conf.mem_model == MM_PROFSCORP) { if (bank0==base_sys_rom) comp.flags |= CF_PROFROM; else comp.flags &= ~CF_PROFROM; }
          break;

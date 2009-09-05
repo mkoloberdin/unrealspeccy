@@ -3,11 +3,18 @@
 #define MAX_HEIGHT 304
 #define MAX_BUFFERS 8
 
-__int64 rbuf__[MAX_HEIGHT*MAX_WIDTH_P*(MAX_BUFFERS+1)/sizeof(__int64)]; // force QWORD align
-const rb2_offs = sizeof(rbuf__) / (MAX_BUFFERS+2);
+const rb2_offs = MAX_HEIGHT*MAX_WIDTH_P;
+const sizeof_rbuf = rb2_offs*(MAX_BUFFERS+2);
+
+#ifdef CACHE_ALIGNED
+CACHE_ALIGNED unsigned char rbuf[sizeof_rbuf];
+#else // __declspec(align) not available, force QWORD align with old method
+__int64 rbuf__[sizeof_rbuf/sizeof(__int64)];
 unsigned char * const rbuf = (unsigned char*)rbuf__;
-unsigned char * const rbuf_s = rbuf + rb2_offs;
-unsigned char * const save_buf = rbuf_s + rb2_offs*MAX_BUFFERS;
+#endif
+
+unsigned char * const rbuf_s = rbuf + rb2_offs; // frames to mix with noflic and resampler filters
+unsigned char * const save_buf = rbuf_s + rb2_offs*MAX_BUFFERS; // used in monitor
 
 struct videopoint
 {
@@ -20,9 +27,11 @@ struct videopoint
    unsigned scr_offs;
 };
 
+const sc2lines_width = MAX_WIDTH*2;
+
 #define MAX_FONT_TABLES 0x62000
 struct {
-   union { // switch palette/color values
+   CACHE_ALIGNED union { // switch palette/color values
       struct { // 8bit
          unsigned sctab8[2][16*0x100];  //4 bits data+pc-attribute -> 4 palette pixels
          unsigned sctab8d[2][4*0x100];  //2 bits data+pc-attribute -> 2 palette pixels (doubled)
@@ -43,6 +52,10 @@ struct {
       };
    };
    union {
+      struct {
+         CACHE_ALIGNED unsigned char scale2buf[8][sc2lines_width];    // temp buffer for scale2x,3x filter
+         CACHE_ALIGNED unsigned char scale4buf[8][sc2lines_width];    // temp buffer for scale4x filter
+      };
       unsigned bs2h[96][129];      // temp buffer for chunks 2x2 flt
       unsigned bs4h[48][65];       // temp buffer for chunks 4x4 flt
       unsigned font_tables[MAX_FONT_TABLES / sizeof(unsigned)]; // for anti-text64
@@ -408,7 +421,7 @@ void pixel_tables()
       }
    }
    if (temp.obpp > 8 && conf.noflic) calc_noflic_16_32();
-   if ((temp.rflags & (RF_DRIVER|RF_512|RF_USEFONT))==(RF_DRIVER|RF_512) && // render="double"
+   if ((temp.rflags & (RF_DRIVER|RF_2X|RF_USEFONT))==(RF_DRIVER|RF_2X) && // render="double"
        (conf.mem_model == MM_ATM710 || conf.mem_model == MM_PROFI))
       hires_sc_tables();
 }
@@ -534,10 +547,15 @@ void apply_video()
    temp.rflags = renders[conf.render].flags;
    if (conf.atm.use_pal && (conf.mem_model == MM_ATM710)) {
       temp.rflags |= RF_ATMPAL | RF_PALB;
-      // disable palette noflic, only if it used (e.g. filter = normal/double/quad, but not antitext/resampler)
+      // disable palette noflic, only if it is really used
       if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_USEFONT | RF_8BPCH)) == RF_DRIVER) conf.noflic = 0;
    }
    if (renders[conf.render].func == render_rsm) conf.flip = 1; // todo: revert back after returning from frame resampler
+   if (renders[conf.render].func == render_advmame) {
+      if (conf.videoscale == 2) temp.rflags |= RF_2X;
+      if (conf.videoscale == 3) temp.rflags |= RF_3X;
+      if (conf.videoscale == 4) temp.rflags |= RF_4X;
+   }
    set_video();
    calc_rsm_tables();
    video_timing_tables();

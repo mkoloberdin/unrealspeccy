@@ -708,10 +708,10 @@ BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          sh = (f & RF_BORDER)? SW_HIDE : SW_SHOW;
          ShowWindow(GetDlgItem(dlg, IDC_FLASH), sh);
 
-         sh = (((f & (RF_DRIVER | RF_8BPCH | RF_USEFONT)) == RF_DRIVER) || (rend == render_tv))? SW_SHOW : SW_HIDE;
+         sh = (((f & (RF_DRIVER | RF_8BPCH | RF_USEFONT)) == RF_DRIVER) || (rend == render_tv) || (rend == render_advmame))? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_NOFLIC), sh);
 
-         if (!(f & RF_512) || getcheck(IDC_FAST_SL) || !getcheck(IDC_NOFLIC)) sh = SW_HIDE;
+         if (!(f & RF_2X) || getcheck(IDC_FAST_SL) || !getcheck(IDC_NOFLIC)) sh = SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_ALT_NOFLIC), sh);
 
          sh = (f & (RF_USEFONT)) ? SW_SHOW : SW_HIDE;
@@ -726,13 +726,21 @@ BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          sh = (rend == render_rsm)? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_FIR), sh);
 
-         sh = (f & RF_512) && (f & (RF_DRIVER | RF_USEC32))? SW_SHOW : SW_HIDE;
+         sh = (f & RF_2X) && (f & (RF_DRIVER | RF_USEC32))? SW_SHOW : SW_HIDE;
          ShowWindow(GetDlgItem(dlg, IDC_FAST_SL), sh);
+
+         sh = (rend == render_advmame)? SW_SHOW : SW_HIDE;
+         ShowWindow(GetDlgItem(dlg, IDC_VIDEOSCALE), sh);
+         ShowWindow(GetDlgItem(dlg, IDC_VSCALE_TITLE1), sh);
+         ShowWindow(GetDlgItem(dlg, IDC_VSCALE_TITLE2), sh);
+         ShowWindow(GetDlgItem(dlg, IDC_VSCALE_TITLE3), sh);
       }
       return 1;
    }
+
    if (msg != WM_NOTIFY) return 0;
    NMHDR *nm = (NMHDR*)lp;
+
    if (nm->code == PSN_KILLACTIVE) {
       unsigned index = SendDlgItemMessage(dlg, IDC_FONTHEIGHT, CB_GETCURSEL, 0, 0);
       c1.pixelscroll = (index == 4)? 0 : 1;
@@ -757,7 +765,9 @@ BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       if (getcheck(IDC_CH_AUTO)) c1.ch_size = 0;
       if (getcheck(IDC_CH2)) c1.ch_size = 2;
       if (getcheck(IDC_CH4)) c1.ch_size = 4;
+      c1.videoscale = (unsigned char)(SendDlgItemMessage(dlg, IDC_VIDEOSCALE, TBM_GETPOS, 0, 0));
    }
+
    if (nm->code == PSN_SETACTIVE) {
       setint(IDE_SKIP1, c1.frameskip);
       setint(IDE_SKIP2, c1.frameskipmax);
@@ -770,6 +780,9 @@ BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       setcheck(IDC_NOFLIC, c1.noflic);
       setcheck(IDC_ALT_NOFLIC, c1.alt_nf);
       setcheck(IDC_FAST_SL, c1.fast_sl);
+
+      SendDlgItemMessage(dlg, IDC_VIDEOSCALE, TBM_SETRANGE, 0, MAKELONG(1,4));
+      SendDlgItemMessage(dlg, IDC_VIDEOSCALE, TBM_SETPOS, 1, c1.videoscale);
 
       SendDlgItemMessage(dlg, IDC_B0, BM_SETCHECK, c1.bordersize==0 ? BST_CHECKED : BST_UNCHECKED, 0);
       SendDlgItemMessage(dlg, IDC_B1, BM_SETCHECK, c1.bordersize==1 ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -1083,7 +1096,7 @@ BOOL CALLBACK LedsDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       EnableWindow(GetDlgItem(dlg, IDC_LED_DEBUG), 0);
       #endif
 
-      #ifndef MOD_DEBUGCORE
+      #ifndef MOD_MEMBAND_LED
       c1.led.memband &= 0x7FFFFFFF;
       EnableWindow(GetDlgItem(dlg, IDC_LED_MEMBAND), 0);
       #endif
@@ -1225,96 +1238,61 @@ reload:
 
 void setup_dlg()
 {
-   sound_stop();
-
    PROPSHEETPAGE psp[16] = { 0 };
    PROPSHEETPAGE *ps = psp;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_MEM);
    ps->pszTitle      = "MEMORY";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = MemDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_VIDEO);
    ps->pszTitle      = "VIDEO";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = VideoDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_ULA);
    ps->pszTitle      = "ULA";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = UlaDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_HDD);
    ps->pszTitle      = "HDD";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = HddDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_EFF7);
    ps->pszTitle      = "EFF7";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = EFF7Dlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_CHIP);
    ps->pszTitle      = "AY";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = ChipDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_SOUND);
    ps->pszTitle      = "SOUND";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = SoundDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_INPUT);
    ps->pszTitle      = "INPUT";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = InputDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_TAPE);
    ps->pszTitle      = "TAPE";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = TapeDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_BETA128);
    ps->pszTitle      = "Beta128";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = BetaDlg;
    ps++;
 
-   ps->dwSize        = sizeof(PROPSHEETPAGE);
-   ps->hInstance     = hIn;
    ps->pszTemplate   = MAKEINTRESOURCE(IDD_LEDS);
    ps->pszTitle      = "LEDS";
-   ps->dwFlags       = PSP_USETITLE;
    ps->pfnDlgProc    = LedsDlg;
    ps++;
 
@@ -1328,10 +1306,18 @@ void setup_dlg()
    psh.pStartPage       = lastpage;
    psh.nPages           = ps - psp;
 
-   c1 = conf;
-   PropertySheet(&psh);
+   for (unsigned i = 0; i < psh.nPages; i++) {
+      psp[i].dwSize = sizeof(PROPSHEETPAGE);
+      psp[i].hInstance = hIn;
+      psp[i].dwFlags = PSP_USETITLE;
+   }
 
+   // temp.rflags = RF_MONITOR; set_video();
+   sound_stop();
+
+   c1 = conf; PropertySheet(&psh);
    if (dlgok) conf = c1;
+
    eat();
    SendMessage(wnd, WM_SETFOCUS, (WPARAM)wnd, 0); // show cursor for 'kempston on mouse'
    applyconfig();

@@ -49,8 +49,8 @@ void MON_LABELS::stop_watching_labels()
 unsigned MON_LABELS::add_name(char *name)
 {
    unsigned len = strlen(name)+1, new_size = names_size + len;
-   if (new_size > align(names_size, 4096))
-      names = (char*)realloc(names, align(new_size, 4096));
+   if (new_size > align_by(names_size, 4096))
+      names = (char*)realloc(names, align_by(new_size, 4096));
    unsigned result = names_size;
    memcpy(names + result, name, len);
    names_size = new_size;
@@ -84,8 +84,8 @@ void MON_LABELS::sort()
 
 void MON_LABELS::add(unsigned char *address, char *name)
 {
-   if (n_pairs >= align(n_pairs, 1024))
-      pairs = (MON_LABEL*)realloc(pairs, sizeof(MON_LABEL) * align(n_pairs+1, 1024));
+   if (n_pairs >= align_by(n_pairs, 1024))
+      pairs = (MON_LABEL*)realloc(pairs, sizeof(MON_LABEL) * align_by(n_pairs+1, 1024));
    pairs[n_pairs].address = address;
    pairs[n_pairs].name_offs = add_name(name);
    n_pairs++;

@@ -147,9 +147,7 @@ void mon_emul()
 
 void mon_scr(char alt)
 {
-   unsigned char prev_lock = conf.lockmouse; conf.lockmouse = 0;
    apply_video();
-   conf.lockmouse = prev_lock;
 
    memcpy(save_buf, rbuf, rb2_offs);
    paint_scr(alt);

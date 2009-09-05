@@ -26,7 +26,7 @@ LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
 //
 
 IDD_FILTER_DIALOG DIALOGEX 0, 0, 186, 95
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION |
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Select video filter"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
@@ -43,7 +43,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO
+GUIDELINES DESIGNINFO 
 BEGIN
     IDD_FILTER_DIALOG, DIALOG
     BEGIN
@@ -78,19 +78,19 @@ STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "&Stereo Preset",IDC_STATIC,7,10,71,8
-    COMBOBOX        IDC_CHIP_STEREO,88,7,100,100,CBS_DROPDOWNLIST |
+    COMBOBOX        IDC_CHIP_STEREO,88,7,100,100,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Volume Table",IDC_STATIC,7,24,44,8
-    COMBOBOX        IDC_CHIP_VOL,88,22,100,100,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_CHIP_VOL,88,22,100,100,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     LTEXT           "&Turbo Scheme",IDC_STATIC,7,40,71,8
-    COMBOBOX        IDC_CHIP_SCHEME,88,37,100,100,CBS_DROPDOWNLIST |
+    COMBOBOX        IDC_CHIP_SCHEME,88,37,100,100,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Chip Clock Speed",IDC_STATIC,7,54,63,8
-    COMBOBOX        IDC_CHIP_CLK,88,52,100,100,CBS_DROPDOWN | CBS_SORT |
+    COMBOBOX        IDC_CHIP_CLK,88,52,100,100,CBS_DROPDOWN | CBS_SORT | 
                     WS_VSCROLL | WS_TABSTOP
     LTEXT           "&Bus Reaction",IDC_STATIC,7,68,57,8
-    COMBOBOX        IDC_CHIP_BUS,88,67,100,100,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_CHIP_BUS,88,67,100,100,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     CONTROL         "Use &Digital Samples",IDC_CHIP_DIGITAL,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,83,79,10
@@ -101,10 +101,10 @@ STYLE DS_SETFONT | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "&Memory logic:",IDC_STATIC,7,10,49,8
-    COMBOBOX        IDC_MEM,58,8,143,80,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_MEM,58,8,143,80,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     LTEXT           "RAM size:",IDC_STATIC,13,29,36,8
-    CONTROL         "&128K",IDC_RAM128,"Button",BS_AUTORADIOBUTTON |
+    CONTROL         "&128K",IDC_RAM128,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,58,29,31,9
     CONTROL         "&256K",IDC_RAM256,"Button",BS_AUTORADIOBUTTON,92,29,31,
                     9
@@ -117,22 +117,22 @@ BEGIN
                     BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,14,47,86,9
     CONTROL         "Custom &ROMSET",IDC_CUSTOM_ROM,"Button",
                     BS_AUTORADIOBUTTON,14,76,69,9
-    RTEXT           "Loaded ROM size: 64K",IDC_TOTAL_ROM,106,48,87,8,NOT
+    RTEXT           "Loaded ROM size: 64K",IDC_TOTAL_ROM,106,48,87,8,NOT 
                     WS_VISIBLE
     EDITTEXT        IDE_BIGROM,14,58,164,13,ES_AUTOHSCROLL | ES_READONLY
-    CONTROL         "",IDC_FILEBANK,"msctls_updown32",UDS_ALIGNRIGHT |
+    CONTROL         "",IDC_FILEBANK,"msctls_updown32",UDS_ALIGNRIGHT | 
                     UDS_AUTOBUDDY | UDS_ARROWKEYS,163,54,11,13
     PUSHBUTTON      "...",IDB_ROMSEL_S,181,58,14,12
-    COMBOBOX        IDC_ROMSET,87,73,108,81,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_ROMSET,87,73,108,81,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    COMBOBOX        IDC_ROMPAGE,14,89,70,80,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_ROMPAGE,14,89,70,80,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     EDITTEXT        IDE_ROMNAME,87,89,91,13,ES_AUTOHSCROLL | ES_READONLY
-    CONTROL         "Spin2",IDC_FILEPAGE,"msctls_updown32",UDS_ALIGNRIGHT |
+    CONTROL         "Spin2",IDC_FILEPAGE,"msctls_updown32",UDS_ALIGNRIGHT | 
                     UDS_AUTOBUDDY | UDS_ARROWKEYS,164,86,11,13
     PUSHBUTTON      "...",IDB_ROMSEL_P,181,89,14,12
     LTEXT           "Cache size:",IDC_STATIC,7,110,40,8
-    CONTROL         "&none",IDC_CACHE0,"Button",BS_AUTORADIOBUTTON |
+    CONTROL         "&none",IDC_CACHE0,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,55,110,29,9
     CONTROL         "1&6K",IDC_CACHE16,"Button",BS_AUTORADIOBUTTON,90,110,26,
                     9
@@ -140,7 +140,7 @@ BEGIN
                     25,9
     GROUPBOX        "",IDC_STATIC,7,40,194,66
     LTEXT           "CMOS chip:",IDC_STATIC,7,122,40,8
-    CONTROL         "n&one",IDC_CMOS_NONE,"Button",BS_AUTORADIOBUTTON |
+    CONTROL         "n&one",IDC_CMOS_NONE,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,55,122,29,9
     CONTROL         "&DALLAS",IDC_CMOS_DALLAS,"Button",BS_AUTORADIOBUTTON,90,
                     122,41,9
@@ -155,13 +155,13 @@ STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Loa&d Preset",IDC_STATIC,7,9,45,8
-    COMBOBOX        IDC_ULAPRESET,62,7,111,74,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_ULAPRESET,62,7,111,74,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    CONTROL         "&Even M1",IDC_EVENM1,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Even M1",IDC_EVENM1,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,27,40,10
-    CONTROL         "no pape&r",IDC_NOPAPER,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "no pape&r",IDC_NOPAPER,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,40,43,10
-    CONTROL         "&4T border",IDC_4TBORDER,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&4T border",IDC_4TBORDER,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,53,44,10
     CONTROL         "memory &contention",IDC_CONTMEM,"Button",
                     BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,7,66,84,10
@@ -179,7 +179,7 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,88,80,85,10
     CONTROL         "&Swap A5-A7, A8-A10 on ATM RG0",IDC_ATM_SWAP,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,14,102,127,10
-    CONTROL         "Use ATM p&alette",IDC_ATMPAL,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Use ATM p&alette",IDC_ATMPAL,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,14,113,69,10
     GROUPBOX        "ATM options",IDC_STATIC,7,92,166,33
 END
@@ -188,7 +188,7 @@ IDD_LEDS DIALOG  0, 0, 188, 146
 STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif"
 BEGIN
-    CONTROL         "&Enable leds",IDC_LED_ON,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Enable leds",IDC_LED_ON,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,7,68,10
     LTEXT           "X",IDC_STATIC,84,10,10,8
     LTEXT           "Y",IDC_STATIC,106,10,9,8
@@ -196,34 +196,34 @@ BEGIN
                     22,38,10
     EDITTEXT        IDC_LED_AY_X,80,21,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_AY_Y,101,21,19,14,ES_AUTOHSCROLL
-    CONTROL         "&Loading",IDC_LED_LOAD,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Loading",IDC_LED_LOAD,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,38,66,10
     EDITTEXT        IDC_LED_ROM_X,80,36,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_ROM_Y,101,36,19,14,ES_AUTOHSCROLL
-    CONTROL         "&Input",IDC_LED_INPUT,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Input",IDC_LED_INPUT,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,53,58,10
     EDITTEXT        IDC_LED_INPUT_X,80,52,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_INPUT_Y,101,52,19,14,ES_AUTOHSCROLL
-    CONTROL         "&Perfomance",IDC_LED_PERF,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Perfomance",IDC_LED_PERF,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,69,56,10
     EDITTEXT        IDC_LED_PERF_X,80,67,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_PERF_Y,101,67,19,14,ES_AUTOHSCROLL
-    CONTROL         "&T-states",IDC_PERF_T,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&T-states",IDC_PERF_T,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,124,69,55,10
-    CONTROL         "Local Ti&me",IDC_LED_TIME,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Local Ti&me",IDC_LED_TIME,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,84,62,10
     EDITTEXT        IDC_LED_TIME_X,80,82,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_TIME_Y,101,82,19,14,ES_AUTOHSCROLL
-    CONTROL         "&On-scr watches",IDC_LED_DEBUG,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&On-scr watches",IDC_LED_DEBUG,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,100,69,10
     EDITTEXT        IDC_LED_DEBUG_X,80,97,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_DEBUG_Y,101,97,19,14,ES_AUTOHSCROLL
-    CONTROL         "Memory &Band",IDC_LED_MEMBAND,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Memory &Band",IDC_LED_MEMBAND,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,115,69,10
     EDITTEXT        IDC_LED_MEMBAND_X,80,112,19,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_LED_MEMBAND_Y,101,112,19,14,ES_AUTOHSCROLL
-    CONTROL         "Slider1",IDC_LED_BPP,"msctls_trackbar32",
-                    TBS_AUTOTICKS | WS_TABSTOP,123,112,64,17
+    CONTROL         "Slider1",IDC_LED_BPP,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    WS_TABSTOP,123,112,64,17
     CONTROL         "Use &keyboard leds for AY",IDC_LED_AYKBD,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,130,144,10
 END
@@ -235,34 +235,34 @@ BEGIN
     CONTROL         "&Disable sound (max speed)",IDC_NOSOUND,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,7,107,10
     LTEXT           "&Beeper",IDC_STATIC,7,18,58,8
-    CONTROL         "Slider1",IDC_SND_BEEPER,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider1",IDC_SND_BEEPER,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,18,130,10
     LTEXT           "&MIC out",IDC_STATIC,7,29,59,8
-    CONTROL         "Slider2",IDC_SND_MICOUT,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider2",IDC_SND_MICOUT,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,30,130,10
     LTEXT           "MIC &in",IDC_STATIC,7,41,60,8
-    CONTROL         "Slider3",IDC_SND_MICIN,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider3",IDC_SND_MICIN,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,42,130,10
     LTEXT           "Sound C&hip:",IDC_STATIC,7,56,63,8
-    CONTROL         "Slider4",IDC_SND_AY,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider4",IDC_SND_AY,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,56,130,10
     LTEXT           "&Covox on FB",IDC_STATIC,7,70,63,8
-    CONTROL         "Slider6",IDC_SND_COVOXFB,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider6",IDC_SND_COVOXFB,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,70,130,10
     LTEXT           "Co&vox on DD",IDC_STATIC,7,84,65,8
-    CONTROL         "Slider7",IDC_SND_COVOXDD,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider7",IDC_SND_COVOXDD,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,84,130,10
     LTEXT           "S&oundrive",IDC_STATIC,7,97,65,8
-    CONTROL         "Slider8",IDC_SND_SD,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider8",IDC_SND_SD,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,96,130,10
     LTEXT           "B&ASS mod-player",IDC_BASS_TITLE,7,109,56,8
-    CONTROL         "Slider1",IDC_SND_BASS,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider1",IDC_SND_BASS,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,108,82,10
     PUSHBUTTON      "&save mod",IDB_SAVEMOD,163,107,44,12
     LTEXT           "G&eneral Sound",IDC_GS_TITLE,7,122,68,8
-    CONTROL         "Slider2",IDC_SND_GS,"msctls_trackbar32",TBS_BOTH |
+    CONTROL         "Slider2",IDC_SND_GS,"msctls_trackbar32",TBS_BOTH | 
                     TBS_NOTICKS | WS_TABSTOP,77,121,82,10
-    CONTROL         "GS &Reset",IDC_GSRESET,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "GS &Reset",IDC_GSRESET,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,164,121,43,10
 END
 
@@ -281,45 +281,45 @@ IDD_BETA128 DIALOGEX 0, 0, 210, 130
 STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    CONTROL         "&Enable Beta128",IDC_BETA128,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Enable Beta128",IDC_BETA128,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,8,9,68,10
-    CONTROL         "No dela&ys",IDC_DISK_NODELAY,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "No dela&ys",IDC_DISK_NODELAY,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,84,9,45,10
     CONTROL         "&Trap tr-dos r/w",IDC_DISK_TRAPS,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,138,9,64,10
     LTEXT           "Disk in drive A",IDC_STATIC,8,20,50,8
     PUSHBUTTON      "&Remove",IDB_REM_A,61,21,33,10
-    CONTROL         "&Write protected",IDC_WPA,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Write protected",IDC_WPA,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,96,20,61,10
     LTEXT           "unsaved",IDC_MODA,167,20,35,8,NOT WS_VISIBLE
-    EDITTEXT        IDE_DISK_A,7,31,121,14,ES_AUTOHSCROLL | ES_READONLY |
+    EDITTEXT        IDE_DISK_A,7,31,121,14,ES_AUTOHSCROLL | ES_READONLY | 
                     NOT WS_TABSTOP
     PUSHBUTTON      "&Load...",IDB_INS_A,130,31,32,14
     PUSHBUTTON      "&Save...",IDB_SAVE_A,164,31,32,14
     LTEXT           "Disk in drive B",IDC_STATIC,8,47,50,8
     PUSHBUTTON      "Re&move",IDB_REM_B,61,46,33,11
-    CONTROL         "Wr&ite protected",IDC_WPB,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Wr&ite protected",IDC_WPB,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,96,46,67,10
     LTEXT           "unsaved",IDC_MODB,167,47,35,8,NOT WS_VISIBLE
-    EDITTEXT        IDE_DISK_B,7,57,121,14,ES_AUTOHSCROLL | ES_READONLY |
+    EDITTEXT        IDE_DISK_B,7,57,121,14,ES_AUTOHSCROLL | ES_READONLY | 
                     NOT WS_TABSTOP
     PUSHBUTTON      "L&oad...",IDB_INS_B,130,57,32,14
     PUSHBUTTON      "Sa&ve...",IDB_SAVE_B,164,57,32,14
     LTEXT           "Disk in drive C",IDC_STATIC,8,73,50,8
     PUSHBUTTON      "Remove",IDB_REM_C,61,72,33,11
-    CONTROL         "Write prote&cted",IDC_WPC,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Write prote&cted",IDC_WPC,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,96,73,67,10
-    EDITTEXT        IDE_DISK_C,7,83,121,14,ES_AUTOHSCROLL | ES_READONLY |
+    EDITTEXT        IDE_DISK_C,7,83,121,14,ES_AUTOHSCROLL | ES_READONLY | 
                     NOT WS_TABSTOP
     LTEXT           "unsaved",IDC_MODC,167,74,35,8,NOT WS_VISIBLE
     PUSHBUTTON      "Lo&ad...",IDB_INS_C,130,83,32,14
     PUSHBUTTON      "Save&...",IDB_SAVE_C,164,83,32,14
     LTEXT           "Disk in drive D",IDC_STATIC,8,98,50,8
     PUSHBUTTON      "Remove",IDB_REM_D,61,98,33,11
-    CONTROL         "Write protected",IDC_WPD,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Write protected",IDC_WPD,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,96,98,67,10
     LTEXT           "unsaved",IDC_MODD,167,99,35,8,NOT WS_VISIBLE
-    EDITTEXT        IDE_DISK_D,7,109,121,14,ES_AUTOHSCROLL | ES_READONLY |
+    EDITTEXT        IDE_DISK_D,7,109,121,14,ES_AUTOHSCROLL | ES_READONLY | 
                     NOT WS_TABSTOP
     PUSHBUTTON      "Loa&d...",IDB_INS_D,130,109,32,14
     PUSHBUTTON      "Save...",IDB_SAVE_D,164,109,32,14
@@ -341,7 +341,7 @@ BEGIN
     LTEXT           "C&ursor Speed:",IDC_STATIC,129,15,49,8
     CONTROL         "Slider1",IDC_MOUSESCALE,"msctls_trackbar32",
                     TBS_AUTOTICKS | WS_TABSTOP,123,24,64,17
-    CONTROL         "&Kempston Joystick",IDC_KJOY,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Kempston Joystick",IDC_KJOY,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,50,78,10
     CONTROL         "Keymatri&x effect",IDC_KEYMATRIX,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,63,84,10
@@ -350,47 +350,47 @@ BEGIN
     CONTROL         "ATM keyboard &controller",IDC_ATM_KBD,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,98,63,93,10
     LTEXT           "Keyboard &layout",IDC_STATIC,7,77,69,8
-    COMBOBOX        IDC_KLAYOUT,85,75,106,80,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_KLAYOUT,85,75,106,80,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     CONTROL         "Al&t locks ZX keys",IDC_ALTLOCK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,90,71,10
-    CONTROL         "&Autofire",IDC_AUTOFIRE,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Autofire",IDC_AUTOFIRE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,85,90,38,10
-    COMBOBOX        IDC_FIREKEY,126,89,41,127,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_FIREKEY,126,89,41,127,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     EDITTEXT        IDE_FIRERATE,169,90,22,12,ES_AUTOHSCROLL | ES_NUMBER
-    CONTROL         "Spin1",IDC_SPIN1,"msctls_updown32",UDS_SETBUDDYINT |
+    CONTROL         "Spin1",IDC_SPIN1,"msctls_updown32",UDS_SETBUDDYINT | 
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,181,86,11,
                     14
     GROUPBOX        "Clipboard pasting delays",IDC_STATIC,7,102,184,26
     LTEXT           "&Hold",IDC_STATIC,14,113,21,8
     EDITTEXT        IDE_HOLD_DELAY,35,111,25,12,ES_AUTOHSCROLL | ES_NUMBER
-    CONTROL         "",IDC_SPIN2,"msctls_updown32",UDS_SETBUDDYINT |
+    CONTROL         "",IDC_SPIN2,"msctls_updown32",UDS_SETBUDDYINT | 
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,49,112,11,
                     14
     LTEXT           "&Release",IDC_STATIC,64,113,30,8
-    EDITTEXT        IDE_RELEASE_DELAY,96,111,25,12,ES_AUTOHSCROLL |
+    EDITTEXT        IDE_RELEASE_DELAY,96,111,25,12,ES_AUTOHSCROLL | 
                     ES_NUMBER
-    CONTROL         "",IDC_SPIN3,"msctls_updown32",UDS_SETBUDDYINT |
+    CONTROL         "",IDC_SPIN3,"msctls_updown32",UDS_SETBUDDYINT | 
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,110,112,
                     11,14
     LTEXT           "&New line",IDC_STATIC,127,113,30,8
-    EDITTEXT        IDE_NEWLINE_DELAY,160,111,25,12,ES_AUTOHSCROLL |
+    EDITTEXT        IDE_NEWLINE_DELAY,160,111,25,12,ES_AUTOHSCROLL | 
                     ES_NUMBER
-    CONTROL         "",IDC_SPIN4,"msctls_updown32",UDS_SETBUDDYINT |
+    CONTROL         "",IDC_SPIN4,"msctls_updown32",UDS_SETBUDDYINT | 
                     UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,174,108,
                     11,14
     LTEXT           "Mo&dem",IDC_STATIC,7,134,26,8
-    COMBOBOX        IDC_MODEM,37,132,154,80,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_MODEM,37,132,154,80,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
 END
 
-IDD_VIDEO DIALOGEX 0, 0, 186, 150
+IDD_VIDEO DIALOGEX 0, 0, 186, 160
 STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "&filter",IDC_STATIC,7,11,23,8
-    COMBOBOX        IDC_VIDEOFILTER,45,9,134,60,CBS_DROPDOWNLIST |
+    COMBOBOX        IDC_VIDEOFILTER,45,9,134,60,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "",IDC_STATIC,45,20,134,19
     LTEXT           "chunk size",IDC_CH_TITLE,7,27,35,8
@@ -405,24 +405,24 @@ BEGIN
     CONTROL         "Com&plete",IDC_B2,"Button",BS_AUTORADIOBUTTON,125,27,45,
                     10
     LTEXT           "pale&tte",IDC_STATIC,7,43,31,8
-    COMBOBOX        IDC_PALETTE,45,41,134,60,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_PALETTE,45,41,134,60,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     LTEXT           "ren&der to",IDC_REND_TITLE,7,58,29,8
-    COMBOBOX        IDC_RENDER,45,56,85,60,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_RENDER,45,56,85,60,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
-    CONTROL         "&low quality",IDC_FAST_SL,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&low quality",IDC_FAST_SL,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,133,57,46,10
     CONTROL         "&Update border for all filters",IDC_UPDB,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,73,103,10
     CONTROL         "VS&ync",IDC_FLIP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
                     7,86,32,10
-    CONTROL         "scrshot to &Bmp",IDC_BMPSHOT,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "scrshot to &Bmp",IDC_BMPSHOT,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,99,63,10
-    CONTROL         "Flash-&Color",IDC_FLASH,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Flash-&Color",IDC_FLASH,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,113,50,10
-    CONTROL         "&Noflic",IDC_NOFLIC,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Noflic",IDC_NOFLIC,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,127,34,10
-    CONTROL         "method&#2",IDC_ALT_NOFLIC,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "method&#2",IDC_ALT_NOFLIC,"Button",BS_AUTOCHECKBOX | 
                     NOT WS_VISIBLE | WS_TABSTOP,47,127,49,10
     LTEXT           "&Skipframe",IDC_STATIC,116,74,34,8
     EDITTEXT        IDE_SKIP1,155,71,24,12,ES_AUTOHSCROLL | ES_NUMBER
@@ -432,11 +432,16 @@ BEGIN
     EDITTEXT        IDE_MINX,155,97,24,14,ES_AUTOHSCROLL
     LTEXT           "scanlines &intensity",IDC_STATIC,93,114,58,8
     EDITTEXT        IDE_SCBRIGHT,155,112,24,14,ES_AUTOHSCROLL
-    PUSHBUTTON      "fir setup&...",IDC_FIR,7,128,50,14
-    PUSHBUTTON      "f&ont setup...",IDC_FONT,7,128,50,14
+    PUSHBUTTON      "fir setup&...",IDC_FIR,7,127,50,14
+    PUSHBUTTON      "f&ont setup...",IDC_FONT,7,127,50,14
     LTEXT           "font &height",IDC_FNTTITLE,103,130,35,8
-    COMBOBOX        IDC_FONTHEIGHT,142,128,38,80,CBS_DROPDOWNLIST |
+    COMBOBOX        IDC_FONTHEIGHT,142,127,38,80,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
+    LTEXT           "scale &video",IDC_VSCALE_TITLE1,79,128,38,8
+    CONTROL         "",IDC_VIDEOSCALE,"msctls_trackbar32",TBS_AUTOTICKS | 
+                    WS_TABSTOP,115,128,64,12
+    LTEXT           "1x",IDC_VSCALE_TITLE2,117,141,8,8
+    LTEXT           "4x",IDC_VSCALE_TITLE3,167,141,8,8
 END
 
 IDD_EFF7 DIALOGEX 0, 0, 203, 126
@@ -460,19 +465,19 @@ BEGIN
                     13,92,27,10
     CONTROL         "bit&7",IDC_LOCK7,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
                     13,104,27,10
-    CONTROL         "&hardware multicolor",IDC_BIT0,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&hardware multicolor",IDC_BIT0,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,19,77,10
     CONTROL         "&pentagon 512x192 monochrome",IDC_BIT1,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,45,32,142,8
     CONTROL         "&disable memory above 128K",IDC_BIT2,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,45,44,142,8
-    CONTROL         "&read/only cache",IDC_BIT3,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&read/only cache",IDC_BIT3,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,56,142,8
     CONTROL         "&GIGASCREEN (no multicolors yet)",IDC_BIT4,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,45,68,142,8
-    CONTROL         "reserved (for SB)",IDC_BIT5,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "reserved (for SB)",IDC_BIT5,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,81,142,8
-    CONTROL         "384x304 &video mode",IDC_BIT6,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "384x304 &video mode",IDC_BIT6,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,93,142,8
     CONTROL         "&CMOS",IDC_BIT7,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
                     45,105,142,8
@@ -483,7 +488,7 @@ STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "Interface scheme:",IDC_STATIC,7,9,60,8
-    COMBOBOX        IDC_IDESCHEME,69,7,135,100,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_IDESCHEME,69,7,135,100,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     GROUPBOX        "&Master Device",IDC_STATIC,7,18,197,60
     EDITTEXT        IDE_HDD0,12,27,141,14,ES_AUTOHSCROLL | ES_READONLY
@@ -525,7 +530,7 @@ BEGIN
     LTEXT           "&Comment:",IDC_STATIC,7,71,55,8
     EDITTEXT        IDE_VTXCOMM,90,68,90,14,ES_AUTOHSCROLL
     LTEXT           "C&hip type:",IDC_STATIC,7,85,74,8
-    COMBOBOX        IDC_VTXCHIP,90,83,90,120,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_VTXCHIP,90,83,90,120,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     LTEXT           "&Year:",IDC_STATIC,7,99,55,8
     EDITTEXT        IDE_VTXYEAR,90,96,42,14,ES_AUTOHSCROLL | ES_NUMBER
@@ -538,7 +543,7 @@ CAPTION "Select file"
 FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,166,69,35,14,NOT WS_VISIBLE
-    LISTBOX         IDC_ARCLIST,7,7,194,76,LBS_NOINTEGRALHEIGHT | WS_VSCROLL |
+    LISTBOX         IDC_ARCLIST,7,7,194,76,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
                     WS_HSCROLL | WS_TABSTOP
 END
 
@@ -555,7 +560,7 @@ BEGIN
     EDITTEXT        IDE_CBP,7,42,115,13,ES_AUTOHSCROLL
     PUSHBUTTON      "&Add",IDB_CBP_ADD,127,41,25,14
     PUSHBUTTON      "&Del",IDB_CBP_DEL,155,41,27,14
-    LISTBOX         IDC_CBP,7,58,176,112,LBS_NOINTEGRALHEIGHT | WS_VSCROLL |
+    LISTBOX         IDC_CBP,7,58,176,112,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
                     WS_TABSTOP
     GROUPBOX        "",IDC_STATIC,186,13,1,157
     LTEXT           "E&xecution breakpoints",IDC_STATIC,189,7,76,8
@@ -564,7 +569,7 @@ BEGIN
     EDITTEXT        IDE_BPX,189,42,81,13,ES_AUTOHSCROLL
     PUSHBUTTON      "&Del",IDB_BPX_DEL,218,58,26,14
     PUSHBUTTON      "&Add",IDB_BPX_ADD,246,58,25,14
-    LISTBOX         IDC_BPX,189,75,83,95,LBS_NOINTEGRALHEIGHT | WS_VSCROLL |
+    LISTBOX         IDC_BPX,189,75,83,95,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
                     WS_TABSTOP
     GROUPBOX        "",IDC_STATIC,277,13,1,157
     LTEXT           "&Memory access",IDC_STATIC,280,6,76,8
@@ -577,7 +582,7 @@ BEGIN
                     65,23,10
     PUSHBUTTON      "&Del",IDB_MEM_DEL,309,58,26,14
     PUSHBUTTON      "&Add",IDB_MEM_ADD,337,58,25,14
-    LISTBOX         IDC_MEM,280,75,83,95,LBS_NOINTEGRALHEIGHT | WS_VSCROLL |
+    LISTBOX         IDC_MEM,280,75,83,95,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
                     WS_TABSTOP
     LTEXT           "Note: double-click to any list box to edit selected breakpoint",
                     IDC_STATIC,7,172,295,8
@@ -599,7 +604,7 @@ STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "GS high-level emulation"
 FONT 8, "MS Sans Serif"
 BEGIN
-    LISTBOX         IDC_GSLIST,7,7,100,99,LBS_NOINTEGRALHEIGHT | WS_VSCROLL |
+    LISTBOX         IDC_GSLIST,7,7,100,99,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
                     WS_TABSTOP
     PUSHBUTTON      "&Play",IDB_GS_PLAY,112,7,26,14
     PUSHBUTTON      "&Reset",IDB_GS_RESET,112,22,26,14
@@ -614,21 +619,21 @@ STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "On-screen watches"
 FONT 8, "MS Sans Serif"
 BEGIN
-    CONTROL         "Watch &1",IDC_W1_ON,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Watch &1",IDC_W1_ON,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,8,43,10
     EDITTEXT        IDE_W1,57,7,122,14,ES_AUTOHSCROLL
-    CONTROL         "Watch &2",IDC_W2_ON,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Watch &2",IDC_W2_ON,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,25,43,10
     EDITTEXT        IDE_W2,57,22,122,14,ES_AUTOHSCROLL
-    CONTROL         "Watch &3",IDC_W3_ON,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Watch &3",IDC_W3_ON,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,41,43,10
     EDITTEXT        IDE_W3,57,38,122,14,ES_AUTOHSCROLL
-    CONTROL         "Watch &4",IDC_W4_ON,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Watch &4",IDC_W4_ON,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,56,43,10
     EDITTEXT        IDE_W4,57,54,122,14,ES_AUTOHSCROLL
-    CONTROL         "&Trace RAM banks",IDC_TR_RAM,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "&Trace RAM banks",IDC_TR_RAM,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,73,83,10
-    CONTROL         "Trace R&OM banks",IDC_TR_ROM,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Trace R&OM banks",IDC_TR_ROM,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,98,73,81,10
 END
 
@@ -639,14 +644,14 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     LTEXT           "&Address:",IDC_STATIC,7,8,28,8
     EDITTEXT        IDE_ADDRESS,40,7,51,14,ES_AUTOHSCROLL
-    CONTROL         "Spin1",IDC_SPIN,"msctls_updown32",UDS_ALIGNRIGHT |
+    CONTROL         "Spin1",IDC_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | 
                     UDS_AUTOBUDDY | UDS_ARROWKEYS,83,7,11,14
     CONTROL         "* 0x&100",IDC_100,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
                     97,9,41,10
     LTEXT           "bank #10, offset #1234",IDC_ADDRESS,141,10,100,8
     PUSHBUTTON      "&Find Next",IDC_FIND,251,28,66,14
     GROUPBOX        "font format",IDC_STATIC,252,43,65,73
-    COMBOBOX        IDC_FONTSIZE,256,53,53,80,CBS_DROPDOWNLIST | WS_VSCROLL |
+    COMBOBOX        IDC_FONTSIZE,256,53,53,80,CBS_DROPDOWNLIST | WS_VSCROLL | 
                     WS_TABSTOP
     CONTROL         "&linear",IDC_LINEAR,"Button",BS_AUTORADIOBUTTON,257,68,
                     33,10
@@ -657,19 +662,19 @@ BEGIN
     CONTROL         "&right",IDC_RIGHT,"Button",BS_AUTORADIOBUTTON,257,102,
                     29,10
     GROUPBOX        "char ranges",IDC_STATIC,251,119,66,95
-    CONTROL         "#&30 - #39",IDC_R3039,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "#&30 - #39",IDC_R3039,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,131,47,10
-    CONTROL         "#&41 - #5A",IDC_R415A,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "#&41 - #5A",IDC_R415A,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,141,48,10
-    CONTROL         "#61 - #&7A",IDC_R617A,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "#61 - #&7A",IDC_R617A,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,151,48,10
-    CONTROL         "#&80 - #9F",IDC_R809F,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "#&80 - #9F",IDC_R809F,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,160,47,10
-    CONTROL         "#Ax, #Ex",IDC_RA0AF,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "#Ax, #Ex",IDC_RA0AF,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,171,45,10
-    CONTROL         "#F0, #F1",IDC_RF0F1,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "#F0, #F1",IDC_RF0F1,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,181,45,10
-    CONTROL         "#&21 - #2F",IDC_R212F,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "#&21 - #2F",IDC_R212F,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,191,47,10
     CONTROL         "ot&her",IDC_ROTH2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
                     257,201,32,10
@@ -686,7 +691,7 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "",IDC_STATIC,7,3,172,18
     LTEXT           "xxx",IDC_LABEL_TEXT,14,9,128,8
-    LISTBOX         IDC_LABELS,7,26,172,126,LBS_NOINTEGRALHEIGHT |
+    LISTBOX         IDC_LABELS,7,26,172,126,LBS_NOINTEGRALHEIGHT | 
                     LBS_WANTKEYBOARDINPUT | WS_VSCROLL | WS_TABSTOP
 END
 
@@ -696,7 +701,7 @@ CAPTION "Frame Resampler video filter settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "filter mode",IDC_FRAME,7,3,154,56
-    CONTROL         "simple &average",IDC_SIMPLE,"Button",BS_AUTORADIOBUTTON |
+    CONTROL         "simple &average",IDC_SIMPLE,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP,15,14,63,10
     CONTROL         "&fir interpolation",IDC_FIR0,"Button",
                     BS_AUTORADIOBUTTON,15,24,61,10
@@ -706,7 +711,7 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON,15,45,123,10
     GROUPBOX        "frames used for interpolation",IDC_FRAMES_BOX,7,62,154,
                     36
-    CONTROL         "",IDC_FRAMES,"msctls_trackbar32",TBS_AUTOTICKS |
+    CONTROL         "",IDC_FRAMES,"msctls_trackbar32",TBS_AUTOTICKS | 
                     WS_TABSTOP,11,70,148,17
     LTEXT           "2",IDC_STATIC,17,87,8,8
     LTEXT           "5",IDC_STATIC,83,87,8,8
@@ -722,7 +727,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO
+GUIDELINES DESIGNINFO 
 BEGIN
     IDD_CHIP, DIALOG
     BEGIN
@@ -793,7 +798,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 179
         TOPMARGIN, 7
-        BOTTOMMARGIN, 142
+        BOTTOMMARGIN, 152
     END
 
     IDD_EFF7, DIALOG
@@ -893,17 +898,17 @@ END
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE
+2 TEXTINCLUDE 
 BEGIN
     "#include ""afxres.h""\0"
 END
 
-3 TEXTINCLUDE
+3 TEXTINCLUDE 
 BEGIN
     "\r\n"
     "\0"

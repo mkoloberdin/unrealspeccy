@@ -113,6 +113,7 @@ void main_maxspeed()
    temp.frameskip = conf.sound.enabled? conf.frameskip : conf.frameskipmax;
    if (conf.sound.enabled) sound_play(); else sound_stop();
    sprintf(statusline, "Max speed: %s", conf.sound.enabled ? "NO" : "YES"); statcnt = 50;
+   set_priority();
 }
 
 // select filter / driver through gui dialog ----------------------------
@@ -308,6 +309,7 @@ void main_mouse()
 {
    conf.lockmouse ^= 1;
    adjust_mouse_cursor();
+   sprintf(statusline, "mouse %slocked", conf.lockmouse? nil:"un"), statcnt = 30;
 }
 
 void main_help() { showhelp(); }

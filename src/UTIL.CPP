@@ -97,7 +97,7 @@ void trim(char *dst)
 
 #define WORD4(a,b,c,d) (((unsigned)(a))+((unsigned)(b))*0x100+((unsigned)(c))*0x10000+((unsigned)(d))*0x1000000)
 #define WORD2(a,b) ((a)+(b)*0x100)
-#define align(a,b) (((unsigned)(a) + ((b)-1)) & ~((b)-1))
+#define align_by(a,b) (((unsigned)(a) + ((b)-1)) & ~((b)-1))
 const char clrline[] = "\r\t\t\t\t\t\t\t\t\t       \r";
 
 #define savetab(x) {FILE *ff=fopen("tab","wb");fwrite(x,sizeof(x),1,ff);fclose(ff);}

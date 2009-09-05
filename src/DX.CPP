@@ -36,6 +36,7 @@ unsigned dsoffset, dsbuffer = DSBUFFER;
 #include "dxr_text.cpp"
 #include "dxr_atm.cpp"
 #include "dxr_rsm.cpp"
+#include "dxr_advm.cpp"
 #include "dxrend.cpp"
 #include "dxrendch.cpp"
 #include "dxovr.cpp"
@@ -43,22 +44,23 @@ unsigned dsoffset, dsbuffer = DSBUFFER;
 
 RENDER renders[] =
 {
-   { "Normal",                    render_small,         "normal",  RF_DRIVER },
-   { "Double size",               render_dbl,           "double",  RF_DRIVER | RF_512 },
-   { "Anti-Text64",               render_text,          "text",    RF_512 | RF_USEFONT | RF_DRIVER },
-   { "Quad size",                 render_quad,          "quad",    RF_DRIVER | RF_1024 },
-   { "Frame resampler"           ,render_rsm,           "resampler", RF_DRIVER | RF_8BPCH },
+   { "Normal",                    render_small,         "normal",    RF_DRIVER },
+   { "Double size",               render_dbl,           "double",    RF_DRIVER | RF_2X },
+   { "Anti-Text64",               render_text,          "text",      RF_2X | RF_USEFONT | RF_DRIVER },
+   { "Quad size",                 render_quad,          "quad",      RF_DRIVER | RF_4X },
+   { "Frame resampler",           render_rsm,           "resampler", RF_DRIVER | RF_8BPCH },
 
-   { "TV Emulation",              render_tv,            "tv",      RF_YUY2 | RF_OVR },
-   { "Bilinear filter (MMX,fullscr)", render_bil,       "bilinear", RF_512 | RF_PALB },
-   { "Vector scaling (fullscr)",  render_scale,         "scale",   RF_512 },
+   { "TV Emulation",              render_tv,            "tv",        RF_YUY2 | RF_OVR },
+   { "Bilinear filter (MMX,fullscr)", render_bil,       "bilinear",  RF_2X | RF_PALB },
+   { "Vector scaling (fullscr)",  render_scale,         "scale",     RF_2X },
+   { "AdvMAME scale",             render_advmame,       "advmame",   0 },
 
-   { "Chunky overlay (fast!)",    render_ch_ov,         "ch_ov",   RF_OVR | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_USE32AS16 },
-   { "Chunky 32bit hardware flt", render_ch_hw,         "ch_hw",   RF_CLIP | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_32 | RF_USEC32 },
+   { "Chunky overlay (fast!)",    render_ch_ov,         "ch_ov",     RF_OVR | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_USE32AS16 },
+   { "Chunky 32bit hardware flt", render_ch_hw,         "ch_hw",     RF_CLIP | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_32 | RF_USEC32 },
 
-   { "Chunky 16bit, low-res, flt",render_c16bl,         "ch_bl",   RF_16 | RF_BORDER | RF_USEC32 },
-   { "Chunky 16bit, hi-res, flt", render_c16b,          "ch_b",    RF_16 | RF_512 | RF_BORDER | RF_USEC32 },
-   { "Ch4x4 true color (fullscr)",render_c4x32b,        "ch4true", RF_32 | RF_512 | RF_BORDER | RF_USEC32 },
+   { "Chunky 16bit, low-res, flt",render_c16bl,         "ch_bl",     RF_16 | RF_BORDER | RF_USEC32 },
+   { "Chunky 16bit, hi-res, flt", render_c16b,          "ch_b",      RF_16 | RF_2X | RF_BORDER | RF_USEC32 },
+   { "Ch4x4 true color (fullscr)",render_c4x32b,        "ch4true",   RF_32 | RF_2X | RF_BORDER | RF_USEC32 },
 
    { 0,0,0,0 }
 };
@@ -85,7 +87,6 @@ void flip()
 {
    switch_video();
 
-
    if (conf.flip && (temp.rflags & (RF_GDI|RF_CLIP)))
       dd->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, 0);
 
@@ -98,7 +99,6 @@ void flip()
    }
 
    HRESULT r;
-   DDSURFACEDESC desc; desc.dwSize = sizeof desc;
    if (surf0->IsLost() == DDERR_SURFACELOST) surf0->Restore();
    if (surf1 && surf1->IsLost() == DDERR_SURFACELOST) surf1->Restore();
 
@@ -121,6 +121,7 @@ void flip()
 
    LPDIRECTDRAWSURFACE drawsurf = conf.flip ? surf1 : surf0;
 
+   DDSURFACEDESC desc; desc.dwSize = sizeof desc;
    r = drawsurf->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_WRITEONLY, 0);
    if (r != DD_OK) {
       if (!active) return;
@@ -257,7 +258,6 @@ void sound_stop()
    }
 }
 
-
 void do_sound()
 {
    if (savesndtype == 1)
@@ -267,12 +267,18 @@ void do_sound()
    conf.sound.do_sound();
 }
 
+void set_priority()
+{
+   if (!conf.highpriority || !conf.sleepidle) return;
+   SetPriorityClass(GetCurrentProcess(), conf.sound.enabled? HIGH_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS);
+}
+
 void adjust_mouse_cursor()
 {
-   unsigned showcurs = conf.input.joymouse | !active | !(conf.fullscr | conf.lockmouse) | (temp.rflags & RF_MON);
+   unsigned showcurs = conf.input.joymouse | !active | !(conf.fullscr | conf.lockmouse) | dbgbreak;
    while (ShowCursor(0) >= 0); // hide cursor
    if (showcurs) while (ShowCursor(1) <= 0); // show cursor
-   if (active && conf.lockmouse && !(temp.rflags & RF_MON)) {
+   if (active && conf.lockmouse && !dbgbreak) {
       RECT rc; GetClientRect(wnd, &rc);
       POINT p = { rc.left, rc.top };
       ClientToScreen(wnd, &p); rc.left=p.x, rc.top=p.y;
@@ -359,8 +365,8 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
    }
    if (uMessage == WM_SYSCOMMAND) {
       if (wparam==1 || wparam==2) { wnd_resize(wparam); }
-      if (wparam==3) conf.lockmouse = 1, adjust_mouse_cursor();
-      if (wparam == SC_CLOSE) { correct_exit(); return 1; }
+      if (wparam==3) main_mouse();
+      if (wparam==SC_CLOSE) { correct_exit(); return 1; }
    }
    return DefWindowProc(hwnd, uMessage, wparam, lparam);
 }
@@ -444,11 +450,12 @@ void set_vidmode()
    static size_x[3] = { 256,320,384 }, size_y[3] = { 192,240,300 };
    temp.ox = temp.scx = size_x[conf.bordersize];
    temp.oy = temp.scy = size_y[conf.bordersize];
-   if (temp.rflags & RF_512) {
+   if (temp.rflags & RF_2X) {
       temp.ox *=2; temp.oy *= 2;
       if (conf.fast_sl && (temp.rflags & RF_DRIVER) && (temp.rflags & (RF_CLIP | RF_OVR))) temp.oy /= 2;
    }
-   if (temp.rflags & RF_1024) temp.ox *= 4, temp.oy *= 4;
+   if (temp.rflags & RF_3X) temp.ox *= 3, temp.oy *= 3;
+   if (temp.rflags & RF_4X) temp.ox *= 4, temp.oy *= 4;
    if (temp.rflags & RF_64x48) temp.ox = 64, temp.oy = 48;
    if (temp.rflags & RF_128x96) temp.ox = 128, temp.oy = 96;
    if (temp.rflags & RF_MON) temp.ox = 640, temp.oy = 480;
@@ -522,7 +529,6 @@ void set_vidmode()
    }
 
    dd->FlipToGDISurface(); // don't check result
-   adjust_mouse_cursor();
 
    desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
    desc.dwFlags = DDSD_CAPS;
@@ -548,8 +554,8 @@ void set_vidmode()
       desc.ddsCaps.dwCaps = DDSCAPS_OVERLAY | DDSCAPS_VIDEOMEMORY;
       desc.dwWidth = temp.ox, desc.dwHeight = temp.oy;
 
-      conf.flip = 0; // overlay always synchronized without Flip()!
-                     // todo: check on other DX/videocards
+      // conf.flip = 0; // overlay always synchronized without Flip()! on radeon videocards
+                        // double flip causes fps drop
 
       if (conf.flip) {
          desc.dwBackBufferCount = 1;
@@ -638,7 +644,7 @@ void set_vidmode()
       { printrdd("IDirectDraw2::GetAttachedSurface()", r); exit(); }
    }
 
-   SendMessage(wnd, WM_USER, 0, 0); // setup rectangle for RF_GDI,OVR,CLIP
+   SendMessage(wnd, WM_USER, 0, 0); // setup rectangle for RF_GDI,OVR,CLIP, adjust cursor
 }
 
 HRESULT SetDIDwordProperty(LPDIRECTINPUTDEVICE pdev, REFGUID guidProperty,
@@ -865,7 +871,8 @@ void start_dx()
    SetKeyboardState(kbdpc); // fix bug in win95
 }
 
-void done_dx() {
+void done_dx()
+{
    sound_stop();
    if (pal) pal->Release(); pal = 0;
    if (surf1) surf1->Release(); surf1 = 0;

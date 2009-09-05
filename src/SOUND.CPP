@@ -289,7 +289,8 @@ double cos1(int i) {
 }
 
 int *wavs[3] = { waveA, waveB, waveC };
-void make_samples() {
+void make_samples()
+{
    #define cl (0.35)
    #define cl2 (0.25)
    #define clip(x) (((x>cl) ? cl : (x < cl) ? -cl : x)/cl)

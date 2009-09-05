@@ -20,7 +20,7 @@ int FDD::read_udi()
          if (ptr > snbuf+snapsize) return 0;
       }
    cyls = snbuf[9]+1, sides = snbuf[10]+1;
-   rawsize = align(mem, 4096);
+   rawsize = align_by(mem, 4096);
    rawdata = (unsigned char*)VirtualAlloc(0, rawsize, MEM_COMMIT, PAGE_READWRITE);
    ptr = snbuf+0x10; unsigned char *dst = rawdata;
    for (c = 0; c < cyls; c++)

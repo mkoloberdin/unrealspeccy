@@ -177,6 +177,7 @@ void load_config(char *fname)
    if (GetPrivateProfileInt(misc, "HideConsole", 0, ininame)) FreeConsole(), nowait=1;
 
    conf.sleepidle = GetPrivateProfileInt(misc, "ShareCPU", 0, ininame);
+   conf.highpriority = GetPrivateProfileInt(misc, "HighPriority", 0, ininame);
    conf.tape_autostart = GetPrivateProfileInt(misc, "TapeAutoStart", 1, ininame);
    conf.EFF7_mask = GetPrivateProfileInt(misc, "EFF7mask", 0, ininame);
 
@@ -267,6 +268,8 @@ void load_config(char *fname)
    conf.pixelscroll = GetPrivateProfileInt(video, "PixelScroll", 0, ininame);
    conf.detect_video = GetPrivateProfileInt(video, "DetectModel", 1, ininame);
    conf.fontsize = 8;
+
+   conf.videoscale = GetPrivateProfileInt(video, "scale", 2, ininame);
 
    conf.rsm.mix_frames = GetPrivateProfileInt(video, "rsm.frames", 8, ininame);
    GetPrivateProfileString(video, "rsm.mode", nil, line, sizeof line, ininame);
@@ -581,6 +584,7 @@ void applyconfig()
    if (conf.atm.xt_kbd) input.atm51.clear();
 
    setpal(0);
+   set_priority();
 }
 
 void load_arch(char *fname)

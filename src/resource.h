@@ -191,8 +191,11 @@
 #define IDC_FAST_SL                     1161
 #define IDC_B_TITLE                     1162
 #define IDC_BIT0                        1163
+#define IDC_VSCALE_TITLE1               1163
 #define IDC_BIT1                        1164
+#define IDC_VSCALE_TITLE2               1164
 #define IDC_BIT2                        1165
+#define IDC_VSCALE_TITLE3               1165
 #define IDC_BIT3                        1166
 #define IDC_BIT4                        1167
 #define IDC_BIT5                        1168
@@ -297,14 +300,15 @@
 #define IDC_LED_MEMBAND_X               1247
 #define IDC_LED_MEMBAND_Y               1248
 #define IDC_LED_BPP                     1249
+#define IDC_VIDEOSCALE                  1250
 
 // Next default values for new objects
-//
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        138
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1250
+#define _APS_NEXT_CONTROL_VALUE         1251
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

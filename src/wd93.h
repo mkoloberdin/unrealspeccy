@@ -100,7 +100,7 @@ struct FDD
 
 struct WD1793
 {
-   __int64 next;
+   __int64 next, time;
    FDD *seldrive;
    unsigned tshift;
 
@@ -153,6 +153,7 @@ struct WD1793
       S_WR_TRACK_DATA,
 
       S_TYPE1_CMD,
+      S_BEGINSTEP,
       S_STEP,
       S_SEEK,
       S_VERIFY,

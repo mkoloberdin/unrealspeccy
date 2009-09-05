@@ -114,43 +114,41 @@ void showtrace()
       char *ptr = line+strlen(line);
       while (ptr < line+32) *ptr++ = ' '; line[32] = 0;
 
-      unsigned char atr = atr0;
-      unsigned fl = 0;
-      if (pc == cpu.pc) {
-         fl = pc_trflags;
-         if (fl & TWF_BRANCH) {
-            unsigned addr = fl & 0xFFFF;
-            if (fl & TWF_BRADDR) sprintf(line+32-1-4, "%04X", addr);
-            line[32-1] = (addr <= cpu.pc)? 0x18 : 0x19; // up/down arrow
-         }
-         atr = W_TRACEPOS;
-      }
+      unsigned char atr = (pc == cpu.pc)? W_TRACEPOS : atr0;
       if (membits[pc] & MEMBITS_BPX) atr = (atr&~7)|2;
       tprint(trace_x, trace_y+ii, line, atr);
 
       if (pc == trace_curs) {
          asmii = ii;
-         unsigned char dbuf[16];
-         for (int i = 0; i < 16; i++) dbuf[i] = rmdbg(pc+i);
-         disasm(dbuf, pc, 0); strcpy(asmpc, asmbuf);
-         for (int i = 0; i < len && i < 5; i++)
-            sprintf(dumppc + i*2, "%02X", rmdbg(pc+i));
          if (activedbg == WNDTRACE)
             for (unsigned q = 0; q < cs[trace_mode][1]; q++)
                txtscr[80*30 + (trace_y+ii)*80 + trace_x + cs[trace_mode][0] + q] = W_CURS;
       }
 
-      if (fl & TWF_BRANCH) {
-         unsigned char *arr_attr = txtscr + 30*80 + (trace_y+ii)*80 + trace_x + 32-1;
-         *arr_attr = (*arr_attr & 0xF0) + W_TRACE_JARROW_FOREGR;
-         if (fl & TWF_BRADDR)
-            for (unsigned q = 0; q < 4; q++)
-               arr_attr--, *arr_attr = (*arr_attr & 0xF0) + W_TRACE_JMPADR_FOREGR;
+      if (pc_trflags & TWF_BRANCH) {
+         if (pc == cpu.pc) {
+            unsigned addr = pc_trflags & 0xFFFF;
+            unsigned arr = (addr <= cpu.pc)? 0x18 : 0x19; // up/down arrow
+            unsigned char color = (pc == trace_curs && activedbg == WNDTRACE && trace_mode == 2)? W_TRACE_JINFO_CURS_FG : W_TRACE_JINFO_NOCURS_FG;
+            if (pc_trflags & TWF_BRADDR) sprintf(line, "%04X%c", addr, arr), tprint_fg(trace_x+32-5, trace_y+ii, line, color);
+            else tprint_fg(trace_x+32-1, trace_y+ii, (char*)&arr, color);
+         }
+         if (pc == (pc_trflags & 0xFFFF)) {
+            unsigned arr = 0x11; // left arrow
+            tprint_fg(trace_x+32-1, trace_y+ii, (char*)&arr, W_TRACE_JARROW_FOREGR);
+         }
       }
 
       pc += len;
    }
    trpc[ii] = pc;
+
+   unsigned char dbuf[16];
+   for (int i = 0; i < 16; i++) dbuf[i] = rmdbg(trace_curs+i);
+   int len = disasm(dbuf, trace_curs, 0) - dbuf; strcpy(asmpc, asmbuf);
+   for (int i = 0; i < len && i < 5; i++)
+      sprintf(dumppc + i*2, "%02X", rmdbg(trace_curs+i));
+
    tprint(trace_x, trace_y-1, "Z80", W_TITLE);
    frame(trace_x,trace_y,32,trace_size,FRAME);
 }

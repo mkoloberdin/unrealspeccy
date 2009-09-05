@@ -1,6 +1,7 @@
 void __declspec(noreturn) exit();
 void correct_exit();
 void wnd_resize(int scale);
+void main_mouse();
 
 void do_screenshot();
 void qsave(char*);
@@ -52,4 +53,6 @@ void restart_sound();
 void reset(ROM_MODE mode);
 
 void __fastcall render_rsm(unsigned char*, unsigned);
+void __fastcall render_advmame(unsigned char *dst, unsigned pitch);
+void __fastcall render_small(unsigned char *dst, unsigned pitch);
 void rend_dbl(unsigned char *dst, unsigned pitch);

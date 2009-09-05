@@ -482,24 +482,22 @@ void scrshot()
    FILE *fileShot = fopen(fname, "wb"); if (!fileShot) return;
    if (!conf.bmpshot) {
       fwrite(temp.base, 1, 6912, fileShot);
-      fclose(fileShot); fileShot = 0;
+      fclose(fileShot);
    } else {
       *(unsigned*)(bmpheader32+2) = temp.ox*temp.oy*3 + sizeof bmpheader32; // filesize
       *(unsigned*)(bmpheader32+0x12) = temp.ox;
       *(unsigned*)(bmpheader32+0x16) = temp.oy;
       fwrite(bmpheader32, 1, sizeof bmpheader32, fileShot);
-      memset(snbuf, 0, sizeof snbuf);
-      unsigned char *scrbuf = snbuf+MAX_WIDTH*MAX_HEIGHT; // bilinear renderer uses snbuf, so scrbuf != snbuf
-      unsigned dx = temp.ox*temp.obpp/8;
 
-      int f1 = conf.driver;
-      conf.driver = DRIVER_DDRAW;
+      unsigned dx = temp.ox*temp.obpp/8;
+      unsigned char *scrbuf_unaligned = (unsigned char*)malloc(dx * temp.oy + CACHE_LINE);
+      unsigned char *scrbuf = (unsigned char*)align_by(scrbuf_unaligned, CACHE_LINE);
+      memset(scrbuf, 0, dx * temp.oy);
       renders[conf.render].func(scrbuf, dx);
-      conf.driver = f1;
 
       for (int i = temp.oy; i; i--) {
          unsigned char *src = scrbuf + (i-1)*dx;
-         unsigned char ds[1024*3+4];
+         unsigned char ds[384*4*3+4];
          for (unsigned y = 0; y < temp.ox; y++) {
             unsigned xx,yy;
             if (temp.obpp == 8) yy = WORD4(pal0[src[y]].peBlue,pal0[src[y]].peGreen,pal0[src[y]].peRed,0);
@@ -523,7 +521,8 @@ void scrshot()
          }
          fwrite(ds, 1, temp.ox*3, fileShot);
       }
-      fclose(fileShot); fileShot = 0;
+      free(scrbuf_unaligned);
+      fclose(fileShot);
    }
    sprintf(statusline, "saving %s", strrchr(fname, '\\')+1); statcnt = 30;
    sshot++;

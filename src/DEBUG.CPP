@@ -67,8 +67,9 @@ unsigned regs_curs;
 #define W_INPUTCUR 0x60
 #define W_INPUTBG  0x40
 
-#define W_TRACE_JARROW_FOREGR 0x02
-#define W_TRACE_JMPADR_FOREGR 0x0D
+#define W_TRACE_JINFO_CURS_FG   0x0D
+#define W_TRACE_JINFO_NOCURS_FG 0x02
+#define W_TRACE_JARROW_FOREGR   0x0D
 
 #define FRAME         0x01
 #define FFRAME_FRAME  0x04
@@ -104,6 +105,13 @@ void tprint(unsigned x, unsigned y, char *str, unsigned char attr)
 {
    for (unsigned ptr = y*80 + x; *str; str++, ptr++) {
       txtscr[ptr] = *str; txtscr[ptr+80*30] = attr;
+   }
+}
+
+void tprint_fg(unsigned x, unsigned y, char *str, unsigned char attr)
+{
+   for (unsigned ptr = y*80 + x; *str; str++, ptr++) {
+      txtscr[ptr] = *str; txtscr[ptr+80*30] = (txtscr[ptr+80*30] & 0xF0) + attr;
    }
 }
 
@@ -327,11 +335,11 @@ void debug()
 {
    sound_stop();
    temp.rflags = RF_MONITOR;
+   needclr = dbgbreak = 1;
    set_video();
    trace_curs = cpu.pc;
    dbg_stopsp = dbg_stophere = -1;
    dbg_loop_r1 = 0, dbg_loop_r2 = 0xFFFF;
-   needclr = dbgbreak = 1;
    mousepos = 0;
 
    while (dbgbreak)
@@ -365,8 +373,8 @@ sleep:
    }
    prevcpu = cpu;
    debug_last_t = comp.t_states + cpu.t;
-   sound_play();
    apply_video();
+   sound_play();
 }
 
 void debug_events()
@@ -402,7 +410,12 @@ unsigned char isbrk() // is there breakpoints active or any other reason to use 
    return 0;
 #else
 
-   if ((conf.led.memband & 0x80000000) || conf.mem_model == MM_PROFSCORP) return 1; // breakpoint on read ROM switches ROM bank
+   #ifdef MOD_MEMBAND_LED
+   if (conf.led.memband & 0x80000000) return 1;
+   #endif
+
+   if (conf.mem_model == MM_PROFSCORP) return 1; // breakpoint on read ROM switches ROM bank
+
    #ifdef MOD_MONITOR
    if (cbpn) return 1;
    unsigned char res = 0;

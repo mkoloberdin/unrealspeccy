@@ -220,7 +220,7 @@ struct PALETTE_OPTIONS { // custom palettes
 
 #pragma pack()
 
-unsigned char snbuf[2*1048576]; // large temporary buffer
+unsigned char snbuf[2*1048576]; // large temporary buffer (for reading snapshots)
 unsigned char gdibuf[2*1048576];
 
 // on-screen watches block

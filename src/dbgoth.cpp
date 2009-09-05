@@ -141,7 +141,7 @@ void showdos()
 //    SECT:00
 //    T:00/01
 //    S:00/00
-   comp.wd.process();
+   if (conf.trdos_present) comp.wd.process();
    char ln[64]; unsigned char atr = conf.trdos_present ? W_OTHER : W_OTHEROFF;
    sprintf(ln, "CD:%02X%02X", comp.wd.cmd, comp.wd.data);
    tprint(dos_x, dos_y, ln, atr);

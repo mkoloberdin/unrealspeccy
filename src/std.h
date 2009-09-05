@@ -47,3 +47,7 @@
 #pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "comctl32.lib")
 //#pragma comment(linker, "settings.res")
+
+
+#define CACHE_LINE 64
+#define CACHE_ALIGNED __declspec(align(CACHE_LINE))
