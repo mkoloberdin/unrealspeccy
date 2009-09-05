@@ -1,5 +1,5 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ generated include file.
+// Microsoft Developer Studio generated include file.
 // Used by settings.rc
 //
 #define IDD_MEM                         101
@@ -33,6 +33,7 @@
 #define IDD_LABELS                      135
 #define IDD_FIR                         136
 #define IDD_FILTER_DIALOG               137
+#define IDD_CHEAT                       138
 #define IDE_FRAME                       1013
 #define IDE_LINE                        1014
 #define IDE_PAPER                       1015
@@ -294,6 +295,7 @@
 #define IDC_FRAMES_4                    1243
 #define IDC_LIST1                       1243
 #define IDC_LISTBOX                     1243
+#define IDC_RESULTS                     1243
 #define IDC_FRAMES_6                    1244
 #define IDC_FRAMES_8                    1245
 #define IDC_LED_MEMBAND                 1246
@@ -301,14 +303,28 @@
 #define IDC_LED_MEMBAND_Y               1248
 #define IDC_LED_BPP                     1249
 #define IDC_VIDEOSCALE                  1250
+#define IDD_FILEPREVIEW                 1251
+#define IDC_PREVIEW_BOX                 1252
+#define IDC_PREVIEW_BASIC               1253
+#define IDC_PREVIEW_ERASED              1254
+#define IDC_NEW                         1255
+#define IDC_EXACT                       1256
+#define IDC_INC                         1257
+#define IDC_DEC                         1258
+#define IDC_BYTE                        1259
+#define IDC_WORD                        1260
+#define IDB_SEARCH                      1261
+#define IDE_VALUE                       1262
+#define IDC_HEX                         1263
+#define IDC_STATUS                      1264
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        138
+#define _APS_NEXT_RESOURCE_VALUE        139
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1251
+#define _APS_NEXT_CONTROL_VALUE         1265
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

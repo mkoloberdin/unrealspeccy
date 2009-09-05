@@ -16,10 +16,6 @@ void set_banks()
 
    switch (conf.mem_model)
    {
-      case MM_MYPENT:
-         if (comp.flags & CF_SYSTEMROM)
-            bank0 = base_sys_rom, comp.flags &= ~(CF_TRDOS | CF_LEAVEROM | CF_DOSPORTS); // GRM is not in DOS mode
-
       case MM_PENTAGON:
          bank += ((comp.p7FFD & 0xC0) >> 3) + (comp.p7FFD & 0x20);
          bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
@@ -154,15 +150,21 @@ void set_scorp_profrom(unsigned read_address)
    set_banks();
 }
 
-__inline unsigned char *am_r(unsigned addr) {
+__inline unsigned char *am_r(unsigned addr)
+{
+#ifdef MOD_VID_VD
+   if (comp.vdbase && (unsigned)((addr & 0xFFFF) - 0x4000) < 0x1800) return comp.vdbase + (addr & 0x1FFF);
+#endif
    return bankr[(addr >> 14) & 3] + (addr & (PAGE-1));
 }
 
-void wmdbg(unsigned addr, unsigned char val) {
+void wmdbg(unsigned addr, unsigned char val)
+{
    *am_r(addr) = val;
 }
 
-unsigned char rmdbg(unsigned addr) {
+unsigned char rmdbg(unsigned addr)
+{
    return *am_r(addr);
 }
 

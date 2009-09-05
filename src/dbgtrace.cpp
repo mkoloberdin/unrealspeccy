@@ -20,18 +20,6 @@ int disasm_line(unsigned addr, char *line)
    return len;
 }
 
-void mon_dis()
-{
-   if (!query_file_addr(2)) return;
-   FILE *ff = fopen(fname, "wt");
-   if (!ff) return;
-   for (unsigned a = addr; a <= end; ) {
-      char line[64]; a += disasm_line(a, line);
-      fprintf(ff, "%s\n", line);
-   }
-   fclose(ff);
-}
-
 #define TWF_BRANCH  0x010000
 #define TWF_BRADDR  0x020000
 #define TWF_LOOPCMD 0x040000
@@ -153,14 +141,11 @@ void showtrace()
    frame(trace_x,trace_y,32,trace_size,FRAME);
 }
 
-void c_loadlbl_a()
+void c_lbl_import()
 {
-   mon_labels.import_alasm();
+   mon_labels.import_menu();
 }
-void c_loadlbl_x()
-{
-   mon_labels.import_xas();
-}
+
       /* ------------------------------------------------------------- */
 unsigned save_pos[8] = { -1,-1,-1,-1,-1,-1,-1,-1 };
 unsigned save_cur[8] = { -1,-1,-1,-1,-1,-1,-1,-1 };

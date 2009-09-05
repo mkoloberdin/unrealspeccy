@@ -47,53 +47,6 @@ unsigned find2dlg(unsigned start)
    return -1;
 }
 
-unsigned addr = 0, end = 0xFFFF;
-char fname[20] = "";
-
-char query_file_addr(unsigned char mode) // mode: 0-load,1-save,2-disasm
-{
-   filledframe(6, 10, 26, 5);
-   char ln[64];
-   static char *titles[] = { "        load block        ",
-                             "        save block        ",
-                             "      disasm to file      " };
-   tprint(6, 10, titles[mode], FRM_HEADER);
-   sprintf(ln, "file: %s", fname); tprint(7, 12, ln, FFRAME_INSIDE);
-   sprintf(ln, mode ? "start: %04X end: %04X" : "start: %04X", addr, end);
-   tprint(7, 13, ln, FFRAME_INSIDE);
-   strcpy(str, fname);
-   if (!inputhex(13,12,18,0)) return 0;
-   strcpy(fname, str); sprintf(ln, "%-18s", fname); tprint(13,12,ln,FFRAME_INSIDE);
-   unsigned a1 = input4(14,13,addr); if (a1 == -1) return 0;
-   addr = a1;
-   tprint(14,13,str,FFRAME_INSIDE);
-   unsigned e1 = 0xFFFF;
-   if (mode) {
-      e1 = input4(24,13,end); if (e1 == -1) return 0;
-   }
-   end = e1;
-   return 1;
-}
-
-void saveload_dlg(unsigned char save)
-{
-   if (!query_file_addr(save)) return;
-   FILE *ff = fopen(fname, save ? "wb" : "rb");
-   if (!ff) return;
-   unsigned (__cdecl *fn)(void*,unsigned,unsigned,FILE*) = fread;
-   if (save) fn = (unsigned(__cdecl*)(void*,unsigned,unsigned,FILE*))fwrite;
-   for (unsigned a1 = addr; a1 <= end; a1++) {
-      unsigned char bf = rmdbg(a1);
-      if (fn(&bf, 1, 1, ff) != 1) break;
-      if (!save) wmdbg(a1, bf);
-   }
-   end = a1-1;
-   fclose(ff);
-}
-
-void mon_save() { saveload_dlg(1); }
-void mon_load() { saveload_dlg(0); }
-
 void mon_fill()
 {
    filledframe(6,10,26,5);
@@ -156,19 +109,32 @@ void mon_scr0() { mon_scr(0); }
 void mon_scr1() { mon_scr(1); }
 void mon_scray() { mon_scr(2); }
 
-void mon_exitsub() {
+void mon_exitsub()
+{
    dbgchk = 1; dbgbreak = 0;
    dbg_stophere = rmdbg(cpu.sp)+0x100*rmdbg(cpu.sp+1);
 }
-void editbank() {
+
+void editbank()
+{
    unsigned x = input2(ports_x+5, ports_y+1, comp.p7FFD);
    if (x != -1) comp.p7FFD = x, set_banks();
 }
-void mon_nxt() {
+
+void editextbank()
+{
+   if (!dbg_extport) return;
+   unsigned x = input2(ports_x+5, ports_y+2, dgb_extval);
+   if (x != -1) out(dbg_extport, (unsigned char)x);
+}
+
+void mon_nxt()
+{
    if (activedbg == WNDREGS) activedbg = WNDTRACE;
    else if (activedbg == WNDTRACE) activedbg = WNDMEM;
    else if (activedbg == WNDMEM) activedbg = WNDREGS;
 }
+
 void mon_prv() { mon_nxt(); mon_nxt(); }
 void mon_dump() { mem_dump ^= 1; mem_sz = mem_dump ? 32:8; }
 
@@ -179,7 +145,7 @@ void mon_tool()
 {
    static unsigned char unref = 0xCF;
    if (ripper) {
-      OPENFILENAME ofn = { sizeof ofn };
+      OPENFILENAME ofn = { OPENFILENAME_SIZE_VERSION_400 };
       char savename[0x200]; *savename = 0;
       ofn.lpstrFilter = "Memory dump\0*.bin\0";
       ofn.lpstrFile = savename; ofn.nMaxFile = sizeof savename;

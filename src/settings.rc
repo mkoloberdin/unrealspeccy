@@ -1,4 +1,4 @@
-// Microsoft Visual C++ generated resource script.
+//Microsoft Developer Studio generated resource script.
 //
 #include "resource.h"
 
@@ -10,54 +10,6 @@
 #include "afxres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
-
-/////////////////////////////////////////////////////////////////////////////
-// Russian resources
-
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_RUS)
-#ifdef _WIN32
-LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
-#pragma code_page(1251)
-#endif //_WIN32
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Dialog
-//
-
-IDD_FILTER_DIALOG DIALOGEX 0, 0, 186, 95
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
-CAPTION "Select video filter"
-FONT 8, "MS Sans Serif", 0, 0, 0x0
-BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,129,4000,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,129,4000,50,14
-    LISTBOX         IDC_LISTBOX,0,0,185,94,LBS_NOINTEGRALHEIGHT | WS_TABSTOP
-END
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// DESIGNINFO
-//
-
-#ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
-BEGIN
-    IDD_FILTER_DIALOG, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 179
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 88
-    END
-END
-#endif    // APSTUDIO_INVOKED
-
-#endif    // Russian resources
-/////////////////////////////////////////////////////////////////////////////
-
 
 /////////////////////////////////////////////////////////////////////////////
 // English (U.S.) resources
@@ -73,9 +25,19 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // Dialog
 //
 
+IDD_FILTER_DIALOG DIALOGEX 0, 0, 186, 95
+STYLE DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Select video filter"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,129,4000,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,129,4000,50,14
+    LISTBOX         IDC_LISTBOX,0,0,185,94,LBS_NOINTEGRALHEIGHT | WS_TABSTOP
+END
+
 IDD_CHIP DIALOGEX 0, 0, 195, 116
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "&Stereo Preset",IDC_STATIC,7,10,71,8
     COMBOBOX        IDC_CHIP_STEREO,88,7,100,100,CBS_DROPDOWNLIST | 
@@ -97,8 +59,8 @@ BEGIN
 END
 
 IDD_MEM DIALOGEX 0, 0, 208, 153
-STYLE DS_SETFONT | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "&Memory logic:",IDC_STATIC,7,10,49,8
     COMBOBOX        IDC_MEM,58,8,143,80,CBS_DROPDOWNLIST | WS_VSCROLL | 
@@ -151,8 +113,8 @@ BEGIN
 END
 
 IDD_ULA DIALOGEX 0, 0, 180, 132
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "Loa&d Preset",IDC_STATIC,7,9,45,8
     COMBOBOX        IDC_ULAPRESET,62,7,111,74,CBS_DROPDOWNLIST | WS_VSCROLL | 
@@ -184,8 +146,8 @@ BEGIN
     GROUPBOX        "ATM options",IDC_STATIC,7,92,166,33
 END
 
-IDD_LEDS DIALOG  0, 0, 188, 146
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
+IDD_LEDS DIALOG DISCARDABLE  0, 0, 188, 146
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "&Enable leds",IDC_LED_ON,"Button",BS_AUTOCHECKBOX | 
@@ -228,8 +190,8 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,130,144,10
 END
 
-IDD_SOUND DIALOG  0, 0, 214, 145
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
+IDD_SOUND DIALOG DISCARDABLE  0, 0, 214, 145
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "&Disable sound (max speed)",IDC_NOSOUND,"Button",
@@ -266,8 +228,8 @@ BEGIN
                     WS_TABSTOP,164,121,43,10
 END
 
-IDD_TAPE DIALOG  0, 0, 210, 135
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
+IDD_TAPE DIALOG DISCARDABLE  0, 0, 210, 135
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
 FONT 8, "MS Sans Serif"
 BEGIN
     LISTBOX         IDC_TAPE,7,7,194,107,WS_VSCROLL | WS_TABSTOP
@@ -278,8 +240,8 @@ BEGIN
 END
 
 IDD_BETA128 DIALOGEX 0, 0, 210, 130
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     CONTROL         "&Enable Beta128",IDC_BETA128,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,8,9,68,10
@@ -326,8 +288,8 @@ BEGIN
 END
 
 IDD_INPUT DIALOGEX 0, 0, 198, 158
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "Mouse type and settings",IDC_STATIC,7,3,184,41
     CONTROL         "n&one",IDC_MOUSE_NONE,"Button",BS_AUTORADIOBUTTON,12,15,
@@ -386,8 +348,8 @@ BEGIN
 END
 
 IDD_VIDEO DIALOGEX 0, 0, 186, 160
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "&filter",IDC_STATIC,7,11,23,8
     COMBOBOX        IDC_VIDEOFILTER,45,9,134,60,CBS_DROPDOWNLIST | 
@@ -445,8 +407,8 @@ BEGIN
 END
 
 IDD_EFF7 DIALOGEX 0, 0, 203, 126
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "lock---------current state",IDC_STATIC,7,7,189,112
     CONTROL         "bit&0",IDC_LOCK0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
@@ -475,7 +437,7 @@ BEGIN
                     WS_TABSTOP,45,56,142,8
     CONTROL         "&GIGASCREEN (no multicolors yet)",IDC_BIT4,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,45,68,142,8
-    CONTROL         "reserved (for SB)",IDC_BIT5,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "4&bits per pixel",IDC_BIT5,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,81,142,8
     CONTROL         "384x304 &video mode",IDC_BIT6,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,45,93,142,8
@@ -484,8 +446,8 @@ BEGIN
 END
 
 IDD_HDD DIALOGEX 0, 0, 211, 147
-STYLE DS_SETFONT | DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "Interface scheme:",IDC_STATIC,7,9,60,8
     COMBOBOX        IDC_IDESCHEME,69,7,135,100,CBS_DROPDOWNLIST | WS_VSCROLL | 
@@ -514,8 +476,8 @@ BEGIN
     LTEXT           "- 0 bytes",IDS_HDD1_LBA,88,125,109,8
 END
 
-IDD_VTX DIALOG  0, 0, 187, 121
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_VTX DIALOG DISCARDABLE  0, 0, 187, 121
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Save VTX - Properties"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -537,8 +499,8 @@ BEGIN
     DEFPUSHBUTTON   "&OK",IDOK,136,97,44,13
 END
 
-IDD_ARC DIALOG  0, 0, 208, 90
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_ARC DIALOG DISCARDABLE  0, 0, 208, 90
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Select file"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -548,9 +510,9 @@ BEGIN
 END
 
 IDD_COND DIALOGEX 0, 0, 371, 188
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Breakpoints Manager"
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "&Conditional breakpoints",IDC_STATIC,7,7,152,8
     LTEXT           "please consult emulator's documentation",IDC_STATIC,7,
@@ -588,8 +550,8 @@ BEGIN
                     IDC_STATIC,7,172,295,8
 END
 
-IDD_POKE DIALOG  0, 0, 182, 57
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_POKE DIALOG DISCARDABLE  0, 0, 182, 57
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Enter POKEs"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -599,8 +561,8 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,231,13,6,6
 END
 
-IDD_GS DIALOG  0, 0, 145, 146
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_GS DIALOG DISCARDABLE  0, 0, 145, 146
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "GS high-level emulation"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -614,8 +576,8 @@ BEGIN
     LTEXT           "unhandled GS commands:",IDC_STATIC,42,111,96,8
 END
 
-IDD_OSW DIALOG  0, 0, 186, 90
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_OSW DIALOG DISCARDABLE  0, 0, 186, 90
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "On-screen watches"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -638,9 +600,9 @@ BEGIN
 END
 
 IDD_FONTS DIALOGEX 0, 0, 324, 276
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Font Searcher"
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     LTEXT           "&Address:",IDC_STATIC,7,8,28,8
     EDITTEXT        IDE_ADDRESS,40,7,51,14,ES_AUTOHSCROLL
@@ -672,7 +634,7 @@ BEGIN
                     WS_TABSTOP,257,160,47,10
     CONTROL         "#Ax, #Ex",IDC_RA0AF,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,171,45,10
-    CONTROL         "#F0, #F1",IDC_RF0F1,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "#F&0, #F1",IDC_RF0F1,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,181,45,10
     CONTROL         "#&21 - #2F",IDC_R212F,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,257,191,47,10
@@ -685,9 +647,9 @@ BEGIN
 END
 
 IDD_LABELS DIALOGEX 0, 0, 186, 159
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Jump to Label"
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "",IDC_STATIC,7,3,172,18
     LTEXT           "xxx",IDC_LABEL_TEXT,14,9,128,8
@@ -696,9 +658,9 @@ BEGIN
 END
 
 IDD_FIR DIALOGEX 0, 0, 168, 125
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Frame Resampler video filter settings"
-FONT 8, "MS Sans Serif", 0, 0, 0x0
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "filter mode",IDC_FRAME,7,3,154,56
     CONTROL         "simple &average",IDC_SIMPLE,"Button",BS_AUTORADIOBUTTON | 
@@ -720,6 +682,48 @@ BEGIN
     PUSHBUTTON      "&cancel",IDCANCEL,119,103,42,14
 END
 
+IDD_FILEPREVIEW DIALOGEX 0, 0, 132, 95
+STYLE DS_3DLOOK | DS_CONTROL | WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    LTEXT           "",1119,0,0,1,90
+    CONTROL         "&BASIC only",IDC_PREVIEW_BASIC,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,2,8,55,10
+    CONTROL         "Show &Erased",IDC_PREVIEW_ERASED,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,60,8,100,10
+    CONTROL         "",IDC_PREVIEW_BOX,"SysListView32",LVS_REPORT | 
+                    LVS_SINGLESEL | WS_BORDER | WS_VSCROLL,1,20,130,20
+END
+
+IDD_CHEAT DIALOG DISCARDABLE  0, 0, 177, 170
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Memory Search"
+FONT 8, "MS Sans Serif"
+BEGIN
+    GROUPBOX        "Search type",IDC_STATIC,7,3,163,65,WS_GROUP
+    CONTROL         "Start &new search",IDC_NEW,"Button",BS_AUTORADIOBUTTON,
+                    13,16,69,10
+    EDITTEXT        IDE_VALUE,89,27,27,12,ES_AUTOHSCROLL
+    CONTROL         "&Hex",IDC_HEX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,121,
+                    28,29,10
+    CONTROL         "Find exact &value:",IDC_EXACT,"Button",
+                    BS_AUTORADIOBUTTON,13,28,70,10
+    CONTROL         "&Increased since last search",IDC_INC,"Button",
+                    BS_AUTORADIOBUTTON,13,40,102,10
+    CONTROL         "&Decreased since last search",IDC_DEC,"Button",
+                    BS_AUTORADIOBUTTON,13,52,105,10
+    GROUPBOX        "",IDC_STATIC,7,67,109,20,WS_GROUP
+    LTEXT           "Item size",IDC_STATIC,13,75,28,8
+    CONTROL         "&Byte",IDC_BYTE,"Button",BS_AUTORADIOBUTTON,48,75,27,10
+    CONTROL         "&Word",IDC_WORD,"Button",BS_AUTORADIOBUTTON,79,75,31,10
+    DEFPUSHBUTTON   "&Search!",IDB_SEARCH,119,72,51,14
+    GROUPBOX        "Search results",IDC_STATIC,7,88,163,76,WS_GROUP
+    CONTROL         "List1",IDC_RESULTS,"SysListView32",LVS_REPORT | 
+                    LVS_SINGLESEL | LVS_ALIGNLEFT | LVS_NOSORTHEADER | 
+                    WS_BORDER | WS_TABSTOP,12,99,154,60
+    LTEXT           "No results",IDC_STATUS,15,102,149,8
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -727,8 +731,16 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
+GUIDELINES DESIGNINFO MOVEABLE PURE 
 BEGIN
+    IDD_FILTER_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 179
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 88
+    END
+
     IDD_CHIP, DIALOG
     BEGIN
         LEFTMARGIN, 7
@@ -888,6 +900,14 @@ BEGIN
         TOPMARGIN, 7
         BOTTOMMARGIN, 117
     END
+
+    IDD_CHEAT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 170
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 163
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -898,17 +918,17 @@ END
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE 
+1 TEXTINCLUDE MOVEABLE PURE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE 
+2 TEXTINCLUDE MOVEABLE PURE 
 BEGIN
     "#include ""afxres.h""\0"
 END
 
-3 TEXTINCLUDE 
+3 TEXTINCLUDE MOVEABLE PURE 
 BEGIN
     "\r\n"
     "\0"
@@ -922,15 +942,15 @@ END
 // Cursor
 //
 
-IDC_C0                  CURSOR                  "res\\cur00000.cur"
-IDC_C1                  CURSOR                  "res\\cur00001.cur"
-IDC_C2                  CURSOR                  "res\\cur00002.cur"
-IDC_C3                  CURSOR                  "res\\cur00003.cur"
-IDC_C4                  CURSOR                  "res\\cur00004.cur"
-IDC_C5                  CURSOR                  "res\\cur00005.cur"
-IDC_C6                  CURSOR                  "res\\cur00006.cur"
-IDC_C7                  CURSOR                  "res\\cur00007.cur"
-IDC_C8                  CURSOR                  "res\\cur00008.cur"
+IDC_C0                  CURSOR  DISCARDABLE     "res\\cur00000.cur"
+IDC_C1                  CURSOR  DISCARDABLE     "res\\cur00001.cur"
+IDC_C2                  CURSOR  DISCARDABLE     "res\\cur00002.cur"
+IDC_C3                  CURSOR  DISCARDABLE     "res\\cur00003.cur"
+IDC_C4                  CURSOR  DISCARDABLE     "res\\cur00004.cur"
+IDC_C5                  CURSOR  DISCARDABLE     "res\\cur00005.cur"
+IDC_C6                  CURSOR  DISCARDABLE     "res\\cur00006.cur"
+IDC_C7                  CURSOR  DISCARDABLE     "res\\cur00007.cur"
+IDC_C8                  CURSOR  DISCARDABLE     "res\\cur00008.cur"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -939,7 +959,7 @@ IDC_C8                  CURSOR                  "res\\cur00008.cur"
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON2               ICON                    "res\\u1.ico"
+IDI_ICON2               ICON    DISCARDABLE     "res\\u1.ico"
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 

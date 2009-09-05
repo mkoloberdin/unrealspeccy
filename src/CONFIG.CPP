@@ -52,6 +52,25 @@ void load_atm_font()
    fclose(ff);
 }
 
+void load_atariset()
+{
+   memset(temp.ataricolors, 0, sizeof temp.ataricolors);
+   if (!conf.atariset[0]) return;
+   char defs[4000]; *defs = 0; // =12*256, strlen("07:aabbccdd,")=12
+   char keyname[80]; sprintf(keyname, "atari.%s", conf.atariset);
+   GetPrivateProfileString("COLORS", keyname, nil, defs, sizeof defs, ininame);
+   if (!*defs) conf.atariset[0] = 0;
+   for (char *ptr = defs; *ptr; ) {
+      if (ptr[2] != ':') return;
+      for (int i = 0; i < 11; i++)
+         if (i != 2 && !ishex(ptr[i])) return;
+      unsigned index, val; sscanf(ptr, "%02X:%08X", &index, &val);
+      temp.ataricolors[index] = val;
+      // temp.ataricolors[(index*16 + index/16) & 0xFF] = val; // swap ink-paper
+      ptr += 12; if (ptr [-1] != ',') return;
+   }
+}
+
 void addpath(char *dst, char *fname = 0)
 {
    if (!fname) fname = dst;
@@ -279,6 +298,8 @@ void load_config(char *fname)
    if (!strnicmp(line, "3C", 2)) conf.rsm.mode = RSM_FIR2;
    if (!strnicmp(line, "SIMPLE", 6)) conf.rsm.mode = RSM_SIMPLE;
 
+   GetPrivateProfileString(video, "AtariPreset", nil, conf.atariset, sizeof conf.atariset, ininame);
+
    GetPrivateProfileString(video, video, nil, line, sizeof line, ininame);
    conf.render = 0;
    for (i = 0; renders[i].func; i++)
@@ -493,6 +514,26 @@ void load_config(char *fname)
 #endif
 }
 
+void autoload()
+{
+   static char autoload[] = "AUTOLOAD";
+   char line[512];
+
+   for (int disk = 0; disk < 4; disk++) {
+      char key[8]; sprintf(key, "disk%c", 'A'+disk);
+      GetPrivateProfileString(autoload, key, nil, line, sizeof line, ininame);
+      if (!*line) continue;
+      addpath(line);
+      trd_toload = disk;
+      if (!loadsnap(line)) errmsg("failed to autoload <%s>", line);
+   }
+
+   GetPrivateProfileString(autoload, "snapshot", nil, line, sizeof line, ininame);
+   if (!*line) return;
+   addpath(line);
+   if (!loadsnap(line)) { color(CONSCLR_ERROR); printf("failed to start snapshot <%s>\n", line); }
+}
+
 void apply_memory()
 {
    #ifdef MOD_GSZ80
@@ -586,6 +627,7 @@ void applyconfig()
    input.clear_zx();
    modem.open(conf.modem_port);
 
+   load_atariset();
    apply_video();
    apply_sound();
 

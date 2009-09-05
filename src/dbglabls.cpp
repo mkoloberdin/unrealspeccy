@@ -20,15 +20,30 @@ struct MON_LABELS
    void add(unsigned char *address, char *name);
    unsigned load(char *filename, unsigned char *base, unsigned size);
 
-   void import_alasm();
+
+   char xas_errstr[80];
+   unsigned char xaspage;
+   void find_xas();
+
+   enum { MAX_ALASM_LTABLES = 16 };
+   char alasm_valid_char[0x100];
+   unsigned alasm_found_tables;
+   unsigned alasm_offset[MAX_ALASM_LTABLES];
+   unsigned alasm_count[MAX_ALASM_LTABLES];
+   unsigned alasm_chain_len(unsigned char *page, unsigned offset, unsigned &end);
+   void find_alasm();
+
+   void import_menu();
    void import_xas();
-   void import_file();
+   void import_alasm(unsigned offset, char *caption);
+
 
    HANDLE hNewUserLabels;
    char userfile[0x200];
    void stop_watching_labels();
    void start_watching_labels();
    void notify_user_labels();
+   void import_file();
 
 } mon_labels;
 
@@ -44,6 +59,18 @@ void MON_LABELS::stop_watching_labels()
    if (!hNewUserLabels || hNewUserLabels == INVALID_HANDLE_VALUE) return;
    CloseHandle(hNewUserLabels);
    hNewUserLabels = INVALID_HANDLE_VALUE;
+}
+
+void MON_LABELS::notify_user_labels()
+{
+   if (hNewUserLabels == INVALID_HANDLE_VALUE) return;
+   // load labels at first check
+   if (hNewUserLabels == NULL) { start_watching_labels(); import_file(); return; }
+
+   if (WaitForSingleObject(hNewUserLabels, 0) != WAIT_OBJECT_0) return;
+
+   import_file();
+   FindNextChangeNotification(hNewUserLabels);
 }
 
 unsigned MON_LABELS::add_name(char *name)
@@ -146,31 +173,53 @@ unsigned MON_LABELS::load(char *filename, unsigned char *base, unsigned size)
    return loaded;
 }
 
-void MON_LABELS::import_alasm()
+unsigned MON_LABELS::alasm_chain_len(unsigned char *page, unsigned offset, unsigned &end)
 {
-   static const char caption[] = "Alasm labels import";
-   const char *err = "STS 5.7 not found in bank #07";
-   unsigned sts = 0;
-   if ((conf.mem_model == MM_PENTAGON || conf.mem_model == MM_MYPENT) && conf.ramsize > 128) {
-      err = "STS 5.7 not found in banks #07,#47";
-      if (*(unsigned*)(RAM_BASE_M+PAGE*15+0x3E84) == WORD4(0x7D,0xE6,0x18,0xF6) && RAM_BASE_M[PAGE*15+0x3E7B] == 0x21) sts = PAGE*15;
-   }
-   if (!sts && *(unsigned*)(RAM_BASE_M+PAGE*7+0x3E84) == WORD4(0x7D,0xE6,0x18,0xF6) && RAM_BASE_M[PAGE*7+0x3E7B] == 0x21) sts = PAGE*7;
-   if (!sts) { MessageBox(GetForegroundWindow(), err, caption, MB_OK | MB_ICONERROR); return; }
-   unsigned offset = *(unsigned short*)(RAM_BASE_M+sts+0x3E7C);
-   if (offset < 0xC000) { MessageBox(GetForegroundWindow(), "start of labels not found", caption, MB_OK | MB_ICONERROR); return; }
-   clear_ram();
-   unsigned char bank = RAM_BASE_M[sts+0x3E88]; bank = ((bank & 7) + ((bank & 0xC0) >> 3) + (bank & 0x20)) & temp.ram_mask;
-   unsigned char *base = RAM_BASE_M + PAGE*bank; offset &= 0x3FFF;
    unsigned count = 0;
-   while (offset < 0x3FFC) { // #FE00/FF00/FFFC - end of labels?
-      unsigned char sz = base[offset]; if (!sz) break;
-      if ((sz & 0x3F) < 6) { MessageBox(GetForegroundWindow(), "unexpected end of labels", caption, MB_OK | MB_ICONERROR); sts = 0; break; }
-      unsigned end = offset + (sz & 0x3F);
+   for (;;) {
+      if (offset >= 0x3FFC) return 0;
+      unsigned s1 = page[offset], sz = s1 & 0x3F;
+      if (!s1 || offset == 0x3E00) { end = offset+1; return count; }
+      if (sz < 6) return 0;
+      unsigned char sym = page[offset+sz-1];
+      if (sym >= '0' && sym <= '9') return 0;
+      for (unsigned ptr = 5; ptr < sz; ptr++)
+         if (!alasm_valid_char[page[offset+ptr]]) return 0;
+      if (!(s1 & 0xC0)) count++;
+      offset += sz;
+   }
+}
+
+void MON_LABELS::find_alasm()
+{
+   static const char label_chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@$_";
+   memset(alasm_valid_char, 0, sizeof alasm_valid_char);
+   for (const char *lbl = label_chars; *lbl; lbl++) alasm_valid_char[*lbl] = 1;
+
+   alasm_found_tables = 0;
+   for (unsigned page = 0; page < conf.ramsize*1024; page += PAGE) {
+      for (unsigned offset = 0; offset < PAGE; offset++) {
+         unsigned end, count = alasm_chain_len(RAM_BASE_M + page, offset, end);
+         if (count < 2) continue;
+         alasm_count[alasm_found_tables] = count;
+         alasm_offset[alasm_found_tables] = page + offset;
+         offset = end; alasm_found_tables++;
+         if (alasm_found_tables == MAX_ALASM_LTABLES) return;
+      }
+   }
+}
+
+
+void MON_LABELS::import_alasm(unsigned offset, char *caption)
+{
+   clear_ram();
+   unsigned char *base = RAM_BASE_M + offset;
+   for (;;) { // #FE00/FF00/FFFC - end of labels?
+      unsigned char sz = *base; if (!sz) break;
       if (!(sz & 0xC0)) {
          char lbl[64]; unsigned ptr = 0;
-         for (unsigned k = sz; k > 5;) k--, lbl[ptr++] = base[offset+k]; lbl[ptr] = 0;
-         unsigned val = *(unsigned short*)(base+offset+1);
+         for (unsigned k = sz; k > 5;) k--, lbl[ptr++] = base[k]; lbl[ptr] = 0;
+         unsigned val = *(unsigned short*)(base+1);
          unsigned char *bs;
          switch (val & 0xC000) {
             case 0x4000: bs = RAM_BASE_M+5*PAGE; break;
@@ -178,32 +227,34 @@ void MON_LABELS::import_alasm()
             case 0xC000: bs = RAM_BASE_M+0*PAGE; break;
             default: bs = 0;
          }
-         if (bs) add(bs+(val & 0x3FFF), lbl), count++;
+         if (bs) add(bs+(val & 0x3FFF), lbl);
       }
-      offset = end;
-   }
-   if (sts) {
-      char ln[64]; sprintf(ln, "found %d labels in page #%02X", count, RAM_BASE_M[sts+0x3E88]);
-      MessageBox(GetForegroundWindow(), ln, caption, MB_OK | MB_ICONINFORMATION);
+      base += (sz & 0x3F);
    }
    sort();
 }
 
+void MON_LABELS::find_xas()
+{
+   char look_page_6 = 0;
+   const char *err = "XAS labels not found in bank #06";
+   if (conf.mem_model == MM_PENTAGON && conf.ramsize > 128)
+      err = "XAS labels not found in banks #06,#46", look_page_6 = 1;
+   xaspage = 0;
+   if (look_page_6 && RAM_BASE_M[PAGE*14+0x3FFF] == 5 && RAM_BASE_M[PAGE*14+0x1FFF] == 5) xaspage = 0x46;
+   if (!xaspage && RAM_BASE_M[PAGE*6+0x3FFF] == 5 && RAM_BASE_M[PAGE*6+0x1FFF] == 5) xaspage = 0x06;
+   if (!xaspage) strcpy(xas_errstr, err);
+   else sprintf(xas_errstr, "XAS labels from bank #%02X", xaspage);
+}
+
 void MON_LABELS::import_xas()
 {
-   static const char caption[] = "XAS7 labels import";
-   const char *err = "labels not found in bank #06";
-   unsigned sts = 0;
-   if ((conf.mem_model == MM_PENTAGON || conf.mem_model == MM_MYPENT) && conf.ramsize > 128) {
-      err = "labels not found in banks #06,#46";
-      if (RAM_BASE_M[PAGE*14+0x3FFF] == 5 && RAM_BASE_M[PAGE*14+0x1FFF] == 5) sts = PAGE*14;
-   }
-   if (!sts && RAM_BASE_M[PAGE*6+0x3FFF] == 5 && RAM_BASE_M[PAGE*6+0x1FFF] == 5) sts = PAGE*6;
-   if (!sts) { MessageBox(GetForegroundWindow(), err, caption, MB_OK | MB_ICONERROR); return; }
+   if (!xaspage) return;
+   unsigned base = (xaspage == 0x46)? 0x0E*PAGE : (unsigned)xaspage*PAGE;
 
    clear_ram(); unsigned count = 0;
    for (int k = 0; k < 2; k++) {
-      unsigned char *ptr = RAM_BASE_M + sts + (k? 0x3FFD : 0x1FFD);
+      unsigned char *ptr = RAM_BASE_M + base + (k? 0x3FFD : 0x1FFD);
       for (;;) {
          if (ptr[2] < 5 || (ptr[2] & 0x80)) break;
          char lbl[16]; for (int i = 0; i < 7; i++) lbl[i] = ptr[i-7];
@@ -217,14 +268,54 @@ void MON_LABELS::import_xas()
             default: bs = 0;
          }
          if (bs) add(bs+(val & 0x3FFF), lbl), count++;
-         ptr -= 9; if (ptr < RAM_BASE_M+sts+9) break;
+         ptr -= 9; if (ptr < RAM_BASE_M+base+9) break;
       }
    }
-   if (sts) {
-      char ln[64]; sprintf(ln, "found %d labels in page #%02X", count, sts==PAGE*6? 0x06 : 0x46);
-      MessageBox(GetForegroundWindow(), ln, caption, MB_OK | MB_ICONINFORMATION);
-   }
    sort();
+   char ln[64]; sprintf(ln, "imported %d labels", count);
+   MessageBox(GetForegroundWindow(), ln, xas_errstr, MB_OK | MB_ICONINFORMATION);
+}
+
+void MON_LABELS::import_menu()
+{
+   find_xas();
+   find_alasm();
+
+   MENUITEM items[MAX_ALASM_LTABLES+4] = { 0 };
+   unsigned menuptr = 0;
+
+   items[menuptr].text = xas_errstr;
+   items[menuptr].flags = xaspage? (MENUITEM::FLAGS)0 : MENUITEM::DISABLED;
+   menuptr++;
+
+   char alasm_text[MAX_ALASM_LTABLES][64];
+   if (!alasm_found_tables) {
+      sprintf(alasm_text[0], "No ALASM labels in whole %dK memory", conf.ramsize);
+      items[menuptr].text = alasm_text[0];
+      items[menuptr].flags = MENUITEM::DISABLED;
+      menuptr++;
+   } else {
+      for (unsigned i = 0; i < alasm_found_tables; i++) {
+         sprintf(alasm_text[i], "%d ALASM labels in page %d, offset #%04X", alasm_count[i], alasm_offset[i]/PAGE, (alasm_offset[i] & 0x3FFF) | 0xC000);
+         items[menuptr].text = alasm_text[i];
+         items[menuptr].flags = (MENUITEM::FLAGS)0;
+         menuptr++;
+      }
+   }
+
+   items[menuptr].text = nil;
+   items[menuptr].flags = MENUITEM::DISABLED;
+   menuptr++;
+
+   items[menuptr].text = "CANCEL";
+   items[menuptr].flags = MENUITEM::CENTER;
+   menuptr++;
+
+   MENUDEF menu = { items, menuptr, "import labels" };
+   if (!handle_menu(&menu)) return;
+   if (menu.pos == 0) import_xas();
+   menu.pos--;
+   if ((unsigned)menu.pos < alasm_found_tables) import_alasm(alasm_offset[menu.pos], alasm_text[menu.pos]);
 }
 
 void MON_LABELS::import_file()
@@ -234,18 +325,6 @@ void MON_LABELS::import_file()
    if (!count) return;
    char tmp[0x200]; sprintf(tmp, "loaded %d labels from\r\n%s", count, userfile);
    MessageBox(GetForegroundWindow(), tmp, "unreal discovered changes in user labels", MB_OK | MB_ICONINFORMATION);
-}
-
-void MON_LABELS::notify_user_labels()
-{
-   if (hNewUserLabels == INVALID_HANDLE_VALUE) return;
-   // load labels at first check
-   if (hNewUserLabels == NULL) { start_watching_labels(); import_file(); return; }
-
-   if (WaitForSingleObject(hNewUserLabels, 0) != WAIT_OBJECT_0) return;
-
-   import_file();
-   FindNextChangeNotification(hNewUserLabels);
 }
 
 void load_labels(char *filename, unsigned char *base, unsigned size)

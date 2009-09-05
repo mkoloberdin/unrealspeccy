@@ -83,6 +83,8 @@ struct FDD
    int addfile(unsigned char *hdr, unsigned char *data);
    void addboot();
 
+   int read(unsigned char snType);
+
    int read_scl();
    int read_hob();
    int read_trd();

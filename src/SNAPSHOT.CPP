@@ -43,6 +43,13 @@ int loadsnap(char *filename)
    unsigned char type = what_is(filename);
 
    if (type >= snHOB) {
+
+      if (trd_toload == -1) {
+         int last = -1;
+         for (int i = 0; i < 4; i++) if (trd_loaded[i]) last = i;
+         trd_toload = (last == -1)? 0 : ((type == snHOB)? last : (last+1) & 3);
+      }
+
       for (unsigned k = 0; k < 4; k++)
          if (k != trd_toload && !stricmp(comp.wd.fdd[k].name, filename)) {
             static char err[] = "This disk image is already loaded to drive X:\n"
@@ -51,22 +58,17 @@ int loadsnap(char *filename)
             err[84] = trd_toload+'A';
             if (MessageBox(GetForegroundWindow(), err, "Warning", MB_YESNO | MB_ICONWARNING) == IDNO) return 1;
          }
+
       FDD *drive = comp.wd.fdd + trd_toload;
       if (!drive->test()) return 0;
-      int ok = 0;
-      if (type == snTRD) ok = drive->read_trd();
-      if (type == snUDI) ok = drive->read_udi();
-      if (type == snHOB) ok = drive->read_hob();
-      if (type == snSCL) ok = drive->read_scl();
-      if (type == snFDI) ok = drive->read_fdi();
-      if (type == snTD0) ok = drive->read_td0();
+      int ok = drive->read(type);
       if (ok) {
          if (*conf.appendboot) drive->addboot();
          strcpy(drive->name, filename);
          if (GetFileAttributes(filename) & FILE_ATTRIBUTE_READONLY)
             conf.trdos_wp[trd_toload] = 1;
-         if (type != snHOB) trd_toload = (trd_toload+1) & 3;
          drive->snaptype = (type == snHOB || type == snSCL)? snTRD : type;
+         trd_loaded[trd_toload] = 1;
       }
       return ok;
    }
@@ -84,7 +86,7 @@ int loadsnap(char *filename)
 
 int readSNA128()
 {
-   conf.mem_model = MM_MYPENT; conf.ramsize = 128;
+   conf.mem_model = MM_PENTAGON; conf.ramsize = 128;
    hdrSNA128 *hdr = (hdrSNA128*)snbuf;
    reset(hdr->trdos? RM_DOS : RM_SOS);
    cpu.alt.af = hdr->altaf; cpu.alt.bc = hdr->altbc;
@@ -107,7 +109,7 @@ int readSNA128()
 
 int readSNA48()
 {
-   conf.mem_model = MM_MYPENT; conf.ramsize = 128;
+   conf.mem_model = MM_PENTAGON; conf.ramsize = 128;
    reset(RM_SOS);
    hdrSNA128 *hdr = (hdrSNA128*)snbuf;
    cpu.alt.af = hdr->altaf; cpu.alt.bc = hdr->altbc;
@@ -125,7 +127,7 @@ int readSNA48()
 
 int readSP()
 {
-   conf.mem_model = MM_MYPENT; conf.ramsize = 128;
+   conf.mem_model = MM_PENTAGON; conf.ramsize = 128;
    reset(RM_SOS);
    hdrSP *hdr = (hdrSP*)snbuf;
    cpu.alt.af = hdr->altaf; cpu.alt.bc = hdr->altbc;
@@ -188,7 +190,7 @@ void unpack_page(unsigned char *dst, int dstlen, unsigned char *src, int srclen)
 
 int readZ80()
 {
-   conf.mem_model = MM_MYPENT; conf.ramsize = 128;
+   conf.mem_model = MM_PENTAGON; conf.ramsize = 128;
    hdrZ80 *hdr = (hdrZ80*)snbuf;
    unsigned char *ptr = snbuf + 30;
    unsigned char model48k = (hdr->model < 3);
@@ -356,7 +358,7 @@ void opensnap(int index)
       if (*src == '<') strcpy(dst, mask), dst += strlen(dst);
       else *dst++ = *src;
 
-   OPENFILENAME ofn = { sizeof ofn };
+   OPENFILENAME ofn = { OPENFILENAME_SIZE_VERSION_400 };
    char fname[0x200]; *fname = 0;
    char dir[0x200]; GetCurrentDirectory(sizeof dir, dir);
    ofn.hwndOwner = GetForegroundWindow();
@@ -366,7 +368,7 @@ void opensnap(int index)
    ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
    ofn.nFilterIndex = index;
    ofn.lpstrInitialDir = dir;
-   if (GetOpenFileName(&ofn)) {
+   if (GetSnapshotFileName(&ofn, 0)) {
       trd_toload = ofn.nFilterIndex-1;
       if (!loadsnap(fname)) MessageBox(GetForegroundWindow(), fname, "loading error", MB_ICONERROR);
    }
@@ -385,7 +387,7 @@ void addref(LPSTR &ptr, unsigned char sntype, char *ref, unsigned drv, unsigned 
 void savesnap(int diskindex)
 {
 again:
-   OPENFILENAME ofn = { sizeof ofn }; char fname[0x200]; *fname = 0;
+   OPENFILENAME ofn = { OPENFILENAME_SIZE_VERSION_400 }; char fname[0x200]; *fname = 0;
    if (diskindex >= 0) {
       strcpy(fname, comp.wd.fdd[diskindex].name);
       int ln = strlen(fname);
@@ -433,7 +435,7 @@ again:
    } else path = fname;
    path = strrchr(path, '.'); if (path) *path = 0; // delete extension
 
-   if (GetSaveFileName(&ofn)) {
+   if (GetSnapshotFileName(&ofn, 1)) {
       char *fn = strrchr(ofn.lpstrFile, '\\');
       fn = fn? fn+1 : ofn.lpstrFile;
       char *extpos = strrchr(fn, '.');

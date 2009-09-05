@@ -262,7 +262,7 @@ void ATA_DEVICE::configure(IDE_CONFIG *cfg)
       } else if (drive < MAX_PHYS_HD_DRIVES + MAX_PHYS_CD_DRIVES) {
          sprintf(devname = xx, "\\\\.\\CdRom%d", drive - MAX_PHYS_HD_DRIVES);
          atapi = 1;
-      } else { errmsg("no physical device %s", cfg->image); return; }
+      } else { errmsg("no physical device %s", cfg->image); *cfg->image = 0; return; }
 
       phys_dev = drive; open_mode = OPEN_EXISTING;
    } else
@@ -270,11 +270,12 @@ void ATA_DEVICE::configure(IDE_CONFIG *cfg)
 
    hDevice = CreateFile(devname,
                           GENERIC_READ | GENERIC_WRITE,
-                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE,
                           0, open_mode, 0, 0);
    if (hDevice == INVALID_HANDLE_VALUE) {
       errmsg("failed to open %s", cfg->image);
       err_win32();
+      *cfg->image = 0;
    }
 }
 

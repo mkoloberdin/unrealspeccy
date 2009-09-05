@@ -21,19 +21,25 @@ void wtline(char *name, unsigned ptr, unsigned y)
 
 void showwatch()
 {
-   wtline("PC", cpu.pc, 0);
-   wtline("SP", cpu.sp, 1);
-   wtline("BC", cpu.bc, 2);
-   wtline("DE", cpu.de, 3);
-   wtline("HL", cpu.hl, 4);
-   wtline("IX", cpu.ix, 5);
-   wtline("IY", cpu.iy, 6);
-   wtline("BC'", cpu.alt.bc, 7);
-   wtline("DE'", cpu.alt.de, 8);
-   wtline("HL'", cpu.alt.hl, 9);
-   wtline(0, user_watches[0], 10);
-   wtline(0, user_watches[1], 11);
-   wtline(0, user_watches[2], 12);
+   if (show_scrshot) {
+      for (unsigned y = 0; y < wat_sz; y++)
+         for (unsigned x = 0; x < 37; x++)
+            txtscr[80*30 +  (wat_y+y)*80 + (wat_x+x)] = 0xFF;
+   } else {
+      wtline("PC", cpu.pc, 0);
+      wtline("SP", cpu.sp, 1);
+      wtline("BC", cpu.bc, 2);
+      wtline("DE", cpu.de, 3);
+      wtline("HL", cpu.hl, 4);
+      wtline("IX", cpu.ix, 5);
+      wtline("IY", cpu.iy, 6);
+      wtline("BC'", cpu.alt.bc, 7);
+      wtline("DE'", cpu.alt.de, 8);
+      wtline("HL'", cpu.alt.hl, 9);
+      wtline(0, user_watches[0], 10);
+      wtline(0, user_watches[1], 11);
+      wtline(0, user_watches[2], 12);
+   }
    char *text = "watches";
    if (show_scrshot == 1) text = "screen memory";
    if (show_scrshot == 2) text = "ray-painted";
@@ -115,21 +121,25 @@ void showports()
    char ln[64];
    sprintf(ln, "  FE:%02X", comp.pFE); tprint(ports_x, ports_y, ln, W_OTHER);
    sprintf(ln, "7FFD:%02X", comp.p7FFD); tprint(ports_x, ports_y+1, ln, W_OTHER);
+
    switch (conf.mem_model) {
       case MM_KAY:
       case MM_SCORP:
       case MM_PROFSCORP:
-         sprintf(ln, "1FFD:%02X", comp.p1FFD); break;
+         dbg_extport = 0x1FFD; dgb_extval = comp.p1FFD; break;
       case MM_PROFI:
-         sprintf(ln, "DFFD:%02X", comp.pDFFD); break;
+         dbg_extport = 0xDFFD; dgb_extval = comp.pDFFD; break;
       case MM_ATM450:
-         sprintf(ln, "FDFD:%02X", comp.pFDFD); break;
+         dbg_extport = 0xFDFD; dgb_extval = comp.pFDFD; break;
       case MM_ATM710:
-         sprintf(ln, "%04X:%02X", comp.aFF77 & 0xFFFF, comp.pFF77); break;
+         dbg_extport = (comp.aFF77 & 0xFFFF); dgb_extval = comp.pFF77; break;
       default:
-         sprintf(ln, "cmos:%02X", comp.cmos_addr);
+         dbg_extport = 0;
    }
+   if (dbg_extport) sprintf(ln, "%04X:%02X", dbg_extport, dgb_extval);
+   else sprintf(ln, "cmos:%02X", comp.cmos_addr);
    tprint(ports_x, ports_y+2, ln, W_OTHER);
+
    sprintf(ln, "EFF7:%02X", comp.pEFF7); tprint(ports_x, ports_y+3, ln, W_OTHER);
    frame(ports_x, ports_y, 7, 4, FRAME); tprint(ports_x, ports_y-1, "ports", W_TITLE);
 }

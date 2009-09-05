@@ -59,7 +59,8 @@ int FDD::addfile(unsigned char *hdr, unsigned char *data)
    // goto next track. s8 become invalid
    for (unsigned i = 0; i < len; i++, pos++) {
       t.seek(this, pos/32, (pos/16) & 1, LOAD_SECTORS);
-      t.write_sector((pos&0x0F)+1,data+i*0x100);
+      if (!t.trkd) return 0;
+      if (!t.write_sector((pos&0x0F)+1,data+i*0x100)) return 0;
    }
    return 1;
 }

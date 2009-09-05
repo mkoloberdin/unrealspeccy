@@ -43,6 +43,7 @@ unsigned regs_curs;
 
 #define ports_x 72
 #define ports_y 1
+unsigned dbg_extport; unsigned char dgb_extval; // extended memory port like 1FFD or DFFD
 
 #define dos_x 72
 #define dos_y 6
@@ -78,173 +79,32 @@ unsigned regs_curs;
 #define FFRAME_ERROR  0x52
 #define FRM_HEADER    0xD0
 
+#define MENU_INSIDE   0x70
+#define MENU_HEADER   0xF0
+
+#define MENU_CURSOR   0xE0
+#define MENU_ITEM     MENU_INSIDE
+#define MENU_ITEM_DIS 0x7A
+
 unsigned ripper; // ripper mode (none/read/write)
 __int64 debug_last_t; // used to find time delta
-
-unsigned char txtscr[80*30*2];
-struct {
-   unsigned char x,y,dx,dy,c;
-} frames[20]; unsigned nfr;
-
 
 enum DBGWND {
    WNDNO, WNDMEM, WNDTRACE, WNDREGS
 } activedbg = WNDTRACE;
 
-void frame(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char attr)
-{
-   frames[nfr].x = x;
-   frames[nfr].y = y;
-   frames[nfr].dx = dx;
-   frames[nfr].dy = dy;
-   frames[nfr].c = attr;
-   nfr++;
-}
-
-void tprint(unsigned x, unsigned y, char *str, unsigned char attr)
-{
-   for (unsigned ptr = y*80 + x; *str; str++, ptr++) {
-      txtscr[ptr] = *str; txtscr[ptr+80*30] = attr;
-   }
-}
-
-void tprint_fg(unsigned x, unsigned y, char *str, unsigned char attr)
-{
-   for (unsigned ptr = y*80 + x; *str; str++, ptr++) {
-      txtscr[ptr] = *str; txtscr[ptr+80*30] = (txtscr[ptr+80*30] & 0xF0) + attr;
-   }
-}
-
-void filledframe(unsigned x, unsigned y, unsigned dx, unsigned dy)
-{
-   for (unsigned yy = y; yy < (y+dy); yy++)
-      for (unsigned xx = x; xx < (x+dx); xx++)
-         txtscr[yy*80+xx] = ' ',
-         txtscr[yy*80+xx+30*80] = FFRAME_INSIDE;
-   nfr = 0; // delete other frames while dialog
-   frame(x,y,dx,dy,FFRAME_FRAME);
-}
-
-void debugflip()
-{
-   if (!active) return;
-   setpal(0);
-
-   #define bptr gdibuf
-   // print text
-   int x,y;
-   unsigned char *tptr = txtscr;
-   for (y = 0; y < 16*30*640; y+=16*640) {
-      for (x = 0; x < 80; x++, tptr++) {
-         unsigned char ch = *tptr;
-         unsigned char *fnt = &font16[ch*16];
-         unsigned at = tptr[80*30] << 4;
-         for (int yy = 0; yy < 16; yy++, fnt++) {
-            *(unsigned*)(bptr+y+640*yy+x*8+0) = t.sctab8[0][(*fnt >>  4) + at];
-            *(unsigned*)(bptr+y+640*yy+x*8+4) = t.sctab8[0][(*fnt & 0xF) + at];
-         }
-      }
-   }
-
-   if (show_scrshot) {
-      memcpy(save_buf, rbuf, rb2_offs);
-      paint_scr((show_scrshot == 1)? 0 : 2);
-      unsigned char *dst = bptr + wat_y*16*640+wat_x*8;
-      unsigned char *src = rbuf+temp.scx/4*(temp.b_top+192/2-wat_sz*16/2);
-      src += temp.scx/8-37/2*2;
-      for (unsigned y = 0; y < wat_sz*16; y++) {
-         for (unsigned x = 0; x < 37; x++) {
-            *(unsigned*)(dst+x*8+0) = t.sctab8[0][(src[x*2] >>  4) + src[2*x+1]*16];
-            *(unsigned*)(dst+x*8+4) = t.sctab8[0][(src[x*2] & 0xF) + src[2*x+1]*16];
-         }
-         src += temp.scx/4, dst += 640;
-      }
-      memcpy(rbuf, save_buf, rb2_offs);
-   }
-
-   // show frames
-   for (unsigned i = 0; i < nfr; i++) {
-      unsigned char a1 = (frames[i].c | 0x08) * 0x11;
-      y = frames[i].y*16-1;
-      for (x = 8*frames[i].x-1; x < (frames[i].x+frames[i].dx)*8; x++) bptr[y*640+x] = a1;
-      y = (frames[i].y+frames[i].dy)*16;
-      for (x = 8*frames[i].x-1; x < (frames[i].x+frames[i].dx)*8; x++) bptr[y*640+x] = a1;
-      x = frames[i].x*8-1;
-      for (y = 16*frames[i].y; y < (frames[i].y+frames[i].dy)*16; y++) bptr[y*640+x] = a1;
-      x = (frames[i].x+frames[i].dx)*8;
-      for (y = 16*frames[i].y; y < (frames[i].y+frames[i].dy)*16; y++) bptr[y*640+x] = a1;
-   }
-
-   gdibmp.header.bmiHeader.biBitCount = 8;
-   if (needclr) gdi_frame();
-   SetDIBitsToDevice(temp.gdidc, temp.gx, temp.gy, 640, 480, 0, 0, 0, 480, bptr, &gdibmp.header, DIB_RGB_COLORS);
-   gdibmp.header.bmiHeader.biBitCount = temp.obpp;
-   #undef bptr
-}
-
-char str[0x80];
-unsigned inputhex(unsigned x, unsigned y, unsigned sz, char hex)
-{
-   unsigned cr = 0;
-   mousepos = 0;
-   for (;;) {
-      str[sz] = 0; for (unsigned i = strlen(str); i < sz; i++) str[i] = ' ';
-      for (i = 0; i < sz; i++) {
-         unsigned vl = (unsigned char)str[i]; tprint(x+i,y,(char*)&vl,(i==cr) ? W_INPUTCUR : W_INPUTBG);
-      }
-      debugflip();
-      unsigned key;
-      for (;;) {
-         key = process_msgs();
-         if (mousepos) return 0;
-         if (!key) { Sleep(20); continue; }
-         break;
-      }
-      if (key == VK_ESCAPE) return 0;
-      if (key == VK_RETURN) {
-         for (char *ptr = str+sz-1; *ptr == ' ' && ptr >= str; *ptr-- = 0);
-         return 1;
-      }
-      if (key == VK_LEFT || key == VK_BACK) { if (cr) cr--; continue; }
-      if (key == VK_RIGHT && cr != sz-1) cr++;
-      if (key == VK_HOME) cr=0;
-      if (key == VK_END) for (cr=sz-1; cr && str[cr]==' ' && str[cr-1] == ' '; cr--);
-      if (key == VK_DELETE) { for (i = cr; i < sz-1; i++) str[i]=str[i+1]; str[sz-1] = ' '; }
-      if (key == VK_INSERT) { for (i = sz-1; i > cr; i--) str[i]=str[i-1]; str[cr] = ' '; }
-      if (hex) {
-         if ((key >= '0' && key <= '9') || (key >= 'A' && key <= 'F')) str[cr++] = (unsigned char)key;
-      } else {
-         GetKeyboardState(kbdpc); unsigned short k;
-         if (ToAscii(key,0,kbdpc,&k,0) == 1) str[cr++] = (char)k;
-      }
-      if (cr == sz) cr--;
-   }
-}
-
-unsigned input4(unsigned x, unsigned y, unsigned val)
-{
-   sprintf(str, "%04X", val);
-   if (inputhex(x,y,4,1)) { sscanf(str, "%x", &val); return val; }
-   return -1;
-}
-
-unsigned input2(unsigned x, unsigned y, unsigned val)
-{
-   sprintf(str, "%02X", val);
-   if (inputhex(x,y,2,1)) { sscanf(str, "%x", &val); return val; }
-   return -1;
-}
-
 void debugscr();
 unsigned find1dlg(unsigned start);
 unsigned find2dlg(unsigned start);
 
+#include "dbgpaint.cpp"
 #include "dbglabls.cpp"
 #include "z80asm.cpp"
 #include "dbgreg.cpp"
 #include "dbgmem.cpp"
-#include "dbgcmd.cpp"
 #include "dbgtrace.cpp"
+#include "dbgrwdlg.cpp"
+#include "dbgcmd.cpp"
 #include "dbgbpx.cpp"
 #include "dbgoth.cpp"
 

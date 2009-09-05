@@ -53,6 +53,11 @@ void out(unsigned port, unsigned char val)
       }
    }
 
+   #ifdef MOD_VID_VD
+   if ((unsigned char)port == 0xDF) { comp.pVD = val; comp.vdbase = (comp.pVD & 4)? vdmem[comp.pVD & 3] : 0; return; }
+   #endif
+
+
    if (!(port & 1)) { // port #FE
       // speaker & mic
       if ((comp.pFE ^ val) & 0x18) flush_dig_snd();
@@ -91,12 +96,11 @@ set1FFD:
          // if (conf.mem_model == MM_ATM710 && (port & 0x8202) != (0x7FFD & 0x8202)) return; // strict 7FFD decoding on ATM-2
 
          // 7FFD
-         if (conf.mem_model == MM_MYPENT && (val & 0x80) && (comp.flags & CF_SYSTEMROM)) comp.flags &= ~CF_SYSTEMROM, set_banks();
          if (comp.p7FFD & 0x20) { // 48k lock
             // #EFF7.2 forces lock
             if (comp.pEFF7 & EFF7_LOCKMEM) return;
             // if not pentagon-1024, apply lock
-            if (!(conf.ramsize == 1024 && (conf.mem_model == MM_PENTAGON || conf.mem_model == MM_MYPENT))) return;
+            if (!(conf.ramsize == 1024 && conf.mem_model == MM_PENTAGON)) return;
          }
          if ((comp.p7FFD ^ val) & 0x08) update_screen();
          comp.p7FFD = val; set_banks(); return;

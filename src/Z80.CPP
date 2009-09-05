@@ -49,6 +49,10 @@ void reset(ROM_MODE mode)
    if (conf.sound.gsreset) reset_gs();
    #endif
 
+   #ifdef MOD_VID_VD
+   comp.vdbase = 0; comp.pVD = 0;
+   #endif
+
    if (conf.mem_model == MM_ATM710) reset_atm();
    hdd.reset();
    input.atm51.reset();

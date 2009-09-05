@@ -161,7 +161,7 @@ enum IDE_SCHEME { IDE_NONE = 0, IDE_ATM, IDE_NEMO, IDE_NEMO_A8, IDE_SMUC };
 
 enum MEM_MODEL
 {
-   MM_PENTAGON = 0, MM_MYPENT,
+   MM_PENTAGON = 0,
    MM_SCORP, MM_PROFSCORP,
    MM_PROFI,
    MM_ATM450, MM_ATM710,
@@ -182,7 +182,6 @@ struct
 } mem_model[N_MM_MODELS] =
 {
         { "PENTAGON", "PENTAGON",                       128,  RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
-        { "PENTAGON + GRM SERVICE ROM", "PENTSR",       128,  RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
         { "ZS SCORPION", "SCORPION",                    256,  RAM_256 | RAM_1024 },
         { "ZS SCORPION + PROF ROM", "PROFSCORP",        256,  RAM_256 | RAM_1024 },
         { "PROFI", "PROFI",                             1024, RAM_1024 },
@@ -330,6 +329,7 @@ struct CONFIG
    char sos_labels_path[0x200];
    #endif
 
+   char atariset[64]; // preset for atari mode
    char keyset[64]; // short name of keyboard layout
    char appendboot[0x200];
    char workdir[0x200];
@@ -358,6 +358,9 @@ struct TEMP
    unsigned odx, ody; // offset to border in surface, used only in flip()
    unsigned rsx, rsy; // screen resolution
    unsigned b_top, b_left, b_right, b_bottom; // border frame used to setup MCR
+
+   unsigned ataricolors[0x100];
+   unsigned shift_mask; // for 16/32 bit modes masks low bits of color components
 
    struct { // led coords
       unsigned char *ay;
@@ -447,7 +450,7 @@ struct AY
 #define EFF7_LOCKMEM    0x04
 #define EFF7_ROCACHE    0x08
 #define EFF7_GIGASCREEN 0x10
-#define EFF7_SB         0x20
+#define EFF7_4BPP       0x20
 #define EFF7_384        0x40
 #define EFF7_CMOS       0x80
 
@@ -485,7 +488,11 @@ struct COMPUTER
    unsigned char flags;
    unsigned char border_attr;
    unsigned char cmos_addr;
-   unsigned char resv1;
+   unsigned char pVD;
+
+   #ifdef MOD_VID_VD
+   unsigned char *vdbase;
+   #endif
 
    unsigned char pFFBA, p7FBA; // SMUC
    unsigned char res1, res2;

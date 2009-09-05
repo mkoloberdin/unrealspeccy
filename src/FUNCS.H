@@ -47,8 +47,9 @@ void reset_gs_sound();
 void load_ay_stereo();
 void load_ay_vols();
 void load_ula_preset();
-void create_font_tables();
+
 void restart_sound();
+void create_font_tables();
 
 void reset(ROM_MODE mode);
 
@@ -56,3 +57,8 @@ void __fastcall render_rsm(unsigned char*, unsigned);
 void __fastcall render_advmame(unsigned char *dst, unsigned pitch);
 void __fastcall render_small(unsigned char *dst, unsigned pitch);
 void rend_dbl(unsigned char *dst, unsigned pitch);
+
+int loadsnap(char *filename);
+unsigned char what_is(char *filename);
+
+unsigned char getcheck(unsigned ID);

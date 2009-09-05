@@ -40,7 +40,7 @@ char select_romfile(char *dstname)
 {
    char fname[0x200]; strcpy(fname, dstname);
    char *x = strrchr(fname+2, ':'); if (x) *x = 0;
-   OPENFILENAME ofn = { sizeof ofn };
+   OPENFILENAME ofn = { OPENFILENAME_SIZE_VERSION_400 };
    ofn.hwndOwner = dlg;
    ofn.lpstrFilter = "ROM image (*.ROM)\0*.ROM\0All files\0*.*\0";
    ofn.lpstrFile = fname; ofn.nMaxFile = sizeof fname;
@@ -148,21 +148,21 @@ void mem_set_sizes()
    EnableWindow(GetDlgItem(dlg, IDC_RAM512),  (mems & RAM_512)?  1:0);
    EnableWindow(GetDlgItem(dlg, IDC_RAM1024), (mems & RAM_1024)? 1:0);
 
-   unsigned ok = 1;
-   if (getcheck(IDC_RAM128) && !(mems & IDC_RAM128)) ok = 0;
-   if (getcheck(IDC_RAM256) && !(mems & IDC_RAM256)) ok = 0;
-   if (getcheck(IDC_RAM512) && !(mems & IDC_RAM512)) ok = 0;
-   if (getcheck(IDC_RAM1024)&& !(mems & IDC_RAM1024))ok = 0;
+   char ok = 1;
+   if (getcheck(IDC_RAM128) && !(mems & RAM_128)) ok = 0;
+   if (getcheck(IDC_RAM256) && !(mems & RAM_256)) ok = 0;
+   if (getcheck(IDC_RAM512) && !(mems & RAM_512)) ok = 0;
+   if (getcheck(IDC_RAM1024)&& !(mems & RAM_1024))ok = 0;
 
    if (!ok) {
-      setcheck(IDC_RAM128,0);
-      setcheck(IDC_RAM256,0);
-      setcheck(IDC_RAM512,0);
+      setcheck(IDC_RAM128, 0);
+      setcheck(IDC_RAM256, 0);
+      setcheck(IDC_RAM512, 0);
       setcheck(IDC_RAM1024,0);
       if (best == 128) setcheck(IDC_RAM128);
       if (best == 256) setcheck(IDC_RAM256);
       if (best == 512) setcheck(IDC_RAM512);
-      if (best == 1024) setcheck(IDC_RAM1024);
+      if (best == 1024)setcheck(IDC_RAM1024);
    }
 
    char *romname = MemDlg_get_bigrom();
@@ -445,7 +445,7 @@ void HddDlg_select_image(int device)
    }
 
    // open HDD image
-   OPENFILENAME fn = { sizeof OPENFILENAME };
+   OPENFILENAME fn = { OPENFILENAME_SIZE_VERSION_400 };
    strcpy(textbuf, c1.ide[device].image);
    if (textbuf[0] == '<') *textbuf = 0;
    fn.hwndOwner = dlg;
@@ -858,7 +858,7 @@ upd:  for (int i = 0; i < sizeof slider/sizeof*slider; i++) {
 
    #ifdef MOD_GSBASS
    if (msg == WM_COMMAND && LOWORD(wp) == IDB_SAVEMOD) {
-      OPENFILENAME ofn = { sizeof ofn };
+      OPENFILENAME ofn = { OPENFILENAME_SIZE_VERSION_400 };
       char fname[0x200]; strncpy(fname, (char*)gs.mod, 20); fname[20] = 0;
       for (char *ptr = fname; *ptr; ptr++)
          if (*ptr == '|' || *ptr == '<' || *ptr == '>' ||

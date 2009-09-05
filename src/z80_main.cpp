@@ -14,6 +14,11 @@ __inline void wm(unsigned addr, unsigned char val)
    unsigned char *membit = membits + (addr & 0xFFFF);
    *membit |= MEMBITS_W; dbgbreak |= (*membit & MEMBITS_BPW);
 #endif
+
+#ifdef MOD_VID_VD
+   if (comp.vdbase && (unsigned)((addr & 0xFFFF) - 0x4000) < 0x1800) { comp.vdbase[addr & 0x1FFF] = val; return; }
+#endif
+
    unsigned char *a = bankw[(addr >> 14) & 3];
 #ifndef TRASH_PAGE
    if (!a) return;

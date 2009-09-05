@@ -89,7 +89,7 @@ void savesnddialog()
       fclose(savesnd);
       savesndtype = 0;
    } else {
-      OPENFILENAME ofn = { sizeof ofn };
+      OPENFILENAME ofn = { OPENFILENAME_SIZE_VERSION_400 };
       char sndsavename[0x200]; *sndsavename = 0;
       ofn.lpstrFilter = "All sound (WAV)\0*.wav\0AY sound (VTX)\0*.vtx\0";
       ofn.lpstrFile = sndsavename; ofn.nMaxFile = sizeof sndsavename;

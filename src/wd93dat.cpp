@@ -51,6 +51,18 @@ void FDD::newdisk(unsigned cyls, unsigned sides)
    // comp.wd.trkcache.clear(); // already done in free()
 }
 
+int FDD::read(unsigned char type)
+{
+   int ok = 0;
+   if (type == snTRD) ok = read_trd();
+   if (type == snUDI) ok = read_udi();
+   if (type == snHOB) ok = read_hob();
+   if (type == snSCL) ok = read_scl();
+   if (type == snFDI) ok = read_fdi();
+   if (type == snTD0) ok = read_td0();
+   return ok;
+}
+
 #include "wldr_trd.cpp"
 #include "wldr_udi.cpp"
 #include "wldr_fdi.cpp"

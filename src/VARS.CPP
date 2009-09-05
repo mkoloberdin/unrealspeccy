@@ -21,8 +21,16 @@ ISA_MODEM modem;
 unsigned char *base_sos_rom, *base_dos_rom, *base_128_rom, *base_sys_rom;
 
 
+#ifdef CACHE_ALIGNED
+CACHE_ALIGNED unsigned char memory[PAGE*MAX_PAGES];
+#else // __declspec(align) not available, force QWORD align with old method
 __int64 memory__[PAGE*MAX_PAGES/sizeof(__int64)];
-#define memory ((unsigned char*)memory__)
+unsigned char * const memory = (unsigned char*)memory__;
+#endif
+
+#ifdef MOD_VID_VD
+CACHE_ALIGNED unsigned char vdmem[4][0x2000];
+#endif
 
 enum {
    MEMBITS_R = 0x01, MEMBITS_W = 0x02, MEMBITS_X = 0x04,
@@ -48,6 +56,8 @@ unsigned char trdos_load, trdos_save, trdos_format, trdos_seek; // for leds
 unsigned char needclr; // clear screenbuffer before rendering
 
 HWND wnd; HINSTANCE hIn;
+
+char droppedFile[512];
 
 enum
 {
@@ -85,7 +95,8 @@ extern RENDER renders[];
 extern VOID_FUNC prebuffers[];
 
 // beta128 vars
-unsigned trd_toload = 0; // next drive to load
+unsigned trd_toload = 0; // drive to load
+char trd_loaded[4]; // used to get first free drive with no account of autoloaded images
 char ininame[0x200];
 char helpname[0x200];
 unsigned snapsize;

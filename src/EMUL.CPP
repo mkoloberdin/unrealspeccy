@@ -3,6 +3,7 @@
 
 #include "mods.h"
 
+#include "9x.h"
 #include "ddk.h"
 #include "resource.h"
 
@@ -28,12 +29,14 @@
 #include "modem.cpp"
 #include "io.cpp"
 #include "config.cpp"
+#include "opendlg.cpp"
 #include "snapshot.cpp"
 #include "debug.cpp"
 #include "leds.cpp"
 #include "savesnd.cpp"
 #include "fntsrch.cpp"
 #include "gui.cpp"
+#include "cheat.cpp"
 #include "emulkeys.cpp"
 #include "keydefs.cpp"
 #include "mainloop.cpp"

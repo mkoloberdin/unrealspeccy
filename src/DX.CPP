@@ -28,9 +28,12 @@ unsigned dsoffset, dsbuffer = DSBUFFER;
 
 /* ---------------------- renders ------------------------- */
 #pragma warning(disable:4799)
+
 #include "dxerr.cpp"
 #include "dxrcopy.cpp"
 #include "dxrframe.cpp"
+#include "dxr_vd.cpp"
+#include "dxr_4bpp.cpp"
 #include "dxr_512.cpp"
 #include "dxr_prof.cpp"
 #include "dxr_text.cpp"
@@ -40,6 +43,7 @@ unsigned dsoffset, dsbuffer = DSBUFFER;
 #include "dxrend.cpp"
 #include "dxrendch.cpp"
 #include "dxovr.cpp"
+
 #pragma warning(default:4799)
 
 RENDER renders[] =
@@ -321,22 +325,27 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
       updatebitmap();
       setpal(1); active = 0;
 //      sound_stop();
+      conf.lockmouse = 0;
       adjust_mouse_cursor();
    }
-   if ((uMessage == WM_LBUTTONDOWN || uMessage == WM_LBUTTONUP) && conf.input.joymouse) {
-      input.mousejoy = (input.mousejoy & 0x0F) | (uMessage == WM_LBUTTONDOWN ? 0x10 : 0);
-      input.kjoy = (input.kjoy & 0x0F) | (uMessage == WM_LBUTTONDOWN ? 0x10 : 0);
-   }
-   if (uMessage == WM_MOUSEMOVE && conf.input.joymouse) {
-      RECT rc; GetClientRect(hwnd, &rc);
-      unsigned xx = LOWORD(lparam)*3/(rc.right - rc.left);
-      unsigned yy = HIWORD(lparam)*3/(rc.bottom - rc.top);
-      unsigned nn = yy*3 + xx;
-      SetCursor(crs[nn]);
-      input.mousejoy = (input.mousejoy & 0x10) | mousedirs[nn];
-      input.kjoy = (input.kjoy & 0x10) | mousedirs[nn];
-      return 0;
-   }
+
+   if (conf.input.joymouse) {
+      if (uMessage == WM_LBUTTONDOWN || uMessage == WM_LBUTTONUP) {
+         input.mousejoy = (input.mousejoy & 0x0F) | (uMessage == WM_LBUTTONDOWN ? 0x10 : 0);
+         input.kjoy = (input.kjoy & 0x0F) | (uMessage == WM_LBUTTONDOWN ? 0x10 : 0);
+      }
+      if (uMessage == WM_MOUSEMOVE) {
+         RECT rc; GetClientRect(hwnd, &rc);
+         unsigned xx = LOWORD(lparam)*3/(rc.right - rc.left);
+         unsigned yy = HIWORD(lparam)*3/(rc.bottom - rc.top);
+         unsigned nn = yy*3 + xx;
+         SetCursor(crs[nn]);
+         input.mousejoy = (input.mousejoy & 0x10) | mousedirs[nn];
+         input.kjoy = (input.kjoy & 0x10) | mousedirs[nn];
+         return 0;
+      }
+   } else if (uMessage == WM_LBUTTONDOWN && !conf.lockmouse) main_mouse();
+
    if (uMessage == WM_SIZE || uMessage == WM_MOVE || uMessage == WM_USER) {
       GetClientRect(wnd, &temp.client);
       temp.gdx = temp.client.right-temp.client.left;
@@ -368,6 +377,13 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
       if (wparam==3) main_mouse();
       if (wparam==SC_CLOSE) { correct_exit(); return 1; }
    }
+   if (uMessage == WM_DROPFILES) {
+      HDROP hDrop = (HDROP)wparam;
+      DragQueryFile(hDrop, 0, droppedFile, sizeof(droppedFile));
+      DragFinish(hDrop);
+      return 0;
+   }
+
    return DefWindowProc(hwnd, uMessage, wparam, lparam);
 }
 
@@ -748,6 +764,8 @@ void start_dx()
    wnd = CreateWindow("EMUL_WND", "UnrealSpeccy", WS_VISIBLE|WS_OVERLAPPEDWINDOW,
                     CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
                     NULL, NULL, hIn, NULL);
+
+   DragAcceptFiles(wnd, 1);
 
    temp.ox = 640, temp.oy = 480;
    SendMessage(wnd, WM_SYSCOMMAND, 1, 0); // set window size

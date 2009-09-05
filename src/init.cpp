@@ -49,7 +49,7 @@ void restrict_version(char legacy)
       "in this case you will experience crashes under\r\n"
       "some conditions. it's an OS-specific problem, please\r\n"
       "don't report it and consider using NT-based system";
-   if (MessageBox(0, verwarning, vererror, MB_ICONERROR | MB_YESNO | MB_DEFBUTTON2) == IDNO) exit();
+   if (MessageBox(0, verwarning, vererror, MB_ICONERROR | MB_YESNO | MB_DEFBUTTON2) == IDNO) errexit(vererror);
    #endif
 }
 
@@ -82,22 +82,30 @@ void init_all(int argc, char **argv)
    start_dx();
    applyconfig();
    main_reset();
+   autoload();
+
+   load_errors = 0;
+   trd_toload = 0;
+   *(DWORD*)trd_loaded = 0; // clear loaded flags, don't see autoload'ed images
+
    for (; argc; argc--, argv++) {
       if (**argv == '-' || **argv == '/') {
          if (argc > 1 && !stricmp(argv[0]+1, "i")) argc--, argv++;
          continue;
       }
+
       char fname[0x200], *temp;
       GetFullPathName(*argv, sizeof fname, fname, &temp);
+
+      trd_toload = -1; // auto-select
       if (!loadsnap(fname)) errmsg("error loading <%s>", *argv), load_errors = 1;
    }
-/*
+
    if (load_errors) {
-      printf("press ESC to exit, any other key to continue...");
-      char c = getch(); printf(clrline);
-      if (c == 0x1B) exit(0);
+      int code = MessageBox(wnd, "Some files, specified in\r\ncommand line, failed to load\r\n\r\nContinue emulation?", "File loading error", MB_YESNO | MB_ICONWARNING);
+      if (code != IDYES) exit();
    }
-*/
+
    SetCurrentDirectory(conf.workdir);
    timeBeginPeriod(1);
 }

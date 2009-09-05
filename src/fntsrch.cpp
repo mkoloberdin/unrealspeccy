@@ -385,7 +385,7 @@ void save_font()
 
 void FontFromFile(HWND dlg)
 {
-   OPENFILENAME ofn = { sizeof ofn };
+   OPENFILENAME ofn = { OPENFILENAME_SIZE_VERSION_400 };
    char fname[0x200]; *fname = 0;
    ofn.hwndOwner = dlg;
    ofn.lpstrFilter = "font files (*.FNT,*.FNX)\0*.fnt;*.fnx\0All files\0*.*\0";

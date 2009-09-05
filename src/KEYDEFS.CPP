@@ -48,6 +48,7 @@ action ac_main[] =
    { "main.size1", main_size1 },
    { "main.size2", main_size2 },
    { "main.sizem", main_sizem },
+   { "main.memsearch", main_cheat },
    { "main.help", main_help },
 
    { 0, 0 },
@@ -82,7 +83,7 @@ action ac_main_xt[] =
    { "mon.nmi", main_nmi },                             \
    { "mon.nmidos", main_nmidos },                       \
    { "mon.nmicache", main_nmicache },                   \
-   { "mon.settigns", mon_setup_dlg },                   \
+   { "mon.settings", mon_setup_dlg },                   \
    { "mon.save", savesnap },                            \
    { "mon.load", opensnap },                            \
    { "mon.savesound", savesnddialog },                  \
@@ -99,16 +100,17 @@ action ac_main_xt[] =
    { "mon.stepover", mon_stepover },                    \
    { "mon.exitsub", mon_exitsub },                      \
    { "mon.setbank", editbank },                         \
+   { "mon.sethimem", editextbank },                     \
    { "mon.dump", mon_dump },                            \
    { "mon.next", mon_nxt },                             \
    { "mon.prev", mon_prv },                             \
    { "mon.rip", mon_tool },                             \
    { "mon.osw", mon_watchdialog },                      \
-   { "mon.disasm", mon_dis },                           \
    { "mon.help", mon_help },                            \
    { "mon.scrshot", mon_scrshot },                      \
    { "mon.setwatch", mon_setwatch },                    \
    { "mon.switchay", mon_switchay },                    \
+   { "mon.memsearch", main_cheat },                     \
    { "mon.labels", mon_show_labels },
 
 
@@ -184,8 +186,7 @@ action ac_trace[] =
    { "cpu.context", cjump },
    { "cpu.datajump", cdjump },
    { "cpu.labels", cfliplabels },
-   { "cpu.impxas", c_loadlbl_x },
-   { "cpu.impalasm", c_loadlbl_a },
+   { "cpu.importl", c_lbl_import },
    ac_mon
    { 0, 0 },
 };

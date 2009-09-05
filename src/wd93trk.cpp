@@ -98,10 +98,11 @@ void TRKCACHE::dump()
 int TRKCACHE::write_sector(unsigned sec, unsigned char *data)
 {
    SECHDR *h = get_sector(sec);
-   if (!h) return 0;
-   memcpy(h->data, data, 256);
-   *(unsigned short*)(h->data+256) = (unsigned short)wd93_crc(h->data-1, 257);
-   return 1;
+   if (!h || !h->data) return 0;
+   unsigned sz = h->datlen;
+   memcpy(h->data, data, sz);
+   *(unsigned short*)(h->data+sz) = (unsigned short)wd93_crc(h->data-1, sz+1);
+   return sz;
 }
 
 SECHDR *TRKCACHE::get_sector(unsigned sec)

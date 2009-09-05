@@ -19,20 +19,6 @@
 #include <math.h>
 #include <emmintrin.h>
 
-#if 0
-
-#ifdef UNICODE
-#define OPENFILENAME OPENFILENAME_NT4W
-#define LPOPENFILENAME LPOPENFILENAME_NT4W
-#else
-#define OPENFILENAME OPENFILENAME_NT4A
-#define LPOPENFILENAME LPOPENFILENAME_NT4A
-#endif // UNICODE
-
-#endif
-
-
-
 #pragma warning(disable:4288)  // loop control variable declared in the for-loop is used outside the for-loop scope;
                                // it conflicts with the declaration in the outer scope
 
@@ -43,6 +29,7 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "comctl32.lib")

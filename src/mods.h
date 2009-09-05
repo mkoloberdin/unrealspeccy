@@ -1,10 +1,10 @@
 
 /* edit this file to make optimized versions without unnecessary parts */
 
-#define VERS_STRING  "0.32b "   // version for monitor (exact 6 chars)
-#define VERS_STRING_ "0.32b"    // version for startup string (any length)
-#define VER_HL 0x0020           // major version
-#define VER_A  0x02             // minor version and beta flag
+#define VERS_STRING  "0.33b "   // version for monitor (exact 6 chars)
+#define VERS_STRING_ "0.33b"    // version for startup string (any length)
+#define VER_HL 0x0021           // major version
+#define VER_A  0x00             // minor version and beta flag
 
 #define MOD_GSZ80     // exact gs emulation through Z80/ROM/DACs
 #define MOD_GSBASS    // fast gs emulation via sampleplayer and BASS mod-player
@@ -12,6 +12,8 @@
 #define MOD_SETTINGS  // win32 dialog with emulation settings and tape browser
 #define MOD_MONITOR   // debugger
 #define MOD_MEMBAND_LED // 'memory band' led
+
+//#define MOD_VID_VD    // Video Drive by SAM style (warning: requires MMX at initialization)
 
 
 /* ------------------------- console output colors ------------------------- */

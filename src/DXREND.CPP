@@ -30,8 +30,13 @@ void rend_dbl(unsigned char *dst, unsigned pitch)
 
 void __fastcall render_dbl(unsigned char *dst, unsigned pitch)
 {
+   #ifdef MOD_VID_VD
+   if ((comp.pVD & 8) && temp.obpp == 8) { rend_vd8dbl(dst, pitch); return; }
+   #endif
+
    // todo: add ini option to show zx-screen with palette or with MC
    if (comp.pEFF7 & EFF7_512) { rend_512(dst, pitch); return; }
+   if (comp.pEFF7 & EFF7_4BPP) { rend_p4bpp(dst, pitch); return; }
    if ((comp.pDFFD & 0x80) && conf.mem_model == MM_PROFI) { rend_profi(dst, pitch); return; }
    if (conf.mem_model == MM_ATM710) { rend_atm(dst, pitch); return; }
 

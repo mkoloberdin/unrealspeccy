@@ -42,8 +42,8 @@ void __cdecl fillCpuString(char *dst)
       xor eax,eax
       cpuid
       mov dword ptr [esi+0],ebx
-      mov dword ptr [esi+4],ecx
-      mov dword ptr [esi+8],edx
+      mov dword ptr [esi+4],edx
+      mov dword ptr [esi+8],ecx
   done:
       pop ebx
       pop edi
@@ -67,9 +67,10 @@ unsigned cpuid(unsigned _eax, int ext)
    return _eax;
 }
 
-unsigned GetCPUFrequency()
+unsigned __int64 GetCPUFrequency()
 {
    LARGE_INTEGER Frequency; QueryPerformanceFrequency(&Frequency);
+   Sleep(20);
    LARGE_INTEGER Start; QueryPerformanceCounter(&Start);
    unsigned clocks = (unsigned)rdtsc();
    Sleep(50);
@@ -77,7 +78,7 @@ unsigned GetCPUFrequency()
    clocks = (unsigned)rdtsc() - clocks;
    Start.QuadPart = Stop.QuadPart - Start.QuadPart;
 
-   return (unsigned)(clocks * Frequency.QuadPart / Start.LowPart);
+   return (clocks * Frequency.QuadPart / Start.LowPart);
 }
 
 void trim(char *dst)
@@ -127,6 +128,12 @@ unsigned process_msgs()
 {
    MSG msg; unsigned key = 0;
    while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+
+      // mouse messages must be processed further
+      if (msg.message == WM_LBUTTONDOWN) mousepos = msg.lParam, key = VK_LMB;
+      if (msg.message == WM_RBUTTONDOWN) mousepos = msg.lParam | 0x80000000, key = VK_RMB;
+      if (msg.message == WM_MOUSEWHEEL) key = (msg.wParam & 0x80000000)? VK_MWD : VK_MWU;
+
       // WM_KEYDOWN and WM_SYSKEYDOWN must not be dispatched,
       // bcoz window will be closed on alt-f4
       if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN) {
@@ -136,9 +143,6 @@ unsigned process_msgs()
       else if (msg.message == WM_KEYUP || msg.message == WM_SYSKEYUP) {
          if (conf.atm.xt_kbd) input.atm51.setkey(msg.lParam >> 16, 0);
       }
-      else if (msg.message == WM_LBUTTONDOWN) mousepos = msg.lParam, key = VK_LMB;
-      else if (msg.message == WM_RBUTTONDOWN) mousepos = msg.lParam | 0x80000000, key = VK_RMB;
-      else if (msg.message == WM_MOUSEWHEEL) key = (msg.wParam & 0x80000000)? VK_MWD : VK_MWU;
       else DispatchMessage(&msg);
    }
    return key;
@@ -167,6 +171,7 @@ char dispatch_more(action *table)
 
 char dispatch(action *table)
 {
+   if (*droppedFile) { trd_toload = 0; loadsnap(droppedFile); *droppedFile = 0; }
    if (!input.readdevices()) return 0;
    dispatch_more(table);
    return 1;

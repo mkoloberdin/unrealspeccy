@@ -30,27 +30,39 @@ struct videopoint
 const sc2lines_width = MAX_WIDTH*2;
 
 #define MAX_FONT_TABLES 0x62000
-struct {
-   CACHE_ALIGNED union { // switch palette/color values
-      struct { // 8bit
-         unsigned sctab8[2][16*0x100];  //4 bits data+pc-attribute -> 4 palette pixels
-         unsigned sctab8d[2][4*0x100];  //2 bits data+pc-attribute -> 2 palette pixels (doubled)
-         unsigned sctab8q[2*0x100];     //1 bit  data+pc-attribute -> 1 palette pixel (quad)
-      };
-      struct { // 16bit & 32bit
-         unsigned sctab16[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
-         unsigned sctab16d[2][2*0x100]; //1 bit  data+pc-attribute -> 1 pixel (doubled)
-         unsigned sctab32[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
-         union { // switch chunks/noflic
-            unsigned c32tab[0x100][32]; // for chunks 16/32: n_pixels+attr -> chunk color
-            struct {
-               unsigned sctab16_nf[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
-               unsigned sctab16d_nf[2][2*0x100]; //1 bit  data+pc-attribute -> 2 pixels
-               unsigned sctab32_nf[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
-            };
-         };
+CACHE_ALIGNED struct {
+   struct { // switch palette/color values
+      // 8bit
+      unsigned sctab8[2][16*0x100];  //4 bits data+pc-attribute -> 4 palette pixels
+      unsigned sctab8d[2][4*0x100];  //2 bits data+pc-attribute -> 2 palette pixels (doubled)
+      unsigned sctab8q[2*0x100];     //1 bit  data+pc-attribute -> 1 palette pixel (quad)
+      // 16bit & 32bit
+      unsigned sctab16[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
+      unsigned sctab16d[2][2*0x100]; //1 bit  data+pc-attribute -> 1 pixel (doubled)
+      unsigned sctab32[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
+   };
+
+   union { // switch chunks/noflic
+      unsigned c32tab[0x100][32]; // for chunks 16/32: n_pixels+attr -> chunk color
+      struct {
+         unsigned sctab16_nf[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
+         unsigned sctab16d_nf[2][2*0x100]; //1 bit  data+pc-attribute -> 2 pixels
+         unsigned sctab32_nf[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
       };
    };
+
+   unsigned char attrtab[0x200]; // pc attribute + bit (pixel on/off) -> palette index
+
+   CACHE_ALIGNED union {
+      unsigned p4bpp8[2][0x100];   // ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
+      unsigned p4bpp16[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
+      unsigned p4bpp32[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
+   };
+   CACHE_ALIGNED union {
+      unsigned p4bpp16_nf[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
+      unsigned p4bpp32_nf[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
+   };
+
    union {
       struct {
          CACHE_ALIGNED unsigned char scale2buf[8][sc2lines_width];    // temp buffer for scale2x,3x filter
@@ -61,17 +73,14 @@ struct {
       unsigned font_tables[MAX_FONT_TABLES / sizeof(unsigned)]; // for anti-text64
       union {
          struct {
-            unsigned atm_ega8[2][0x100];   // ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
             unsigned zctab8[2][16*0x100];  // 4 bits data+zx-attribute -> 4 palette pixels
             unsigned zctab8ad[2][4*0x100]; // 2 bits data+zx-attribute -> 2 palette pixels (doubled)
          };
          struct {
-            unsigned atm_ega16[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
             unsigned zctab16[2][4*0x100];  // 2 bits data+pc-attribute -> 2 pixels
             unsigned zctab16ad[2][2*0x100];// 1 bits data+pc-attribute -> 1 pixel (doubled)
          };
          struct {
-            unsigned atm_ega32[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
             unsigned zctab32[2][2*0x100];  // 1 bit  data+pc-attribute -> 1 pixel
             unsigned zctab32ad[2][2*0x100];// 1 bit  data+pc-attribute -> 1 pixel
          };
@@ -88,6 +97,11 @@ struct {
    struct {   // for AlCo-384
       unsigned char *s, *a;
    } alco[304][8];
+
+   #ifdef MOD_VID_VD
+   __m64 vdtab[2][4][256];
+   #endif
+
 } t;
 
 videopoint *vcurr, video[4*MAX_HEIGHT];
@@ -99,6 +113,7 @@ unsigned char colortab[0x100];// map zx attributes to pc attributes
 unsigned colortab_s8[0x100], colortab_s24[0x100]; // colortab shifted to 8 and 24
 
 #include "drawnomc.cpp"
+#include "draw_384.cpp"
 
 PALETTEENTRY pal0[0x100]; // emulator palette
 
@@ -158,6 +173,19 @@ void video_permanent_tables()
          ::t.alco[y][x].a = memory + base_a[y/64] + disp;
          ::t.alco[y][x].s = memory + base_s[y/64] + disp + (y & 7)*0x100;
       }
+
+   #ifdef MOD_VID_VD
+   // this code is only for ygrbYGRB palette
+   for (unsigned byte = 0; byte < 0x100; byte++)
+      for (int bit = 0; bit < 8; bit++)
+         t.vdtab[0][0][byte].m64_u8[7-bit] = (byte & (1 << bit))? 0x11 : 0;
+   for (int pl = 1; pl < 4; pl++)
+      for (unsigned byte = 0; byte < 0x100; byte++)
+         t.vdtab[0][pl][byte] = _mm_slli_pi32(t.vdtab[0][0][byte], pl);
+   for (i = 0; i < sizeof t.vdtab[0]; i++)
+      ((unsigned char*)t.vdtab[1])[i] = ((unsigned char*)t.vdtab[0])[i] & 0x0F;
+   _mm_empty();
+   #endif
 }
 
 unsigned getYUY2(unsigned r, unsigned g, unsigned b)
@@ -228,7 +256,7 @@ void make_colortab(char flash_active)
 }
 
 // make attrtab: pc-attr + 0x100*pixel -> palette index
-void attr_tables(unsigned char attrtab[])
+void attr_tables()
 {
    unsigned char flashcolor = (temp.rflags & RF_MON)? 0 : conf.flashcolor;
    for (unsigned a = 0; a < 0x100; a++) {
@@ -236,11 +264,11 @@ void attr_tables(unsigned char attrtab[])
       if (flashcolor) paper = (paper & 7) + (ink & 8); // paper_bright from ink
 
       if (temp.rflags & RF_GRAY) { // grayscale palette
-         attrtab[a] = paper*16;
-         attrtab[a+0x100] = ink*16;
+         t.attrtab[a] = paper*16;
+         t.attrtab[a+0x100] = ink*16;
       } else if (temp.rflags & RF_ATMPAL) { //------ for ATM palette - direct values from palette registers
-         attrtab[a] = comp.atm_pal[a >> 4];
-         attrtab[a+0x100] = comp.atm_pal[a & 0x0F];
+         t.attrtab[a] = comp.atm_pal[a >> 4];
+         t.attrtab[a+0x100] = comp.atm_pal[a & 0x0F];
       } else if (temp.rflags & RF_PALB) { //----------------------------- for bilinear
          unsigned char b0,b1, r0,r1, g0,g1;
          b0 = (paper >> 0) & 1, r0 = (paper >> 1) & 1, g0 = (paper >> 2) & 1;
@@ -265,33 +293,33 @@ void attr_tables(unsigned char attrtab[])
          if (b0) b0 += br0;
 
          // palette index: gg0rr0bb
-         attrtab[a+0x100]  = (g1 << 6) + (r1 << 3) + b1;
-         attrtab[a]        = (g0 << 6) + (r0 << 3) + b0;
+         t.attrtab[a+0x100]  = (g1 << 6) + (r1 << 3) + b1;
+         t.attrtab[a]        = (g0 << 6) + (r0 << 3) + b0;
       } else //------------------------------------ all others
       {
          // palette index: ygrbYGRB
          if (flashcolor && (a & 0x80)) {
-            attrtab[a] = 0, attrtab[a+0x100] = ink+(paper<<4);
-         } else attrtab[a+0x100] = ink * 0x11, attrtab[a] = paper * 0x11;
+            t.attrtab[a] = 0, t.attrtab[a+0x100] = ink+(paper<<4);
+         } else t.attrtab[a+0x100] = ink * 0x11, t.attrtab[a] = paper * 0x11;
       }
    }
 }
 
-void atm_ega_tables()
+void p4bpp_tables()
 {
    for (unsigned pass = 0; pass < 2; pass++) {
       for (unsigned bt = 0; bt < 0x100; bt++) {
          unsigned lf = ((bt >> 3) & 7) + ((bt >> 4) & 8);
          unsigned rt = (bt & 7) + ((bt >> 3) & 8);
          if (temp.obpp == 8) {
-            t.atm_ega8[pass][bt] = (t.sctab8[pass][0x0F+0x10*rt] & 0xFFFF) +
+            t.p4bpp8[pass][bt] = (t.sctab8[pass][0x0F+0x10*rt] & 0xFFFF) +
                                    (t.sctab8[pass][0x0F+0x10*lf] & 0xFFFF0000);
          } else if (temp.obpp == 16) {
-            t.atm_ega16[pass][bt*2+0] = t.sctab16[pass][0x03+4*rt],
-            t.atm_ega16[pass][bt*2+1] = t.sctab16[pass][0x03+4*lf];
+            t.p4bpp16[pass][bt*2+0] = t.sctab16[pass][0x03+4*rt],
+            t.p4bpp16[pass][bt*2+1] = t.sctab16[pass][0x03+4*lf];
          } else /* if (temp.obpp == 32) */ {
-            t.atm_ega32[pass][bt*2+0] = t.sctab32[pass][0x100+rt],
-            t.atm_ega32[pass][bt*2+1] = t.sctab32[pass][0x100+lf];
+            t.p4bpp32[pass][bt*2+0] = t.sctab32[pass][0x100+rt],
+            t.p4bpp32[pass][bt*2+1] = t.sctab32[pass][0x100+lf];
          }
       }
    }
@@ -331,22 +359,19 @@ void hires_sc_tables()  // atm,profi screens (use zx-attributes & flash -> paper
                t.zctab32[pass][at+0x100*j] = t.sctab32[pass][pc_attr+0x100*j];
       }
    }
-   if (conf.mem_model == MM_ATM710) atm_ega_tables();
 }
 
 void calc_noflic_16_32()
 {
    unsigned at, pass;
    if (temp.obpp == 16) {
-      unsigned shift_mask = 0xFEFEFEFE;
-      if (temp.hi15==0) shift_mask = 0xF7DEF7DE;
-      if (temp.hi15==1) shift_mask = 0x7BDE7BDE;
-      if (temp.hi15==2) shift_mask = 0xFEFEFEFE;
       for (pass = 0; pass < 2; pass++) {
          for (at = 0; at < 2*0x100; at++)
-            t.sctab16d_nf[pass][at] = (t.sctab16d[pass][at] & shift_mask)/2;
+            t.sctab16d_nf[pass][at] = (t.sctab16d[pass][at] & temp.shift_mask)/2;
          for (at = 0; at < 4*0x100; at++)
-            t.sctab16_nf[pass][at] = (t.sctab16[pass][at] & shift_mask)/2;
+            t.sctab16_nf[pass][at] = (t.sctab16[pass][at] & temp.shift_mask)/2;
+         for (at = 0; at < 2*0x100; at++)
+            t.p4bpp16_nf[pass][at] = (t.p4bpp16[pass][at] & temp.shift_mask)/2;
       }
    }
    if (temp.obpp == 32) {
@@ -354,73 +379,104 @@ void calc_noflic_16_32()
       for (pass = 0; pass < 2; pass++) {
          for (at = 0; at < 2*0x100; at++)
             t.sctab32_nf[pass][at] = (t.sctab32[pass][at] & shift_mask)/2;
+         for (at = 0; at < 2*0x100; at++)
+            t.p4bpp32_nf[pass][at] = (t.p4bpp32[pass][at] & shift_mask)/2;
       }
    }
 }
 
-// pal.index => raw video data, shadowed with current pass
-// mode==3 for 32-bit color or temp.hi15 for 16-bit color
-unsigned raw_data(unsigned index, unsigned pass, unsigned char mode)
+// pal.index => raw video data, shadowed with current scanline pass
+unsigned raw_data(unsigned index, unsigned pass, unsigned bpp)
 {
+   if (bpp == 8) {
+
+      if (pass) {
+         if (!conf.scanbright) return 0;
+         // palette too small to realize noflic/atari with shaded scanlines
+         if (conf.scanbright < 100 && !conf.noflic && !conf.atariset[0]) {
+            if (temp.rflags & RF_PALB) index = (index & (index << 1) & 0x92) | ((index ^ 0xFF) & (index >> 1) & 0x49);
+            else index &= 0x0F;
+         }
+      }
+      return index * 0x01010101;
+   }
+
    unsigned r = pal0[index].peRed, g = pal0[index].peGreen, b = pal0[index].peBlue;
    if (pass) r = r*conf.scanbright/100, g = g*conf.scanbright/100, b = b*conf.scanbright/100;
 
-   if (mode==0) return ((b/8) + ((g/4)<<5) + ((r/8)<<11)) * 0x10001;
-   if (mode==1) return ((b/8) + ((g/8)<<5) + ((r/8)<<10)) * 0x10001;
-   if (mode==2) return getYUY2(r,g,b);
+   if (bpp == 32) return WORD4(b,g,r,0);
 
-   // else (temp.obpp == 32)
-   return WORD4(b,g,r,0);
+   // else (bpp == 16)
+   if (temp.hi15==0) return ((b/8) + ((g/4)<<5) + ((r/8)<<11)) * 0x10001;
+   if (temp.hi15==1) return ((b/8) + ((g/8)<<5) + ((r/8)<<10)) * 0x10001;
+   if (temp.hi15==2) return getYUY2(r,g,b);
+   return 0;
+}
+
+unsigned atari_to_raw(unsigned at, unsigned pass)
+{
+   unsigned c1 = at/0x10, c2 = at & 0x0F;
+   unsigned raw0 = raw_data(t.attrtab[c1+0x100], pass, temp.obpp);
+   unsigned raw1 = raw_data(t.attrtab[c2+0x100], pass, temp.obpp);
+   if (raw0 == raw1) return raw1;
+
+   if (temp.obpp == 8)
+      return (temp.rflags & RF_PALB)? (0x49494949 & ((raw0&raw1)^((raw0^raw1)>>1))) |
+                                      (0x92929292 & ((raw0&raw1)|((raw0|raw1)&((raw0&raw1)<<1))))
+                                    : (0x0F0F0F0F & raw0) | (0xF0F0F0F0 & raw1);
+
+   return (raw0 & temp.shift_mask)/2 + (raw1 & temp.shift_mask)/2;
 }
 
 void pixel_tables()
 {
-   unsigned char attrtab[0x200]; // pc attribute + 1 pixel -> palette index
-   attr_tables(attrtab);
+   attr_tables();
    for (unsigned pass = 0; pass < 2; pass++) {
       for (unsigned at = 0; at < 0x100; at++)
       {
-         unsigned px0 = attrtab[at], px1 = attrtab[at+0x100];
-         if (temp.obpp == 8) {
-            if (pass) {
-               if (!conf.scanbright) px0 = px1 = 0;
-               else if (conf.scanbright < 100) {
-                  if (!conf.noflic) { // palette too small to realize noflic scales with shaded scanlines
-                     if (temp.rflags & RF_PALB) {
-                        px0 = (px0 & (px0 << 1) & 0x92) | ((px0 ^ 0xFF) & (px0 >> 1) & 0x49);
-                        px1 = (px1 & (px1 << 1) & 0x92) | ((px1 ^ 0xFF) & (px1 >> 1) & 0x49);
-                     } else px0 &= 0x0F, px1 &= 0x0F;
-                  }
-               }
-            }
-            px0 *= 0x01010101, px1 *= 0x01010101;
-            for (unsigned j = 0; j < 0x10; j++) {
-               unsigned mask = (j >> 3)*0xFF + (j & 0x04)*(0xFF00/4) +
-                               (j & 0x02)*(0xFF0000/2) + (j & 1)*0xFF000000;
-               t.sctab8[pass][j + at*0x10] = (mask & px1) + (~mask & px0);
-            }
-            for (j = 0; j < 4; j++) {
-               unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
-               t.sctab8d[pass][j+at*4] = (mask & px1) + (~mask & px0);
-            }
-            t.sctab8q[at] = px0, t.sctab8q[at+0x100] = px1;
-         } else { // 16,32 bit (resampler requires sctab32 in both 16- and 32-bit modes)
+         unsigned px0 = t.attrtab[at], px1 = t.attrtab[at+0x100];
+         unsigned p0 = raw_data(px0, pass, temp.obpp);
+         unsigned p1 = raw_data(px1, pass, temp.obpp);
 
-            unsigned p0 = raw_data(px0, pass, 3), p1 = raw_data(px1, pass, 3);
-            t.sctab32[pass][at] = p0, t.sctab32[pass][at+0x100] = p1;
+         // sctab32 required for frame resampler in 16-bit mode, so temp.obpp=16 here
+         t.sctab32[pass][at] = raw_data(px0, pass, 32);
+         t.sctab32[pass][at+0x100] = raw_data(px1, pass, 32);
 
-            if (temp.obpp == 16) {
-               p0 = raw_data(px0, pass, temp.hi15), p1 = raw_data(px1, pass, temp.hi15);
-               t.sctab16d[pass][at] = p0, t.sctab16d[pass][at+0x100] = p1;
-               for (unsigned j = 0; j < 4; j++) {
-                  unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
-                  t.sctab16[pass][j+at*4] = (mask & p1) + (~mask & p0);
-               }
-            }
+         // 8 bit
+         for (unsigned j = 0; j < 0x10; j++) {
+            unsigned mask = (j >> 3)*0xFF + (j & 0x04)*(0xFF00/4) +
+                            (j & 0x02)*(0xFF0000/2) + (j & 1)*0xFF000000;
+            t.sctab8[pass][j + at*0x10] = (mask & p1) + (~mask & p0);
+         }
+         for (j = 0; j < 4; j++) {
+            unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
+            t.sctab8d[pass][j+at*4] = (mask & p1) + (~mask & p0);
+         }
+         t.sctab8q[at] = p0, t.sctab8q[at+0x100] = p1;
+
+         // 16 bit
+         for (unsigned j = 0; j < 4; j++) {
+            unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
+            t.sctab16[pass][j+at*4] = (mask & p1) + (~mask & p0);
+         }
+         t.sctab16d[pass][at] = p0, t.sctab16d[pass][at+0x100] = p1;
+
+         unsigned atarimode;
+         if (!(temp.rflags & RF_MON) && (atarimode = temp.ataricolors[at])) {
+            unsigned rawdata[4], i;
+            for (i = 0; i < 4; i++) rawdata[i] = atari_to_raw((atarimode >> (8*i)) & 0xFF, pass);
+            for (i = 0; i < 16; i++) t.sctab8[pass][at*0x10+i] = rawdata[i/4] + 16*rawdata[i & 3];
+            for (i = 0; i < 4; i++) t.sctab8d[pass][at*4+i] = rawdata[i];
+            for (i = 0; i < 4; i++) t.sctab16[pass][at*4+i] = rawdata[i];
+
          }
       }
    }
+
+   p4bpp_tables(); // used for ATM2+ mode0 and Pentagon-4bpp
+
    if (temp.obpp > 8 && conf.noflic) calc_noflic_16_32();
+
    if ((temp.rflags & (RF_DRIVER|RF_2X|RF_USEFONT))==(RF_DRIVER|RF_2X) && // render="double"
        (conf.mem_model == MM_ATM710 || conf.mem_model == MM_PROFI))
       hires_sc_tables();
@@ -428,6 +484,10 @@ void pixel_tables()
 
 void video_color_tables()
 {
+   temp.shift_mask = 0xFEFEFEFE; // 32bit, 16bit YUY2
+   if (temp.obpp == 16 && temp.hi15==0) temp.shift_mask = 0xF7DEF7DE;
+   if (temp.obpp == 16 && temp.hi15==1) temp.shift_mask = 0x7BDE7BDE;
+
    create_palette();
    pixel_tables();
    make_colortab(0);

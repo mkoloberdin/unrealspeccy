@@ -48,45 +48,45 @@ void line_atm0_32(unsigned char *dst, unsigned char *src, unsigned *tab)
 void r_atm0_8(unsigned char *dst, unsigned pitch)
 {
    for (unsigned y = 0; y < 200; y++) {
-      line_atm0_8(dst, temp.base + y*40, t.atm_ega8[0]); dst += pitch;
+      line_atm0_8(dst, temp.base + y*40, t.p4bpp8[0]); dst += pitch;
    }
 }
 
 void r_atm0_8d(unsigned char *dst, unsigned pitch)
 {
    for (unsigned y = 0; y < 200; y++) {
-      line_atm0_8(dst, temp.base + y*40, t.atm_ega8[0]); dst += pitch;
-      line_atm0_8(dst, temp.base + y*40, t.atm_ega8[1]); dst += pitch;
+      line_atm0_8(dst, temp.base + y*40, t.p4bpp8[0]); dst += pitch;
+      line_atm0_8(dst, temp.base + y*40, t.p4bpp8[1]); dst += pitch;
    }
 }
 
 void r_atm0_16(unsigned char *dst, unsigned pitch)
 {
    for (unsigned y = 0; y < 200; y++) {
-      line_atm0_16(dst, temp.base + y*40, t.atm_ega16[0]); dst += pitch;
+      line_atm0_16(dst, temp.base + y*40, t.p4bpp16[0]); dst += pitch;
    }
 }
 
 void r_atm0_16d(unsigned char *dst, unsigned pitch)
 {
    for (unsigned y = 0; y < 200; y++) {
-      line_atm0_16(dst, temp.base + y*40, t.atm_ega16[0]); dst += pitch;
-      line_atm0_16(dst, temp.base + y*40, t.atm_ega16[1]); dst += pitch;
+      line_atm0_16(dst, temp.base + y*40, t.p4bpp16[0]); dst += pitch;
+      line_atm0_16(dst, temp.base + y*40, t.p4bpp16[1]); dst += pitch;
    }
 }
 
 void r_atm0_32(unsigned char *dst, unsigned pitch)
 {
    for (unsigned y = 0; y < 200; y++) {
-      line_atm0_32(dst, temp.base + y*40, t.atm_ega32[0]); dst += pitch;
+      line_atm0_32(dst, temp.base + y*40, t.p4bpp32[0]); dst += pitch;
    }
 }
 
 void r_atm0_32d(unsigned char *dst, unsigned pitch)
 {
    for (unsigned y = 0; y < 200; y++) {
-      line_atm0_32(dst, temp.base + y*40, t.atm_ega32[0]); dst += pitch;
-      line_atm0_32(dst, temp.base + y*40, t.atm_ega32[1]); dst += pitch;
+      line_atm0_32(dst, temp.base + y*40, t.p4bpp32[0]); dst += pitch;
+      line_atm0_32(dst, temp.base + y*40, t.p4bpp32[1]); dst += pitch;
    }
 }
 
