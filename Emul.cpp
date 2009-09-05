@@ -37,6 +37,14 @@ unsigned frametime = 111111; //Alone Coder (GUI value for conf.frame)
 #include "draw.cpp"
 #include "atm.cpp"
 #include "dx.cpp"
+
+void showhelp(char *anchor = 0)
+{
+   sound_stop(); //Alone Coder 0.36.6
+   showhelppp(anchor); //Alone Coder 0.36.6
+   sound_play(); //Alone Coder 0.36.6
+}
+
 #include "emul_2203.cpp" //Dexus
 #include "sound.cpp"
 #include "memory.cpp"

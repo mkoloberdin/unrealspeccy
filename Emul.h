@@ -38,6 +38,8 @@
 
 enum IDE_SCHEME { IDE_NONE = 0, IDE_ATM, IDE_NEMO, IDE_NEMO_A8, IDE_SMUC };
 
+enum MOUSE_WHEEL_MODE { MOUSE_WHEEL_NONE, MOUSE_WHEEL_KEYBOARD, MOUSE_WHEEL_KEMPSTON }; //0.36.6 from 0.35b2
+
 enum MEM_MODEL
 {
    MM_PENTAGON = 0,
@@ -165,6 +167,7 @@ struct CONFIG
       unsigned char paste_hold, paste_release, paste_newline;
       unsigned char mouse, mouseswap, kjoy, keymatrix, joymouse;
       signed char mousescale;
+      unsigned char mousewheel; // enum MOUSE_WHEEL_MODE //0.36.6 from 0.35b2
    } input;
 
    struct {

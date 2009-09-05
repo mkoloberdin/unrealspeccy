@@ -115,8 +115,11 @@ set1FFD:
       if ((port & 0xC0FF) == 0xC0FD) { // A15=A14=1, FxFD - AY select register
 		 if ((conf.sound.ay_scheme == AY_SCHEME_CHRV) && ((val & 0xF8) == 0xF8)) //Alone Coder
 		 {
-			 fmsoundon0 = val & 4; //Alone Coder
-			 tfmstatuson0 = val & 2; //Alone Coder
+			 if (conf.sound.ay_chip == (SNDCHIP::CHIP_YM2203))
+			 {
+				 fmsoundon0 = val & 4;
+				 tfmstatuson0 = val & 2;
+			 }; //Alone Coder 0.36.6
 			 comp.active_ay = val & 1;
 		 };
 		 unsigned n_ay = (conf.sound.ay_scheme == AY_SCHEME_QUADRO)? (port >> 12) & 1 : comp.active_ay;
@@ -244,7 +247,7 @@ __inline unsigned char in1(unsigned port)
       return irq + 0x3F;
    }
    if ((unsigned char)port == 0xFD && conf.sound.ay_scheme) {
-	  if((conf.sound.ay_scheme == AY_SCHEME_CHRV) && (tfmstatuson0 == 0)) return 0x7f /*always ready*/; //Alone Coder
+	  if((conf.sound.ay_scheme == AY_SCHEME_CHRV) && (conf.sound.ay_chip == (SNDCHIP::CHIP_YM2203)) && (tfmstatuson0 == 0)) return 0x7f /*always ready*/; //Alone Coder 0.36.6
       if ((port & 0xC0FF) != 0xC0FD) return 0xFF;
       unsigned n_ay = (conf.sound.ay_scheme == AY_SCHEME_QUADRO)? (port >> 12) & 1 : comp.active_ay;
       // else FxFD - read selected AY register
@@ -252,7 +255,8 @@ __inline unsigned char in1(unsigned port)
       return ay[n_ay].read();
    }
 
-   if ((port & 0x7F) == 0x7B) { // FB/7B
+//   if ((port & 0x7F) == 0x7B) { // FB/7B
+   if ((port & 0x04) == 0x00) { // FB/7B //Alone Coder 0.36.6 (for MODPLAYi)
       if (conf.mem_model == MM_ATM450) {
          comp.aFB = (unsigned char)port;
          set_banks();

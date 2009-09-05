@@ -762,9 +762,15 @@ void start_dx()
 
    for (int i = 0; i < 9; i++)
       crs[i] = LoadCursor(hIn, MAKEINTRESOURCE(IDC_C0+i));
-
+//Alone Coder 0.36.6
+   RECT rect1;
+   SystemParametersInfo(SPI_GETWORKAREA,0,&rect1,0);
+   int winx,winy;
+   winx = (rect1.left + rect1.right - 640) / 2;
+   winy = (rect1.top + rect1.bottom - 480) / 2;
+//~
    wnd = CreateWindow("EMUL_WND", "UnrealSpeccy", WS_VISIBLE|WS_OVERLAPPEDWINDOW,
-                    CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+                    /*CW_USEDEFAULT*/winx, /*CW_USEDEFAULT*/winy, CW_USEDEFAULT, CW_USEDEFAULT, //x,y, nWidth, nHeight
                     NULL, NULL, hIn, NULL);
 
    DragAcceptFiles(wnd, 1);

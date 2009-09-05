@@ -7,12 +7,12 @@
 </h3>
 <h3>Command Lines</h3>
 Creating command line "rc.exe /l 0x419 /fo"Release/settings.res" /d "NDEBUG" /d "_AFXDLL" "C:\zx\us035\src\settings.rc"" 
-Creating temporary file "C:\WINDOWS\TEMP\RSP41A0.TMP" with contents
+Creating temporary file "C:\WINDOWS\TEMP\RSP2313.TMP" with contents
 [
 /nologo /MD /W3 /GX /O2 /Op /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D "_AFXDLL" /FR"Release/" /Fo"Release/" /Fd"Release/" /FD /c 
 "C:\zx\us035\src\Emul.cpp"
 ]
-Creating command line "cl.exe @C:\WINDOWS\TEMP\RSP41A0.TMP" 
+Creating command line "cl.exe @C:\WINDOWS\TEMP\RSP2313.TMP" 
 Creating command line "link.exe /nologo /subsystem:console /incremental:no /pdb:"Release/unreal.pdb" /machine:I386 /out:"Release/unreal.exe"  .\Release\Emul.obj .\Release\settings.res "
 <h3>Output Window</h3>
 Compiling resources...
@@ -26,13 +26,13 @@ Linking...
 Creating command line "bscmake.exe /nologo /o"Release/src.bsc"  .\Release\Emul.sbr"
 Creating browse info file...
 <h3>Output Window</h3>
-Creating temporary file "C:\WINDOWS\TEMP\RSP5212.BAT" with contents
+Creating temporary file "C:\WINDOWS\TEMP\RSP32D4.BAT" with contents
 [
 @echo off
 del release\*.obj
 del release\*.idb
 ]
-Creating command line "C:\WINDOWS\TEMP\RSP5212.BAT"
+Creating command line "C:\WINDOWS\TEMP\RSP32D4.BAT"
 del temp files
 
 

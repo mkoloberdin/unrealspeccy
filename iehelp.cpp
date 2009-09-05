@@ -13,7 +13,7 @@ __inline void done_ie_help()
    if (hURLMON) FreeLibrary(hURLMON), hURLMON = 0;
 }
 
-void showhelp(char *anchor = 0)
+void showhelppp(char *anchor = 0) //Alone Coder 0.36.6
 {
    if (!hMSHTML) hMSHTML = LoadLibrary("MSHTML.DLL");
    if (!hURLMON) hURLMON = LoadLibrary("URLMON.DLL");
@@ -64,3 +64,4 @@ void showhelp(char *anchor = 0)
 
    DeleteFile(dst);
 }
+

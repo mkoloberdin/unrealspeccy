@@ -261,7 +261,12 @@ void disasm_address(char *line, unsigned addr, char labels)
 {
    char *label = 0;
    if (labels&&addr) label = mon_labels.find(am_r(addr));
-   if (label) strcpy(line, label); else sprintf(line, "%04X", addr & 0xFFFF);
+   if (label) {
+	   //strcpy(line, label);
+		for (int i=0;(i<20)&&label[i];i++)line[i]=label[i];
+		line[i]=label[i];
+   } //Alone Coder 0.36.6
+   else sprintf(line, "%04X", addr & 0xFFFF);
 }
 
 unsigned char *disasm(unsigned char *cmd, unsigned current, char labels)
@@ -288,7 +293,7 @@ unsigned char *disasm(unsigned char *cmd, unsigned current, char labels)
       *asmbuf = 0;
       unsigned char *pt;
       for (pt = ptr + (2 * *ptr) + 1; *pt; pt++) { // scan all commands
-         char ln[32], *l1 = ln; *l1 = 0;
+         char ln[/*32*/64], *l1 = ln; *l1 = 0; //Alone Coder 0.36.6
          switch (*pt) {
             case _zr16: // in rcmd & 0x30
                l1 = z80r16+3*((*rcmd>>4) & 3);

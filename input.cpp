@@ -184,9 +184,20 @@ char K_INPUT::readdevices()
       if (md.rgbButtons[2]) mbuttons &= ~4, kbdpc[VK_MMB] = 0x80;
 
       int wheel_delta = md.lZ - prev_wheel;
-      if (wheel_delta < 0) kbdpc[VK_MWD] = 0x80;
-      if (wheel_delta > 0) kbdpc[VK_MWU] = 0x80;
       prev_wheel = md.lZ;
+//      if (wheel_delta < 0) kbdpc[VK_MWD] = 0x80;
+//      if (wheel_delta > 0) kbdpc[VK_MWU] = 0x80;
+//0.36.6 from 0.35b2
+      if (conf.input.mousewheel == MOUSE_WHEEL_KEYBOARD) {
+         if (wheel_delta < 0) kbdpc[VK_MWD] = 0x80;
+         if (wheel_delta > 0) kbdpc[VK_MWU] = 0x80;
+      }
+      if (conf.input.mousewheel == MOUSE_WHEEL_KEMPSTON) {
+         if (wheel_delta < 0) wheel -= 0x10;
+         if (wheel_delta > 0) wheel += 0x10;
+         mbuttons = (mbuttons & 0x0F) + (wheel & 0xF0);
+      }
+//~
    }
    lastkey = process_msgs();
 

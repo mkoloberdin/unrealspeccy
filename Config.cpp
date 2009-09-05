@@ -444,7 +444,12 @@ void load_config(char *fname)
    conf.input.mouse = 0;
    if (!strnicmp(line, "KEMPSTON", 8)) conf.input.mouse = 1;
    if (!strnicmp(line, "AY", 2)) conf.input.mouse = 2;
-
+//0.36.6 from 0.35b2
+   GetPrivateProfileString(input, "Wheel", nil, line, sizeof line, ininame);
+   conf.input.mousewheel = MOUSE_WHEEL_NONE;
+   if (!strnicmp(line, "KEMPSTON", 8)) conf.input.mousewheel = MOUSE_WHEEL_KEMPSTON;
+   if (!strnicmp(line, "KEYBOARD", 8)) conf.input.mousewheel = MOUSE_WHEEL_KEYBOARD;
+//~
    conf.input.joymouse = GetPrivateProfileInt(input, "JoyMouse", 0, ininame);
    conf.input.mousescale = GetPrivateProfileInt(input, "MouseScale", 0, ininame);
    conf.input.mouseswap = GetPrivateProfileInt(input, "SwapMouse", 0, ininame);

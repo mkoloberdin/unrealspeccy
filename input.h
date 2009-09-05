@@ -46,7 +46,7 @@ struct K_INPUT
 
    unsigned char *textbuffer;
    unsigned textoffset, textsize;
-   unsigned char tdelay, tdata;
+   unsigned char tdelay, tdata, wheel; //0.36.6 from 0.35b2
 
    unsigned char kempston_mx();
    unsigned char kempston_my();
