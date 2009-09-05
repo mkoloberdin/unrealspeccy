@@ -14,11 +14,11 @@ unsigned mult_gs, mult_gs2;
 unsigned __int64 gs_t_states; // inc'ed with GSCPUINT every gs int
 unsigned __int64 gscpu_t_at_frame_start; // gs_t_states+gscpu.t when spectrum frame begins
 
-const GSCPUFQ = 12000000; // hz
-const GSINTFQ = 37500; // hz
-const GSCPUFQI = GSCPUFQ/50;
-const GSCPUINT = GSCPUFQ/GSINTFQ;
-const MULT_GS_SHIFT = 12; // cpu tick -> gscpu tick precision
+const int GSCPUFQ = 12000000; // hz
+const int GSINTFQ = 37500; // hz
+const int GSCPUFQI = GSCPUFQ/50;
+const int GSCPUINT = GSCPUFQ/GSINTFQ;
+const int MULT_GS_SHIFT = 12; // cpu tick -> gscpu tick precision
 void flush_gs_z80();
 
 void apply_gs()

@@ -1,5 +1,5 @@
 
-const text_ofs = 0x1840;
+const int text_ofs = 0x1840;
 
 void line_atm7_8(unsigned char *dst, unsigned char *src, unsigned *tab0, unsigned char *font)
 {

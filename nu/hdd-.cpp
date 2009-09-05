@@ -1,5 +1,5 @@
 
-const int MAX_DEVICES = MAX_PHYS_HD_DRIVES+2*MAX_PHYS_CD_DRIVES;
+const MAX_DEVICES = MAX_PHYS_HD_DRIVES+2*MAX_PHYS_CD_DRIVES;
 
 PHYS_DEVICE phys[MAX_DEVICES];
 int n_phys = 0;
@@ -60,7 +60,7 @@ void delstr_spaces(char *dst, char *src)
 unsigned find_hdd_device(char *name)
 {
    char s2[512]; delstr_spaces(s2, name);
-//   if(temp.win9x)
+//   if(temp.win9x) //Alone Coder
    for (int drive = 0; drive < n_phys; drive++) {
       char s1[512]; delstr_spaces(s1, phys[drive].viewname);
       if (!stricmp(s1,s2)) return drive;
@@ -70,6 +70,7 @@ unsigned find_hdd_device(char *name)
 
 void ATA_DEVICE::configure(IDE_CONFIG *cfg)
 {
+MessageBox(0, "configure", 0, MB_ICONERROR);
    atapi_p.close(); ata_p.close();
 
    c = cfg->c, h = cfg->h, s = cfg->s, lba = cfg->lba; readonly = cfg->readonly;
@@ -79,12 +80,16 @@ void ATA_DEVICE::configure(IDE_CONFIG *cfg)
 
    PHYS_DEVICE filedev, *dev;
    unsigned drive = find_hdd_device(cfg->image);
+//MessageBox(0, "configure2", 0, MB_ICONERROR);
    if (drive == -1) {
+//MessageBox(0, "configure3", 0, MB_ICONERROR);
       if (cfg->image[0] == '<') { errmsg("no physical device %s", cfg->image); *cfg->image = 0; return; }
       strcpy(filedev.filename, cfg->image);
       filedev.type = ATA_FILEHDD;
+//MessageBox(0, "configure4", 0, MB_ICONERROR);
       dev = &filedev;
    } else {
+//MessageBox(0, "configurePHYSICAL", 0, MB_ICONERROR);
       dev = phys + drive;
       if (dev->type == ATA_NTHDD) {
          // read geometry from id sector
@@ -189,10 +194,7 @@ unsigned char ATA_DEVICE::read(unsigned n_reg)
    if ((reg.devhead ^ device_id) & 0x10) return 0xFF;
    if (n_reg == 7) intrq = 0;
    if (n_reg == 8) n_reg = 7; // read alt.status -> read status
-   if (n_reg == 7 || (reg.status & STATUS_BSY)) {
-//	   printf("state=%d\n",state); //Alone Coder
-	   return reg.status;
-   } // BSY=1 or read status
+   if (n_reg == 7 || (reg.status & STATUS_BSY)) return reg.status; // BSY=1 or read status
    // BSY = 0
    //// if (reg.status & STATUS_DRQ) return 0xFF;    // DRQ.  ATA-5: registers should not be queried while DRQ=1, but programs do this!
    // DRQ = 0
@@ -278,23 +280,33 @@ char ATA_DEVICE::exec_atapi_cmd(unsigned char cmd)
 
 void ATA_DEVICE::write(unsigned n_reg, unsigned char data)
 {
-   if (!loaded()) return;
+//MessageBox(0, "write", 0, MB_ICONERROR);
+   if (!loaded()) {/*MessageBox(0, "writeloadedreturn", 0, MB_ICONERROR);*/return;}
+//MessageBox(0, "writeloaded", 0, MB_ICONERROR);
    if (n_reg == 1) { reg.feat = data; return; }
+//MessageBox(0, "write0", 0, MB_ICONERROR);
    if (n_reg != 7) {
+//MessageBox(0, "write0n7", 0, MB_ICONERROR);
       regs[n_reg] = data;
       if (reg.control & CONTROL_SRST) reset(RESET_SRST);
+//MessageBox(0, "write0n7rc", 0, MB_ICONERROR);
       return;
    }
+//MessageBox(0, "write1", 0, MB_ICONERROR);
 
    // execute command!
    if (((reg.devhead ^ device_id) & 0x10) && data != 0x90) return;
+//MessageBox(0, "write2", 0, MB_ICONERROR);
    if (!(reg.status & STATUS_DRDY) && !atapi) return;
+//MessageBox(0, "write3", 0, MB_ICONERROR);
 
    reg.err = 0; intrq = 0;
 
 //{printf(" [");for (int q=1;q<9;q++) printf("-%02X",regs[q]);printf("]\n");}
    if (exec_atapi_cmd(data)) return;
+//MessageBox(0, "write4", 0, MB_ICONERROR);
    if (exec_ata_cmd(data)) return;
+//MessageBox(0, "write5", 0, MB_ICONERROR);
 //printf(" *** unknown cmd %02X *** ", data);
    reg.status = STATUS_DSC | STATUS_DRDY | STATUS_ERR; reg.err = ERR_ABRT;
    state = S_IDLE; intrq = 1;
@@ -354,6 +366,7 @@ void ATA_DEVICE::write_sectors()
 
 void ATA_DEVICE::read_sectors()
 {
+MessageBox(0, "read_sectors", 0, MB_ICONERROR);
    intrq = 1;
    if (!seek()) return;
    DWORD sz = 0;
@@ -407,7 +420,7 @@ void ATA_DEVICE::handle_atapi_packet()
    }
 
    if (atapi_p.pass_through(transbf, sizeof transbf)) {
-      if (atapi_p.senselen) { reg.err = atapi_p.sense[2] << 4; goto err; } // err = sense key //win9x hangs on drq after atapi packet when emulator does goto err (see walkaround in SEND_ASPI_CMD)
+      if (atapi_p.senselen) { reg.err = atapi_p.sense[2] << 4; goto err; } // err = sense key
     ok:
       if (!atapi_p.cdb.CDB6READWRITE.OperationCode) atapi_p.passed_length = 0; // bugfix in cdrom driver: TEST UNIT READY has no data
       if (!atapi_p.passed_length /* || atapi_p.passed_length == sizeof transbf */ ) { command_ok(); return; }
@@ -415,7 +428,6 @@ void ATA_DEVICE::handle_atapi_packet()
       reg.intreason = INT_IO;
       reg.status = STATUS_DRQ;
       transcount = (atapi_p.passed_length+1)/2;
-	  //printf("transcount=%d\n",transcount); //32768 in win9x
       transptr = 0;
       state = S_READ_ATAPI;
    } else { // bus error
@@ -428,6 +440,7 @@ void ATA_DEVICE::handle_atapi_packet()
 
 void ATA_DEVICE::prepare_id()
 {
+MessageBox(0, "prepare_id", 0, MB_ICONERROR);
    if (phys_dev == -1) {
       memset(transbf, 0, 512);
       make_ata_string(transbf+54, 20, "UNREAL SPECCY HARD DRIVE IMAGE");

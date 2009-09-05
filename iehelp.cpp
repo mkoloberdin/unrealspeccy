@@ -43,7 +43,8 @@ void showhelppp(char *anchor = 0) //Alone Coder 0.36.6
          } else {
             char res[0x100]; GetPrivateProfileString("SYSTEM.KEYS", tag, "not defined", res, sizeof res, ininame);
             char *comment = strchr(res, ';'); if (comment) *comment = 0;
-            for (int len = strlen(res); len && res[len-1] == ' '; res[--len] = 0);
+            int len; //Alone Coder 0.36.7
+            for (/*int*/ len = strlen(res); len && res[len-1] == ' '; res[--len] = 0);
             for (len = 0; res[len]; len++) if (res[len] == ' ') res[len] = '-';
             fprintf(gg, "%s", res);
          }

@@ -18,7 +18,8 @@ int FDD::write_td0(FILE *ff)
       fwrite(inf, 1, len+10, ff);
    }
 
-   for (unsigned c = 0; c < cyls; c++)
+   unsigned c; //Alone Coder 0.36.7
+   for (/*unsigned*/ c = 0; c < cyls; c++)
       for (unsigned s = 0; s < sides; s++) {
          t.seek(this,c,s,LOAD_SECTORS);
          unsigned char bf[16];
@@ -225,17 +226,17 @@ unsigned char d_len[256] =
 };
 
 
-const N = 4096;     // buffer size
-const F = 60;       // lookahead buffer size
-const THRESHOLD =   2;
-const NIL = N;      // leaf of tree
+const int N = 4096;     // buffer size
+const int F = 60;       // lookahead buffer size
+const int THRESHOLD =   2;
+const int NIL = N;      // leaf of tree
 
 unsigned char text_buf[N + F - 1];
 
-const N_CHAR = (256 - THRESHOLD + F);       // kinds of characters (character code = 0..N_CHAR-1)
-const T =   (N_CHAR * 2 - 1);       // size of table
-const R = (T - 1);                  // position of root
-const MAX_FREQ = 0x8000;            // updates tree when the
+const int N_CHAR = (256 - THRESHOLD + F);       // kinds of characters (character code = 0..N_CHAR-1)
+const int T =   (N_CHAR * 2 - 1);       // size of table
+const int R = (T - 1);                  // position of root
+const int MAX_FREQ = 0x8000;            // updates tree when the
                                     // root frequency comes to this value.
 
 unsigned short freq[T + 1];        // frequency table

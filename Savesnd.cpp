@@ -29,6 +29,7 @@ char vtxname[200], vtxauthor[200], vtxsoft[200], vtxtracker[200], vtxcomm[200];
 void savesnddialog()
 {
    sound_stop(); //Alone Coder
+   unsigned end; //Alone Coder 0.36.7
    if (savesndtype) {
       if (savesndtype == 1) { // wave
          unsigned fsize = ftell(savesnd);
@@ -41,7 +42,7 @@ void savesnddialog()
       } else { // vtx
          savesndtype = 0;
          unsigned char *newb = (unsigned char*)malloc(vtxbuffilled);
-         for (unsigned end = 0; end < (int)vtxbuffilled && silence(end); end += 14);
+         for (/*unsigned*/ end = 0; end < (int)vtxbuffilled && silence(end); end += 14);
          vtxbuffilled -= end; memcpy(vtxbuf, vtxbuf+end, vtxbuffilled);
          for (end = vtxbuffilled; end && silence(end-14); end -= 14);
          vtxbuffilled = end;
@@ -176,7 +177,7 @@ BOOL CALLBACK pokedlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    if (msg == WM_COMMAND && LOWORD(wp) == IDOK)
    {
       SendDlgItemMessage(dlg, IDE_POKE, WM_GETTEXT, /*sizeof snbuf*/640*480*4, (LPARAM)snbuf); //Alone Coder 0.36.5
-	  int r = dopoke(0);
+          int r = dopoke(0);
       if (r) MessageBox(dlg, "Incorrect format", 0, MB_ICONERROR),
              SendDlgItemMessage(dlg, IDE_POKE, EM_SETSEL, r, r);
       else dopoke(1), EndDialog(dlg, 0);

@@ -49,7 +49,7 @@ void get_ranges(HWND dlg)
 
 void paint_font(HWND dlg, int paint=0)
 {
-   const sz = 340;
+   const int sz = 340;
    char *buf = (char*)malloc(sz*sz);
    if (!buf) return;
    RECT rc; GetWindowRect(GetDlgItem(dlg, IDC_FRAME), &rc);
@@ -163,7 +163,8 @@ union { unsigned v32; unsigned char v8[4]; } c_map4[16];
 
 void create_maps()
 {
-   for (unsigned i = 0; i < 16; i++)
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < 16; i++)
       for (unsigned j = 0; j < 4; j++)
          c_map0[i].v8[3-j] = (i >> j) & 1;
    for (i = 0; i < 16; i++) {
@@ -208,7 +209,7 @@ unsigned linked_empties(unsigned sym)
 
 unsigned char is_font()
 {
-   const max_err = 2;
+   const int max_err = 2;
    int err = 0;
    #define RET_ERR { if (++err > max_err) return 0; }
    if (r21) {
@@ -292,8 +293,9 @@ unsigned char is_font()
 
 inline int pretest_font(unsigned pix, unsigned chr, unsigned shift)
 {
+   unsigned i; //Alone Coder 0.36.7
    // check space
-   for (unsigned i = 0; i < fontsize; i++)
+   for (/*unsigned*/ i = 0; i < fontsize; i++)
       if ((font_base[(font_address + i*pix + chr * 0x20) & font_maxmem] >> shift) & 0x0F) return 0;
    // check non-spaces
    for (i = 0; i < 0x100; i++) {
@@ -367,12 +369,13 @@ void save_font()
    if (right) shift = 0;
    unsigned char *dst = fontdata2;
 
+   unsigned j; //Alone Coder 0.36.7
    for (unsigned i = 0; i < 0x100; i++) {
       if (!i || i == 0x20) continue;
       if (!rmask[i]) continue;
       unsigned chardata = font_address + i*chr;
       unsigned char sum = 0;
-      for (unsigned j = 0; j < fontsize; j++) sum |= font_base[(chardata + j*line) & font_maxmem];
+      for (/*unsigned*/ j = 0; j < fontsize; j++) sum |= font_base[(chardata + j*line) & font_maxmem];
       if (!((sum >> shift) & 0x0F)) continue;
       *dst++ = (unsigned char)i;
       for (j = 0; j < 8; j++)

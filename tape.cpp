@@ -102,7 +102,7 @@ void closetape()
 
 void reserve(unsigned datasize)
 {
-   const blocksize = 16384;
+   const int blocksize = 16384;
    unsigned newsize = align_by(datasize+tape_imagesize+1, blocksize);
    if (!tape_image) tape_image = (unsigned char*)malloc(newsize);
    if (align_by(tape_imagesize, blocksize) < newsize) tape_image = (unsigned char*)realloc(tape_image, newsize);
@@ -134,7 +134,8 @@ void makeblock(unsigned char *data, unsigned size, unsigned pilot_t,
 void desc(unsigned char *data, unsigned size, char *dst)
 {
    unsigned char crc = 0; char prg[10];
-   for (unsigned i = 0; i < size; i++) crc ^= data[i];
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < size; i++) crc ^= data[i];
    if (!*data && size == 19 && (data[1] == 0 || data[1] == 3)) {
       for (i = 0; i < 10; i++) prg[i] = (data[i+2] < ' ' || data[i+2] >= 0x80) ? '?' : data[i+2];
       for (i = 9; i && prg[i] == ' '; prg[i--] = 0);
@@ -341,7 +342,8 @@ void parse_hardware(unsigned char *ptr)
       unsigned char id_n = *ptr++;
       unsigned char value_n = *ptr++;
       char *type = ids, *id, *value;
-      for (unsigned j = 0; j < type_n; j++) {
+      unsigned j; //Alone Coder 0.36.7
+      for (/*unsigned*/ j = 0; j < type_n; j++) {
          if (!*type) break;
          while (*(short*)type) type++;
          type += 2;

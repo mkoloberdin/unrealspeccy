@@ -30,9 +30,9 @@ void reset(ROM_MODE mode)
 {
    comp.pEFF7 &= conf.EFF7_mask;
    {
-		conf.frame = frametime;
-		if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
-		apply_sound(); 
+                conf.frame = frametime;
+                if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
+                apply_sound(); 
    } //Alone Coder 0.36.4
    comp.t_states = 0; comp.frame_counter = 0;
    comp.p7FFD = comp.pDFFD = comp.pFDFD = comp.p1FFD = 0;
@@ -49,7 +49,7 @@ void reset(ROM_MODE mode)
    ay[0].reset();
    ay[1].reset();
    if (conf.sound.ay_scheme == AY_SCHEME_CHRV){
-        out(0xffff,0xff);
+        out(0xfffd,0xff); //0.36.7
         //printf("tfmstatuson0=%d\n",tfmstatuson0);
    };//Alone Coder
 

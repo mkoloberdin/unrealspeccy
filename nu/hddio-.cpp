@@ -1,7 +1,7 @@
 typedef int (__cdecl *GetASPI32SupportInfo_t)();
 typedef int (__cdecl *SendASPI32Command_t)(void *SRB);
-const int ATAPI_CDB_SIZE = 12; // sizeof(CDB) == 16
-const int MAX_INFO_LEN = 48;
+const ATAPI_CDB_SIZE = 12; // sizeof(CDB) == 16
+const MAX_INFO_LEN = 48;
 
 GetASPI32SupportInfo_t _GetASPI32SupportInfo = 0;
 SendASPI32Command_t _SendASPI32Command = 0;
@@ -12,12 +12,15 @@ HANDLE hASPICompletionEvent;
 DWORD ATA_PASSER::open(PHYS_DEVICE *dev)
 {
    close();
+//MessageBox(0, "1", 0, MB_ICONERROR);
    hDevice = CreateFile(dev->filename,
                 GENERIC_READ | GENERIC_WRITE, // R/W required!
                 (temp.win9x?0:FILE_SHARE_DELETE) /*Dexus*/ | FILE_SHARE_READ | FILE_SHARE_WRITE,
                 0, (dev->type == ATA_FILEHDD? OPEN_ALWAYS : OPEN_EXISTING), 0, 0);
 
+//MessageBox(0, "2", 0, MB_ICONERROR);
    if (hDevice != INVALID_HANDLE_VALUE) return NO_ERROR;
+//MessageBox(0, "3", 0, MB_ICONERROR);
    return GetLastError();;
 }
 
@@ -29,6 +32,7 @@ void ATA_PASSER::close()
 
 unsigned ATA_PASSER::identify(PHYS_DEVICE *outlist, int max)
 {
+//MessageBox(0, "X", 0, MB_ICONERROR);
    int res = 0;
    ATA_PASSER ata;
    for (int drive = 0; drive < MAX_PHYS_HD_DRIVES && res < max; drive++) {
@@ -74,8 +78,7 @@ unsigned ATA_PASSER::identify(PHYS_DEVICE *outlist, int max)
       printf("%-40s %-20s ", model, serial);
       color(CONSCLR_HARDITEM);
       printf("%8d %cb\n", shortsize, mult);
-//      if (dev->hdd_size > 0xFFFFFFF) color(CONSCLR_WARNING), printf("     warning! LBA48 is not supported. only first 128GB visible\n", drive);
-      if (dev->hdd_size > 0xFFFFFFF) color(CONSCLR_WARNING), printf("     drive %d warning! LBA48 is not supported. only first 128GB visible\n", drive); //Alone Coder 0.36.7
+      if (dev->hdd_size > 0xFFFFFFF) color(CONSCLR_WARNING), printf("     warning! LBA48 is not supported. only first 128GB visible\n", drive);
 
       print_device_name(dev->viewname, dev);
       res++;
@@ -86,16 +89,22 @@ unsigned ATA_PASSER::identify(PHYS_DEVICE *outlist, int max)
 
 bool ATA_PASSER::seek(unsigned nsector)
 {
+MessageBox(0, "a", 0, MB_ICONERROR);
    LARGE_INTEGER offset; offset.QuadPart = ((__int64)nsector) << 9;
+MessageBox(0, "b", 0, MB_ICONERROR);
    DWORD code = SetFilePointer(hDevice, offset.LowPart, &offset.HighPart, FILE_BEGIN);
+MessageBox(0, "c", 0, MB_ICONERROR);
    return (code != INVALID_SET_FILE_POINTER || GetLastError() == NO_ERROR);
 }
 
 bool ATA_PASSER::read_sector(unsigned char *dst)
 {
+MessageBox(0, "1", 0, MB_ICONERROR);
    DWORD sz = 0;
    if (!ReadFile(hDevice, dst, 512, &sz, 0)) return false;
+MessageBox(0, "2", 0, MB_ICONERROR);
    if (sz < 512) memset(dst+sz, 0, 512-sz); // on EOF, or truncated file, read 00
+MessageBox(0, "3", 0, MB_ICONERROR);
    return true;
 }
 
@@ -107,14 +116,17 @@ bool ATA_PASSER::write_sector(unsigned char *src)
 
 DWORD ATAPI_PASSER::open(PHYS_DEVICE *dev)
 {
+//MessageBox(0, "Y", 0, MB_ICONERROR);
    close();
    this->dev = dev;
    if (dev->type == ATA_ASPI_CD) return NO_ERROR;
+MessageBox(0, "Z", 0, MB_ICONERROR);
 
    hDevice = CreateFile(dev->filename,
                 GENERIC_READ | GENERIC_WRITE, // R/W required!
                 (temp.win9x?0:FILE_SHARE_DELETE) /*Dexus*/ | FILE_SHARE_READ | FILE_SHARE_WRITE,
                 0, OPEN_EXISTING, 0, 0);
+MessageBox(0, "T", 0, MB_ICONERROR);
 
    if (hDevice != INVALID_HANDLE_VALUE) return NO_ERROR;
    return GetLastError();;
@@ -129,10 +141,12 @@ void ATAPI_PASSER::close()
 
 unsigned ATAPI_PASSER::identify(PHYS_DEVICE *outlist, int max)
 {
+MessageBox(0, "id", 0, MB_ICONERROR);
    int res = 0;
    ATAPI_PASSER atapi;
 
    if (conf.cd_aspi) {
+MessageBox(0, "id.cd", 0, MB_ICONERROR);
 
       init_aspi();
 
@@ -179,6 +193,7 @@ unsigned ATAPI_PASSER::identify(PHYS_DEVICE *outlist, int max)
 
 
    } else {
+MessageBox(0, "id.~cd", 0, MB_ICONERROR);
 
       for (int drive = 0; drive < MAX_PHYS_CD_DRIVES && res < max; drive++) {
 
@@ -238,7 +253,7 @@ int ATAPI_PASSER::SEND_SPTI_CMD(void *databuf, int bufsize)
                            &dst, sizeof(dst),
                            &outsize, 0);
 
-   if (!r) { return 0; }
+   if (!r) return 0;
 
    passed_length = dst.p.DataTransferLength;
    if (senselen = dst.p.SenseInfoLength) memcpy(sense, dst.sense, senselen);
@@ -254,6 +269,7 @@ printf("data:"); dump1((BYTE*)databuf, 0x40);
 
 int ATAPI_PASSER::read_atapi_id(unsigned char *idsector, char prefix)
 {
+//MessageBox(0, "r", 0, MB_ICONERROR);
    memset(&cdb, 0, sizeof(CDB));
    memset(idsector, 0, 512);
 
@@ -299,8 +315,7 @@ int ATAPI_PASSER::read_atapi_id(unsigned char *idsector, char prefix)
 
 void make_ata_string(unsigned char *dst, unsigned n_words, char *src)
 {
-   unsigned i; //Alone Coder 0.36.7
-   for (/*unsigned*/ i = 0; i < n_words*2 && src[i]; i++) dst[i] = src[i];
+   for (unsigned i = 0; i < n_words*2 && src[i]; i++) dst[i] = src[i];
    while (i < n_words*2) dst[i++] = ' ';
    unsigned char tmp;
    for (i = 0; i < n_words*2; i += 2)
@@ -309,8 +324,7 @@ void make_ata_string(unsigned char *dst, unsigned n_words, char *src)
 
 void swap_bytes(char *dst, BYTE *src, unsigned n_words)
 {
-   unsigned i; //Alone Coder 0.36.7
-   for (/*unsigned*/ i = 0; i < n_words; i++) {
+   for (unsigned i = 0; i < n_words; i++) {
       char c1 = src[2*i], c2 = src[2*i+1];
       dst[2*i] = c2, dst[2*i+1] = c1;
    }
@@ -360,8 +374,6 @@ int ATAPI_PASSER::SEND_ASPI_CMD(void *buf, int buf_sz)
       if (ASPIEventStatus == WAIT_OBJECT_0) ResetEvent(hASPICompletionEvent);
    }
    if (senselen = SRB.SRB_SenseLen) memcpy(sense, SRB.SenseArea, senselen);
-   if (temp.win9x) senselen = 0; //Alone Coder //makes possible to read one CD sector in win9x
-   if ((temp.win9x)&&(passed_length >= 0xffff)) passed_length = 2048; //Alone Coder //was >=65535 in win9x //makes possible to work in win9x (HDDoct, WDC, Time Gal)
 
 #ifdef DUMP_HDD_IO
 printf("sense=%d, data=%d/%d, ok%d\n", senselen, passed_length, buf_sz, SRB.SRB_Status);

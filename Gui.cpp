@@ -117,7 +117,8 @@ void change_rombank(int dx, int reload)
 void reload_roms()
 {
    unsigned i = 0, n = SendDlgItemMessage(dlg, IDC_ROMSET, CB_GETCURSEL, 0, 0);
-   for (char *dst = rset_list; *dst && i < n; i++, dst += strlen(dst)+1);
+   char *dst; //Alone Coder 0.36.7
+   for (/*char * */dst = rset_list; *dst && i < n; i++, dst += strlen(dst)+1);
    if (!*dst) return;
    load_romset(&c1, dst);
    change_rompage(0,0);
@@ -481,7 +482,8 @@ void HddDlg_show_size(unsigned id, unsigned sectors)
       if (++tri == 3) num[ptr++] = ',', tri = 0;
    }
    char dst[64]; dst[0] = '-'; dst[1] = ' ';
-   for (int k = 2; ptr; k++) dst[k] = num[--ptr];
+   int k; //Alone Coder 0.36.7
+   for (/*int*/ k = 2; ptr; k++) dst[k] = num[--ptr];
    strcpy(dst+k, " bytes");
    SetDlgItemText(dlg, id, dst);
 }
@@ -672,9 +674,10 @@ BOOL CALLBACK fir_dlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 BOOL CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    ::dlg = dlg; unsigned id, code;
+   int i; //Alone Coder 0.36.7
    if (msg == WM_INITDIALOG) {
       HWND box = GetDlgItem(dlg, IDC_VIDEOFILTER);
-      for (int i = 0; renders[i].func; i++)
+      for (/*int*/ i = 0; renders[i].func; i++)
          SendMessage(box, CB_ADDSTRING, 0, (LPARAM)renders[i].name);
       SendMessage(box, CB_SETCURSEL, c1.render, 0);
       box = GetDlgItem(dlg, IDC_RENDER);
@@ -1335,8 +1338,8 @@ void setup_dlg()
 
    c1 = conf; PropertySheet(&psh);
    if (dlgok) {
-	   conf = c1;
-	   frametime = conf.frame; //Alone Coder 0.36.5
+           conf = c1;
+           frametime = conf.frame; //Alone Coder 0.36.5
    };
 
    eat();

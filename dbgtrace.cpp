@@ -1,8 +1,9 @@
 
 int disasm_line(unsigned addr, char *line)
 {
-   unsigned char dbuf[16];
-   for (int i = 0; i < 16; i++) dbuf[i] = rmdbg(addr+i);
+   unsigned char dbuf[16+129/*Alone Code 0.36.7*/];
+   int i; //Alone Coder 0.36.7
+   for (/*int*/ i = 0; i < 16; i++) dbuf[i] = rmdbg(addr+i);
    sprintf(line, "%04X ", addr); int ptr = 5;
    int len = disasm(dbuf, addr, trace_labels) - dbuf;
    //8000 ..DDCB0106 rr (ix+1)
@@ -88,7 +89,8 @@ static const unsigned cs[3][2] = { {0,4}, {5,10}, {16,16} };
 
 void showtrace()
 {
-   char line[40];
+//   char line[40]; //Alone Coder 0.36.7
+   char line[16+129]; //Alone Coder 0.36.7
 
    trace_curs &= 0xFFFF, trace_top &= 0xFFFF, cpu.pc &= 0xFFFF;
    trace_mode = (trace_mode+3) % 3;
@@ -97,7 +99,8 @@ void showtrace()
    nextpc = (cpu.pc + disasm_line(cpu.pc, line)) & 0xFFFF;
    unsigned pc = trace_top; asmii = -1;
    unsigned char atr0 = (activedbg == WNDTRACE) ? W_SEL : W_NORM;
-   for (unsigned ii = 0; ii < trace_size; ii++) {
+   unsigned ii; //Alone Coder 0.36.7
+   for (/*unsigned*/ ii = 0; ii < trace_size; ii++) {
       pc &= 0xFFFF; trpc[ii] = pc;
       int len = disasm_line(pc, line);
       char *ptr = line+strlen(line);
@@ -196,7 +199,8 @@ void center()
          for (unsigned i = 0; i < asmii; i++) trace_top = cpu_up(trace_top);
          break;
       } else if (trace_mode == 1) {
-         for (char *p = str+strlen(str)-1; p >= str && *p == ' '; *p-- = 0);
+         char *p; //Alone Coder 0.36.7
+         for (/*char * */p = str+strlen(str)-1; p >= str && *p == ' '; *p-- = 0);
          unsigned char dump[8]; unsigned i;
          for (p = str, i = 0; ishex(*p) && ishex(p[1]); p+=2)
             dump[i++] = hex(p);
@@ -272,7 +276,8 @@ void cpgdn() {
 }
 void cpgup() {
    unsigned curs = 0;
-   for (unsigned i = 0; i < trace_size; i++)
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < trace_size; i++)
       if (trace_curs == trpc[i]) curs = i;
    for (i = 0; i < trace_size; i++) trace_top = cpu_up(trace_top);
    showtrace(); trace_curs = trpc[curs];

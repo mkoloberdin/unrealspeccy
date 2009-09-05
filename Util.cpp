@@ -213,7 +213,8 @@ void dump1(BYTE *p, unsigned sz)
    while (sz) {
       printf("\t");
       unsigned chunk = (sz > 16)? 16 : sz;
-      for (unsigned i = 0; i < chunk; i++) printf("%02X ", p[i]);
+      unsigned i; //Alone Coder 0.36.7
+      for (/*unsigned*/ i = 0; i < chunk; i++) printf("%02X ", p[i]);
       for (; i < 16; i++) printf("   ");
       for (i = 0; i < chunk; i++) printf("%c", (p[i] < 0x20)? '.' : p[i]);
       printf("\n");

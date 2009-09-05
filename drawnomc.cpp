@@ -18,12 +18,14 @@ void draw_screen()
    unsigned char *dst = rbuf;
    unsigned br = comp.border_attr * 0x11001100;
 
-   for (unsigned i = temp.b_top*temp.scx/16; i; i--)
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = temp.b_top*temp.scx/16; i; i--)
       *(unsigned*)dst = br, dst += 4;
 
+   unsigned x; //Alone Coder 0.36.7
    for (int y = 0; y < 192; y++) {
       *(volatile unsigned*)dst;
-      for (unsigned x = temp.b_left; x; x-=16)
+      for (/*unsigned*/ x = temp.b_left; x; x-=16)
          *(unsigned*)dst = br, dst += 4;
 
       for (x = 0; x < 32; x++) {

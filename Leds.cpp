@@ -139,7 +139,8 @@ void ay_led()
             for (int j = 0; j < 4; j++) {
                unsigned v=ay[ayN].Chip2203->CH[i].SLOT[j].vol_out;
                if (v>1023) v=1023;
-               for (int c=0;c<16;c++)
+               int c; //Alone Coder 0.36.7
+               for (/*int*/ c=0;c<16;c++)
                   if (FMvols[c]>=v) break;
                if ( (i == 2) && (((ay[ayN].Chip2203->OPN.ST.mode) & 0xc0) == 0x40) )
                   paint_led(15-c, FMalg2[ay[ayN].Chip2203->CH[i].ALGO * 4 + FMslots[j]]);
@@ -193,7 +194,7 @@ void load_led()
       static unsigned char tapeled[11*2] = {
          0x7F, 0xFE, 0x80, 0x01, 0x80, 0x01, 0x93, 0xC9, 0xAA, 0x55, 0x93, 0xC9,
          0x80, 0x01, 0x8F, 0xF1, 0x80, 0x01, 0xB5, 0xA9, 0xFF, 0xFF };
-      const tapecolor = 0x51;
+      const int tapecolor = 0x51;
       for (int i = 0; i < 11; i++)
          temp.led.load[pitch*i+0] = tapeled[2*i],
          temp.led.load[pitch*i+1] = tapecolor,
@@ -216,7 +217,8 @@ void load_led()
    if (diskcolor | trdos_seek) {
       if (diskcolor) {
          unsigned *ptr = (unsigned*)temp.led.load;
-         for (int i = 0; i < 7; i++, ptr = (unsigned*)((char*)ptr+pitch))
+         int i; //Alone Coder 0.36.7
+         for (/*int*/ i = 0; i < 7; i++, ptr = (unsigned*)((char*)ptr+pitch))
             *ptr = (*ptr & WORD4(0,0xF0,0,0xF0)) | WORD4(0x3F,diskcolor,0xFC,diskcolor);
          static unsigned char disk[] = { 0x38, 0x1C, 0x3B, 0x9C, 0x3B, 0x9C, 0x3B, 0x9C, 0x38,0x1C };
          for (i = 0; i < 5; i++, ptr = (unsigned*)((char*)ptr+pitch))
@@ -249,7 +251,8 @@ void perf_led()
    text_i(temp.led.perf, bf, 0x0E);
    if (cpu.haltpos) {
       unsigned char *ptr = temp.led.perf + pitch*8;
-      for (unsigned xx = 0; xx < PSZ; xx++) *(unsigned short*)(ptr+xx*2) = 0x9A00;
+      unsigned xx; //Alone Coder 0.36.7
+      for (/*unsigned*/ xx = 0; xx < PSZ; xx++) *(unsigned short*)(ptr+xx*2) = 0x9A00;
       unsigned mx = cpu.haltpos*PSZ*8/conf.frame;
       for (xx = 1; xx < mx; xx++) ptr[(xx>>2)&0xFE] |= (0x80 >> (xx & 7));
    }
@@ -262,7 +265,8 @@ void input_led()
       if (input.keymode == K_INPUT::KM_PASTE_HOLD) k0 = 0xAA, k1 = 0xAF, k2 = 0xA0;
       if (input.keymode == K_INPUT::KM_PASTE_RELEASE) k0 = 0x22, k1 = 0x2F, k2 = 0x20;
 
-      for (int i = 0; i < 5; i++)
+      int i; //Alone Coder 0.36.7
+      for (/*int*/ i = 0; i < 5; i++)
          temp.led.input[1+i*2*pitch] = temp.led.input[3+i*2*pitch] = k0;
       for (i = 0; i < 4; i++)
          temp.led.input[pitch*(2*i+1)] = 0x7F,
@@ -305,9 +309,10 @@ void debug_led()
       }
       if (trace_ram) {
          unsigned num_rows = conf.ramsize/128;
+         unsigned j; //Alone Coder 0.36.7
          for (unsigned  i = 0; i < num_rows; i++) {
             char ln[9];
-            for (unsigned j = 0; j < 8; j++)
+            for (/*unsigned*/ j = 0; j < 8; j++)
                ln[j] = used_banks[i*8+j]? '*' : '-';
             ln[j] = 0;
             text_i(ptr, ln, 0x0D);
@@ -330,7 +335,8 @@ void show_mband(unsigned char *dst, unsigned start)
    text_i(dst, xx, 0x0B); dst += 4;
 
    unsigned char band[128];
-   for (unsigned i = 0; i < 128; i++) {
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < 128; i++) {
       unsigned char res = 0;
       for (unsigned q = 0; q < conf.led.bandBpp; q++)
          res |= membits[start++];
@@ -424,7 +430,8 @@ void key_led()
 {
    #define key_x 1
    #define key_y 1
-   for (int i = 0; i < 9; i++) text_16(rbuf+(key_y+i)*pitch*16+key_x*2, "                                 ", 0x40);
+   int i; //Alone Coder 0.36.7
+   for (/*int*/ i = 0; i < 9; i++) text_16(rbuf+(key_y+i)*pitch*16+key_x*2, "                                 ", 0x40);
    static char ks[] = "cZXCVASDFGQWERT1234509876POIUYeLKJHssMNB";
    for (i = 0; i < 8; i++) {
       for (int j = 0; j < 5; j++) {

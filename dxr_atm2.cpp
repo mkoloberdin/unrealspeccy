@@ -1,8 +1,8 @@
 
-const atmh0_ofs = 0;
-const atmh1_ofs = 0x2000;
-const atmh2_ofs = -4*PAGE;
-const atmh3_ofs = -4*PAGE+0x2000;
+const int atmh0_ofs = 0;
+const int atmh1_ofs = 0x2000;
+const int atmh2_ofs = -4*PAGE;
+const int atmh3_ofs = -4*PAGE+0x2000;
 
 
 void line_atm2_8(unsigned char *dst, unsigned char *src, unsigned *tab0)

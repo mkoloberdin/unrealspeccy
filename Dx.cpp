@@ -418,7 +418,8 @@ void setpal(char system)
 
 void trim_right(char *str)
 {
-   for (unsigned i = strlen(str); i && str[i-1] == ' '; i--);
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = strlen(str); i && str[i-1] == ' '; i--);
    str[i] = 0;
 }
 
@@ -465,7 +466,7 @@ void set_vidmode()
    }
 
    // select resolution
-   static size_x[3] = { 256,320,384 }, size_y[3] = { 192,240,300 };
+   static int size_x[3] = { 256,320,384 }, size_y[3] = { 192,240,300 };
    temp.ox = temp.scx = size_x[conf.bordersize];
    temp.oy = temp.scy = size_y[conf.bordersize];
    if (temp.rflags & RF_2X) {

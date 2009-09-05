@@ -1,8 +1,8 @@
 
-const ega0_ofs = -4*PAGE;
-const ega1_ofs = 0;
-const ega2_ofs = -4*PAGE+0x2000;
-const ega3_ofs = 0x2000;
+const int ega0_ofs = -4*PAGE;
+const int ega1_ofs = 0;
+const int ega2_ofs = -4*PAGE+0x2000;
+const int ega3_ofs = 0x2000;
 
 void line_atm0_8(unsigned char *dst, unsigned char *src, unsigned *tab)
 {

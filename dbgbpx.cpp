@@ -214,7 +214,8 @@ void script2text(char *dst, unsigned *src)
          continue;
       }
       if (r >= DB_PCHAR && r <= DB_PINT) {
-         for (int i = 0; i < sizeof regs / sizeof *regs; i++)
+         int i; //Alone Coder 0.36.7
+         for (/*int*/ i = 0; i < sizeof regs / sizeof *regs; i++)
             if (*src == (unsigned)regs[i].ptr) break;
          *(unsigned*)&(stack[sp++]) = regs[i].reg;
          src++; continue;
@@ -300,9 +301,10 @@ void FillBpxBox(HWND dlg, unsigned address)
    ClearListBox(box);
    unsigned selection = 0;
 
+   unsigned end; //Alone Coder 0.36.7
    for (unsigned start = 0; start < 0x10000; ) {
       if (!(membits[start] & MEMBITS_BPX)) { start++; continue; }
-      for (unsigned end = start; end < 0xFFFF && (membits[end+1] & MEMBITS_BPX); end++);
+      for (/*unsigned*/ end = start; end < 0xFFFF && (membits[end+1] & MEMBITS_BPX); end++);
       char tmp[16];
       if (start == end) sprintf(tmp, "%04X", start);
       else sprintf(tmp, "%04X-%04X", start, end);
@@ -320,11 +322,12 @@ void FillMemBox(HWND dlg, unsigned address)
    ClearListBox(box);
    unsigned selection = 0;
 
+   unsigned end; //Alone Coder 0.36.7
    for (unsigned start = 0; start < 0x10000; ) {
       const unsigned char mask = MEMBITS_BPR | MEMBITS_BPW;
       if (!(membits[start] & mask)) { start++; continue; }
       unsigned active = membits[start];
-      for (unsigned end = start; end < 0xFFFF && !((active ^ membits[end+1]) & mask); end++);
+      for (/*unsigned*/ end = start; end < 0xFFFF && !((active ^ membits[end+1]) & mask); end++);
       char tmp[16];
       if (start == end) sprintf(tmp, "%04X ", start);
       else sprintf(tmp, "%04X-%04X ", start, end);
@@ -504,8 +507,8 @@ void mon_bpdialog()
 BOOL CALLBACK watchdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    char tmp[0x200]; unsigned i;
-   static const ids1[] = { IDC_W1_ON, IDC_W2_ON, IDC_W3_ON, IDC_W4_ON };
-   static const ids2[] = { IDE_W1, IDE_W2, IDE_W3, IDE_W4 };
+   static const int ids1[] = { IDC_W1_ON, IDC_W2_ON, IDC_W3_ON, IDC_W4_ON };
+   static const int ids2[] = { IDE_W1, IDE_W2, IDE_W3, IDE_W4 };
    if (msg == WM_INITDIALOG) {
       for (i = 0; i < 4; i++) {
          CheckDlgButton(dlg, ids1[i], watch_enabled[i] ? BST_CHECKED : BST_UNCHECKED);

@@ -135,11 +135,12 @@ unsigned MON_LABELS::load(char *filename, unsigned char *base, unsigned size)
    if (!in) { errmsg("can't find label file %s", filename); return 0; }
    clear(base, size);
    unsigned l_counter = 0, loaded = 0; char *txt = 0;
+   int l; //Alone Coder 0.36.7
    while (!feof(in)) {
       char line[64];
       if (!fgets(line, sizeof(line), in)) break;
       l_counter++;
-      for (int l = strlen(line); l && line[l-1] <= ' '; l--); line[l] = 0;
+      for (/*int*/ l = strlen(line); l && line[l-1] <= ' '; l--); line[l] = 0;
       if (!l) continue;
       unsigned val = 0, offset = 0;
       if (l >= 6 && line[4] == ' ') {
@@ -253,11 +254,12 @@ void MON_LABELS::import_xas()
    unsigned base = (xaspage == 0x46)? 0x0E*PAGE : (unsigned)xaspage*PAGE;
 
    clear_ram(); unsigned count = 0;
+   int i; //Alone Coder 0.36.7
    for (int k = 0; k < 2; k++) {
       unsigned char *ptr = RAM_BASE_M + base + (k? 0x3FFD : 0x1FFD);
       for (;;) {
          if (ptr[2] < 5 || (ptr[2] & 0x80)) break;
-         char lbl[16]; for (int i = 0; i < 7; i++) lbl[i] = ptr[i-7];
+         char lbl[16]; for (/*int*/ i = 0; i < 7; i++) lbl[i] = ptr[i-7];
          for (i = 7; i && lbl[i-1]==' '; i--); lbl[i] = 0;
          unsigned val = *(unsigned short*)ptr;
          unsigned char *bs;
@@ -343,6 +345,7 @@ void ShowLabels()
       SendMessage(list, LB_DELETESTRING, 0, 0);
 
    unsigned ln = strlen(curlabel); lcount = 0;
+   char *s; //Alone Coder 0.36.7
    for (unsigned p = 0; p < 4; p++) {
       unsigned char *base = am_r(p*0x4000);
       for (unsigned i = 0; i < mon_labels.n_pairs; i++) {
@@ -351,7 +354,7 @@ void ShowLabels()
          char *name = mon_labels.pairs[i].name_offs + mon_labels.names;
          if (ln) {
             // unfortunately, strstr() is case sensitive, use loop
-            for (char *s = name; *s; s++)
+            for (/*char * */s = name; *s; s++)
                if (!strnicmp(s, curlabel, ln)) break;
             if (!*s) continue;
          }

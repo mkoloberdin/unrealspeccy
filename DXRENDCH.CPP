@@ -5,9 +5,10 @@ void __fastcall _render_ch_ax(unsigned char *dst, unsigned pitch, RENDER_FUNC c2
    if (conf.ch_size == 2) { c2(dst, pitch); return; }
    if (conf.ch_size == 4) { c4(dst, pitch); return; }
    static unsigned counter;
+   unsigned i; //Alone Coder 0.36.7
    if (!auto_ch || needclr || !(++counter & 7)) {
       unsigned char n[0x100];
-      for (unsigned i = 0; i < 0x100; i++) n[i] = 0;
+      for (/*unsigned*/ i = 0; i < 0x100; i++) n[i] = 0;
       for (i = 0; i < 0x300; i++) n[temp.base[i+0x1800]] = 1;
       unsigned max = 0;
       for (i = 0; i < 0x100; i++) max += n[i];
@@ -154,11 +155,13 @@ void __fastcall  _render_c2x16b(unsigned char *dst, unsigned pitch)
    dst += pitch * (temp.b_top*2) + temp.b_left*2*sizeof(WORD);
 
    unsigned ll[512*2];
-   for (unsigned y = 0; y < 512*4; y += 4)
+   unsigned y; //Alone Coder 0.36.7
+   unsigned x; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < 512*4; y += 4)
       *(unsigned*)((unsigned char*)ll+y) = 0;
    for (y = 0; y < 96; y++) {
       unsigned *bp = t.bs2h[y];
-      for (unsigned x = 0; x < 128; x++) {
+      for (/*unsigned*/ x = 0; x < 128; x++) {
          unsigned *dst1 = ll + 512 + x*4;
          unsigned b0 = bp[x] & 0xFCFCFC, b4 = bp[x+1] & 0xFCFCFC;
          dst1[0] = bp[x];
@@ -204,11 +207,13 @@ void __fastcall  _render_c2x16bl(unsigned char *dst, unsigned pitch)
    dst += pitch * temp.b_top + temp.b_left*sizeof(WORD);
 
    unsigned ll[256*2];
-   for (unsigned y = 0; y < 256*4; y += 4)
+   unsigned y; //Alone Coder 0.36.7
+   unsigned x; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < 256*4; y += 4)
       *(unsigned*)((unsigned char*)ll+y) = 0;
    for (y = 0; y < 96; y++) {
       unsigned *bp = t.bs2h[y];
-      for (unsigned x = 0; x < 128; x++) {
+      for (/*unsigned*/ x = 0; x < 128; x++) {
          unsigned *dst1 = ll + 256 + x*2;
          unsigned b0 = bp[x] & 0xFEFEFE, b2 = bp[x+1] & 0xFEFEFE;
          dst1[0] = bp[x];
@@ -252,11 +257,13 @@ void __fastcall  _render_c4x16b(unsigned char *dst, unsigned pitch)
    dst += pitch * (temp.b_top*2) + 2*temp.b_left*sizeof(WORD);
 
    unsigned ll[512*2];
-   for (unsigned y = 0; y < 512*4; y += 4)
+   unsigned y; //Alone Coder 0.36.7
+   unsigned x; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < 512*4; y += 4)
       *(unsigned*)(((unsigned char*)ll)+y) = 0;
    for (y = 0; y < 48; y++) {
       unsigned *bp = t.bs4h[y];
-      for (unsigned x = 0; x < 64; x++) {
+      for (/*unsigned*/ x = 0; x < 64; x++) {
          unsigned *dst1 = ll + 512 + x*8;
          unsigned b0 = bp[x] & 0xF8F8F8, b8 = bp[x+1] & 0xF8F8F8;
          dst1[0] = bp[x];
@@ -305,11 +312,13 @@ void __fastcall  _render_c4x16bl(unsigned char *dst, unsigned pitch)
    dst += pitch * temp.b_top + temp.b_left*sizeof(WORD);
 
    unsigned ll[256*2];
-   for (unsigned y = 0; y < 256*4; y += 4)
+   unsigned y; //Alone Coder 0.36.7
+   unsigned x; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < 256*4; y += 4)
       *(unsigned*)(((unsigned char*)ll)+y) = 0;
    for (y = 0; y < 48; y++) {
       unsigned *bp = t.bs4h[y];
-      for (unsigned x = 0; x < 64; x++) {
+      for (/*unsigned*/ x = 0; x < 64; x++) {
          unsigned *dst1 = ll + 256 + x*4;
          unsigned b0 = bp[x] & 0xFCFCFC, b4 = bp[x+1] & 0xFCFCFC;
          dst1[0] = bp[x];
@@ -365,12 +374,14 @@ void __fastcall render_c4x32b(unsigned char *dst, unsigned pitch)
    dst += pitch * (temp.b_top*2) + 2*temp.b_left*sizeof(DWORD);
 
    unsigned ll[512*2];
-   for (unsigned y = 0; y < 512*4; y += 4)
+   unsigned y; //Alone Coder 0.36.7
+   unsigned x; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < 512*4; y += 4)
       *(unsigned*)(((unsigned char*)ll)+y) = 0;
    #define inter(a,b,c) ((unsigned char)((a*(8-c)+b*c)>>3))
    for (y = 0; y < 48; y++) {
       unsigned *bp = t.bs4h[y];
-      for (unsigned x = 0; x < 64; x++) {
+      for (/*unsigned*/ x = 0; x < 64; x++) {
          unsigned char *dst1 = (unsigned char*)ll + 512*4 + x*8*4;
          unsigned char *src = (unsigned char*)&bp[x];
          #define inter2(n) dst1[n*4]=inter(src[0],src[4],n); dst1[n*4+1]=inter(src[1],src[5],n); dst1[n*4+2]=inter(src[2],src[6],n);

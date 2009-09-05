@@ -1,10 +1,10 @@
 
 /* edit this file to make optimized versions without unnecessary parts */
 
-#define VERS_STRING  "0.36.6"   // version for monitor (exact 6 chars)
-#define VERS_STRING_ "0.36.6"    // version for startup string (any length)
+#define VERS_STRING  "0.36.7"   // version for monitor (exact 6 chars)
+#define VERS_STRING_ "0.36.7"    // version for startup string (any length)
 #define VER_HL 0x0024           // major version
-#define VER_A  0x06             // minor version and beta flag
+#define VER_A  0x07             // minor version and beta flag
 
 #define MOD_GSZ80     // exact gs emulation through Z80/ROM/DACs
 #define MOD_GSBASS    // fast gs emulation via sampleplayer and BASS mod-player
@@ -18,14 +18,14 @@
 
 /* ------------------------- console output colors ------------------------- */
 
-const CONSCLR_DEFAULT   = 0x07;
-const CONSCLR_TITLE     = 0x0F;
-const CONSCLR_ERROR     = 0x0C;
-const CONSCLR_ERRCODE   = 0x04;
-const CONSCLR_WARNING   = 0x0E;
-const CONSCLR_HARDITEM  = 0x03;
-const CONSCLR_HARDINFO  = 0x0B;
-const CONSCLR_INFO      = 0x02;
+const int CONSCLR_DEFAULT   = 0x07;
+const int CONSCLR_TITLE     = 0x0F;
+const int CONSCLR_ERROR     = 0x0C;
+const int CONSCLR_ERRCODE   = 0x04;
+const int CONSCLR_WARNING   = 0x0E;
+const int CONSCLR_HARDITEM  = 0x03;
+const int CONSCLR_HARDINFO  = 0x0B;
+const int CONSCLR_INFO      = 0x02;
 
 /* ************************************************************************* */
 /* * don't edit below this line                                            * */

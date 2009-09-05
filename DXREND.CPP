@@ -64,8 +64,9 @@ void __fastcall render_scale(unsigned char *dst, unsigned pitch)
    unsigned char *src = rbuf;
    unsigned dx = temp.scx/4;
    unsigned char buf[MAX_WIDTH*2];
+   unsigned x; //Alone Coder 0.36.7
    for (unsigned y = 0; y < temp.scy-1; y++) {
-      for (unsigned x = 0; x < dx; x+=2) {
+      for (/*unsigned*/ x = 0; x < dx; x+=2) {
          unsigned xx = (t.dbl[src[x]] << 16) + t.dbl[src[x+2]];
          unsigned yy = (t.dbl[src[x+dx]] << 16) + t.dbl[src[x+dx+2]];
          unsigned x1 = xx | (yy & ((xx>>1) | (xx<<1)));
@@ -185,7 +186,8 @@ void __fastcall render_bil(unsigned char *dst, unsigned pitch)
    unsigned char l1[MAX_WIDTH*4];
    #define l2 (l1+MAX_WIDTH*2)
    _bil_line1(l1, src); src += MAX_WIDTH;
-   for (unsigned j = 0; j < temp.ox; j+=4)
+   unsigned j; //Alone Coder 0.36.7
+   for (/*unsigned*/ j = 0; j < temp.ox; j+=4)
       *(unsigned*)(dst+j) = *(unsigned*)(l1+j);
    dst += pitch;
 
@@ -220,7 +222,8 @@ void __fastcall render_tv(unsigned char *dst, unsigned pitch)
    unsigned char midbuf[MAX_WIDTH*2];
    unsigned char line[MAX_WIDTH*2+4*2], line2[MAX_WIDTH*2];
 
-   for (unsigned j = 0; j < MAX_WIDTH/2; j++)
+   unsigned j; //Alone Coder 0.36.7
+   for (/*unsigned*/ j = 0; j < MAX_WIDTH/2; j++)
       *(unsigned*)(midbuf+j*4) = WORD4(0,0x80,0,0x80);
 
    unsigned char *src = rbuf; unsigned delta = temp.scx/4;

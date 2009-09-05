@@ -198,6 +198,7 @@ void showdos()
 BOOL CALLBACK gsdlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    char tmp[0x200];
+   unsigned i; //Alone Coder 0.36.7
    if (msg == WM_INITDIALOG) {
 repaint:
       while (SendDlgItemMessage(dlg, IDC_GSLIST, LB_GETCOUNT, 0, 0))
@@ -206,7 +207,7 @@ repaint:
          sprintf(tmp, "%-.20s (%s)", gs.mod, gs.mod_playing ? "playing" : "stopped");
          SendDlgItemMessage(dlg, IDC_GSLIST, LB_ADDSTRING, 0, (LPARAM)tmp);
       }
-      for (unsigned i = 1; i < gs.total_fx; i++) {
+      for (/*unsigned*/ i = 1; i < gs.total_fx; i++) {
          sprintf(tmp, "%csmp %d: v=%d, n=%d, %d%s",
             gs.cur_fx == i ? '*':' ', i,
             gs.sample[i].volume, gs.sample[i].note, gs.sample[i].end,

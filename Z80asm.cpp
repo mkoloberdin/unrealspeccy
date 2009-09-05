@@ -262,9 +262,10 @@ void disasm_address(char *line, unsigned addr, char labels)
    char *label = 0;
    if (labels&&addr) label = mon_labels.find(am_r(addr));
    if (label) {
-	   //strcpy(line, label);
-		for (int i=0;(i<20)&&label[i];i++)line[i]=label[i];
-		line[i]=label[i];
+           //strcpy(line, label);
+                int i;
+                for (i=0;(i<20)&&label[i];i++)line[i]=label[i];
+                line[i]=label[i];
    } //Alone Coder 0.36.6
    else sprintf(line, "%04X", addr & 0xFFFF);
 }
@@ -372,19 +373,19 @@ unsigned char *disasm(unsigned char *cmd, unsigned current, char labels)
          strcat(asmbuf, l1);
       }
       // make tabulation between instruction and operands
-	  {
-//			if( !cpu.logena ) //LVD
-			{
-				char b1[0x40], *p = asmbuf, *q = b1;
-				while (*p != ' ' && *p) *q++ = *p++;
-				*q++ = *p;
-				if (*p) {
-					while (q < b1+5) *q++ = ' '; // +5 - tab size=5, was 4
-					while (*++p) *q++ = *p;
-				}
-				*q = 0;
-				strcpy(asmbuf, b1);
-			}
+          {
+//                        if( !cpu.logena ) //LVD
+                        {
+                                char b1[0x40], *p = asmbuf, *q = b1;
+                                while (*p != ' ' && *p) *q++ = *p++;
+                                *q++ = *p;
+                                if (*p) {
+                                        while (q < b1+5) *q++ = ' '; // +5 - tab size=5, was 4
+                                        while (*++p) *q++ = *p;
+                                }
+                                *q = 0;
+                                strcpy(asmbuf, b1);
+                        }
          return max(cm, cmd+*ptr);
       }
 nextcmd:
@@ -447,12 +448,12 @@ int assemble(unsigned addr)
       unsigned char *cc = a_command; memcpy(cmdb, p1+1, *p1);
       unsigned char *cmd = cmdb;
       unsigned char *rcmd = cmd;
-	  unsigned char *cm; //Alone Coder
+          unsigned char *cm; //Alone Coder
       if (*cmd == 0xED) { rcmd++; if (z80p) goto nextcmd; }
       /*unsigned char * */cm = rcmd+1;
 
       int in;
-	  unsigned char *ptr; //Alone Coder
+          unsigned char *ptr; //Alone Coder
       for (/*unsigned char * */ptr = p1+2 * *p1+1; *ptr; ptr++) {
          switch (*ptr) {
             case _zr16: // in rcmd & 0x30

@@ -244,7 +244,8 @@ void load_config(char *fname)
    if (conf.cache && conf.cache!=16 && conf.cache!=32) conf.cache = 0;
    GetPrivateProfileString(misc, "HIMEM", nil, line, sizeof line, ininame);
    conf.mem_model = MM_PENTAGON;
-   for (unsigned i = 0; i < N_MM_MODELS; i++)
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < N_MM_MODELS; i++)
       if (!strnicmp(line, mem_model[i].shortname, strlen(mem_model[i].shortname)))
          conf.mem_model = (MEM_MODEL)i;
    conf.ramsize = GetPrivateProfileInt(misc, "RamSize", 128, ininame);
@@ -666,7 +667,8 @@ void applyconfig()
 void load_arch(char *fname)
 {
    GetPrivateProfileString("ARC", "SkipFiles", nil, skiparc, sizeof skiparc, fname);
-   for (char *p = skiparc;;) {
+   char *p; //Alone Coder 0.36.7
+   for (/*char * */p = skiparc;;) {
       char *nxt = strchr(p, ';');
       if (!nxt) break;
       *nxt = 0; p = nxt+1;
@@ -690,6 +692,7 @@ ignore_line:
 void loadkeys(action *table)
 {
    unsigned num[0x300], i = 0;
+   unsigned j; //Alone Coder 0.36.7
    if (!table->name) return; // empty table (can't sort)
    for (action *p = table; p->name; p++, i++) {
       char line[0x400];
@@ -705,7 +708,7 @@ bad_key: p->k1 = 0xFE, p->k2 = 0xFF, p->k3 = 0xFD;
          while (*s == ' ') s++;
          if (!*s) break;
          char *s1 = s; while (isalnum(*s)) s++;
-         for (unsigned j = 0; j < sizeof pckeys / sizeof *pckeys; j++)
+         for (/*unsigned*/ j = 0; j < sizeof pckeys / sizeof *pckeys; j++)
             if ((int)strlen(pckeys[j].name)==s-s1 && !strnicmp(s1, pckeys[j].name, s-s1)) {
                switch (num[i]) {
                   case 0: p->k1 = pckeys[j].virtkey; break;
@@ -744,14 +747,16 @@ void loadzxkeys(CONFIG *conf)
    char section[0x200];
    sprintf(section, "ZX.KEYS.%s", conf->keyset);
    char line[0x300];
+   char *s; //Alone Coder 0.36.7
+   unsigned k; //Alone Coder 0.36.7
    for (unsigned i = 0; i < VK_MAX; i++) {
       inports[i].port1 = inports[i].port2 = &input.kjoy;
       inports[i].mask1 = inports[i].mask2 = 0xFF;
       for (unsigned j = 0; j < sizeof pckeys / sizeof *pckeys; j++)
          if (pckeys[j].virtkey == i) {
             GetPrivateProfileString(section, pckeys[j].name, "", line, sizeof line, ininame);
-            for (char *s = line; *s == ' '; s++);
-            for (unsigned k = 0; k < sizeof zxk / sizeof *zxk; k++) {
+            for (/*char * */s = line; *s == ' '; s++);
+            for (/*unsigned*/ k = 0; k < sizeof zxk / sizeof *zxk; k++) {
                if (!strnicmp(s, zxk[k].name, strlen(zxk[k].name))) {
                   inports[i].port1 = zxk[k].port;
                   inports[i].mask1 = zxk[k].mask;

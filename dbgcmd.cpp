@@ -9,8 +9,9 @@ unsigned find1dlg(unsigned start)
    if (!inputhex(17,12,8,0)) return -1;
    strcpy(ftext, str);
    unsigned len = strlen(ftext);
+   unsigned i; //Alone Coder 0.36.7
    for (unsigned ptr = memadr(start+1); ptr != start; ptr = memadr(ptr+1)) {
-      for (unsigned i = 0; i < len; i++)
+      for (/*unsigned*/ i = 0; i < len; i++)
          if (editrm(memadr(ptr+i)) != ftext[i]) break;
       if (i == len) return ptr;
    }
@@ -34,9 +35,10 @@ unsigned find2dlg(unsigned start)
    sprintf(str, "%08X", _byteswap_ulong(mask));
    if (!inputhex(17,13,8,1)) return -1;
    sscanf(str, "%x", &mask); mask = _byteswap_ulong(mask);
+   unsigned i; //Alone Coder 0.36.7
    for (unsigned ptr = memadr(start+1); ptr != start; ptr = memadr(ptr+1)) {
       unsigned char *cd = (unsigned char*)&code, *ms = (unsigned char*)&mask;
-      for (unsigned i = 0; i < 4; i++)
+      for (/*unsigned*/ i = 0; i < 4; i++)
          if ((editrm(memadr(ptr+i)) & ms[i]) != (cd[i] & ms[i])) break;
       if (i == 4) return ptr;
    }

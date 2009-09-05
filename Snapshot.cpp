@@ -390,7 +390,7 @@ void opensnap(int index)
    eat();
 }
 
-const mx_typs = (1+4*6);
+const int mx_typs = (1+4*6);
 unsigned char snaps[mx_typs]; unsigned exts[mx_typs], drvs[mx_typs]; int snp;
 void addref(LPSTR &ptr, unsigned char sntype, char *ref, unsigned drv, unsigned ext)
 {
@@ -504,7 +504,7 @@ unsigned char bmpheader32[]=
 
 void scrshot()
 {
-   char fname[0x200]; static sshot = 0;
+   char fname[0x200]; static int sshot = 0;
    sprintf(fname, "sshot%03d.%s", sshot, conf.bmpshot ? "bmp":"scr");
    addpath(fname);
    FILE *fileShot = fopen(fname, "wb"); if (!fileShot) return;

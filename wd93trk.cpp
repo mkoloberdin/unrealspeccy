@@ -47,7 +47,8 @@ void TRKCACHE::format()
 
    unsigned char *dst = trkd;
 
-   for (unsigned i = 0; i < 80; i++) *dst++ = 0x4E; // 1st gap
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < 80; i++) *dst++ = 0x4E; // 1st gap
    for (i = 0; i < 12; i++) *dst++ = 0;
    for (i = 0; i < 3; i++) write(dst++ - trkd, 0xC2, 1);
    *dst++ = 0xFC; // index
@@ -107,7 +108,8 @@ int TRKCACHE::write_sector(unsigned sec, unsigned char *data)
 
 SECHDR *TRKCACHE::get_sector(unsigned sec)
 {
-   for (unsigned i = 0; i < s; i++)
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < s; i++)
       if (hdr[i].n == sec) break;
    if (i == s) return 0;
    if (hdr[i].l != 1 || hdr[i].c != cyl) return 0;

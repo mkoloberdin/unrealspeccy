@@ -20,7 +20,8 @@ void GSHLE::applyconfig()
 {
    double period = 6848, mx = 0.943874312682; // mx=1/root(2,12)
    double basefq = 7093789.0/2;
-   for (int i = 0; i < 96; i++, period *= mx)
+   int i; //Alone Coder 0.36.7
+   for (/*int*/ i = 0; i < 96; i++, period *= mx)
       note2rate[i] = (unsigned)(basefq/period);
    for (; i < 0x100; i++) note2rate[i] = note2rate[i-1];
    if (hBass) setmodvol(modvol);
@@ -226,12 +227,13 @@ void GSHLE::out(unsigned char port, unsigned char byte)
 }
 
 void GSHLE::start_fx(unsigned fx, unsigned ch, unsigned char vol, unsigned char note)
-{
+{  
+   unsigned i; //Alone Coder 0.36.7
    if (!fx) fx = cur_fx; // fx=0 - use default
    if (vol == 0xFF) vol = sample[fx].volume;
    if (note == 0xFF) note = sample[fx].note;
    if (ch == 0xFF) { // find free channel
-      for (unsigned i = 0; i < 4; i++)
+      for (/*unsigned*/ i = 0; i < 4; i++)
          if (!chan[i].start) ch = i;
       if (ch == 0xFF)
          for (i = 1, ch = 0; i < 4; i++)

@@ -3,8 +3,8 @@
 #define MAX_HEIGHT 304
 #define MAX_BUFFERS 8
 
-const rb2_offs = MAX_HEIGHT*MAX_WIDTH_P;
-const sizeof_rbuf = rb2_offs*(MAX_BUFFERS+2);
+const int rb2_offs = MAX_HEIGHT*MAX_WIDTH_P;
+const int sizeof_rbuf = rb2_offs*(MAX_BUFFERS+2);
 
 #ifdef CACHE_ALIGNED
 CACHE_ALIGNED unsigned char rbuf[sizeof_rbuf];
@@ -27,7 +27,7 @@ struct videopoint
    unsigned scr_offs;
 };
 
-const sc2lines_width = MAX_WIDTH*2;
+const int sc2lines_width = MAX_WIDTH*2;
 
 #define MAX_FONT_TABLES 0x62000
 CACHE_ALIGNED struct {
@@ -120,7 +120,8 @@ PALETTEENTRY pal0[0x100]; // emulator palette
 void video_permanent_tables()
 {
    // pixel doubling table
-   for (unsigned i = 0; i < 0x100; i++) {
+   unsigned i; //Alone Coder 0.36.7
+   for (/*unsigned*/ i = 0; i < 0x100; i++) {
       unsigned res = 0;
       for (int j = 0x80; j; j/=2) {
          res <<= 2; if (i & j) res |= 3;
@@ -453,7 +454,7 @@ void pixel_tables()
          t.sctab32[pass][at] = raw_data(px0, pass, 32);
          t.sctab32[pass][at+0x100] = raw_data(px1, pass, 32);
 
-		 unsigned j; //Alone Coder
+                 unsigned j; //Alone Coder
          // 8 bit
          for (/*unsigned*/ j = 0; j < 0x10; j++) {
             unsigned mask = (j >> 3)*0xFF + (j & 0x04)*(0xFF00/4) +
@@ -758,7 +759,7 @@ __inline void flush_frame()
 //         if (comp.pEFF7 & EFF7_GIGASCREEN) draw_gigascreen_no_border(); //Alone Coder
       } else { // MCR on, but no screen updates in last frame - use fast painter
          if (temp.base_2 /*|| (comp.pEFF7 & EFF7_GIGASCREEN)*/ /*Alone Coder*/) draw_screen();
-	     else draw_border();
+             else draw_border();
       }
       return;
    }

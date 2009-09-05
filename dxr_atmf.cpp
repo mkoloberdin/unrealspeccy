@@ -4,7 +4,8 @@ void rend_atmframe_x2_8s(unsigned char *dst, unsigned pitch)
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
    unsigned top = (temp.scy-200)/2;
-   for (unsigned y = 0; y < top; y++) {
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < top; y++) {
       line8d(dst, src, t.sctab8d[0]); dst += pitch;
       src += delta;
    }
@@ -29,7 +30,8 @@ void rend_atmframe_x2_8d(unsigned char *dst, unsigned pitch)
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
    unsigned top = (temp.scy-200)/2;
-   for (unsigned y = 0; y < top; y++) {
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < top; y++) {
       line8d(dst, src, t.sctab8d[0]); dst += pitch;
       line8d(dst, src, t.sctab8d[1]); dst += pitch;
       src += delta;
@@ -60,7 +62,8 @@ void rend_atmframe_x2_16s(unsigned char *dst, unsigned pitch)
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
    unsigned top = (temp.scy-200)/2;
-   for (unsigned y = 0; y < top; y++) {
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < top; y++) {
       line16d(dst, src, t.sctab16d[0]); dst += pitch;
       src += delta;
    }
@@ -85,7 +88,8 @@ void rend_atmframe_x2_16d(unsigned char *dst, unsigned pitch)
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
    unsigned top = (temp.scy-200)/2;
-   for (unsigned y = 0; y < top; y++) {
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < top; y++) {
       line16d(dst, src, t.sctab16d[0]); dst += pitch;
       line16d(dst, src, t.sctab16d[1]); dst += pitch;
       src += delta;
@@ -125,7 +129,8 @@ void rend_atmframe_x2_32s(unsigned char *dst, unsigned pitch)
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
    unsigned top = (temp.scy-200)/2;
-   for (unsigned y = 0; y < top; y++) {
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < top; y++) {
       line32d(dst, src, t.sctab32[0]); dst += pitch;
       src += delta;
    }
@@ -150,7 +155,8 @@ void rend_atmframe_x2_32d(unsigned char *dst, unsigned pitch)
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
    unsigned top = (temp.scy-200)/2;
-   for (unsigned y = 0; y < top; y++) {
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < top; y++) {
       line32d(dst, src, t.sctab32[0]); dst += pitch;
       line32d(dst, src, t.sctab32[1]); dst += pitch;
       src += delta;

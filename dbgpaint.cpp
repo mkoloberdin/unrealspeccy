@@ -107,8 +107,9 @@ unsigned inputhex(unsigned x, unsigned y, unsigned sz, char hex)
 {
    unsigned cr = 0;
    mousepos = 0;
+   unsigned i; //Alone Coder 0.36.7
    for (;;) {
-      str[sz] = 0; for (unsigned i = strlen(str); i < sz; i++) str[i] = ' ';
+      str[sz] = 0; for (/*unsigned*/ i = strlen(str); i < sz; i++) str[i] = ' ';
       for (i = 0; i < sz; i++) {
          unsigned vl = (unsigned char)str[i]; tprint(x+i,y,(char*)&vl,(i==cr) ? W_INPUTCUR : W_INPUTBG);
       }
