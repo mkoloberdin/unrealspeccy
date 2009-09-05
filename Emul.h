@@ -96,6 +96,8 @@ struct IDE_CONFIG
 
 enum RSM_MODE { RSM_SIMPLE, RSM_FIR0, RSM_FIR1, RSM_FIR2 };
 
+struct zxkeymap ;
+
 struct CONFIG
 {
    unsigned paper;  // start of paper
@@ -173,6 +175,7 @@ struct CONFIG
       unsigned char mouse, mouseswap, kjoy, keymatrix, joymouse;
       signed char mousescale;
       unsigned char mousewheel; // enum MOUSE_WHEEL_MODE //0.36.6 from 0.35b2
+      zxkeymap *active_zxk;
    } input;
 
    struct {
@@ -227,6 +230,7 @@ struct CONFIG
    #endif
 
    char atariset[64]; // preset for atari mode
+   char zxkeymap[64]; // name of ZX keys map
    char keyset[64]; // short name of keyboard layout
    char appendboot[0x200];
    char workdir[0x200];
@@ -430,6 +434,12 @@ struct zxkey {
   volatile unsigned char * /*const*/ port; //Alone Coder
   /*const*/ unsigned char mask; //Alone Coder
 };
+
+struct zxkeymap {
+  const char *name;
+  zxkey *zxk;
+  unsigned zxk_size ;
+} ;
 
 struct action {
    const char *name;

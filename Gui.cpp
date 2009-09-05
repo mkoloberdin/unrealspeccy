@@ -1004,8 +1004,9 @@ BOOL CALLBACK InputDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
    ::dlg = dlg; char names[0x2000];
    if (msg == WM_INITDIALOG) {
-      for (int i = 0; i < sizeof zxk / sizeof *zxk; i++)
-         SendDlgItemMessage(dlg, IDC_FIREKEY, CB_ADDSTRING, 0, (LPARAM)zxk[i].name);
+      zxkeymap *active_zxk = conf.input.active_zxk;
+      for (unsigned i = 0; i < active_zxk->zxk_size; i++)
+         SendDlgItemMessage(dlg, IDC_FIREKEY, CB_ADDSTRING, 0, (LPARAM)active_zxk->zxk[i].name);
       GetPrivateProfileSectionNames(names, sizeof names, ininame);
       for (char *ptr = names; *ptr; ptr += strlen(ptr)+1)
          if (!strnicmp(ptr, "ZX.KEYS.", sizeof("ZX.KEYS.")-1)) {

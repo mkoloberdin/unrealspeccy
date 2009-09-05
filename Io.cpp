@@ -157,11 +157,11 @@ set1FFD:
    if (port == 0xEFF7) { 
       unsigned char oldpEFF7 = comp.pEFF7; //Alone Coder 0.36.4
 	  comp.pEFF7 = (comp.pEFF7 & conf.EFF7_mask) | (val & ~conf.EFF7_mask);
-	  if ((comp.pEFF7 ^ oldpEFF7) & EFF7_GIGASCREEN) {
-		conf.frame = frametime;
-		if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
-		apply_sound(); 
-	  } //Alone Coder 0.36.4
+//	  if ((comp.pEFF7 ^ oldpEFF7) & EFF7_GIGASCREEN) {
+//		conf.frame = frametime;
+//		if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
+//		apply_sound(); 
+//	  } //Alone Coder removed 0.37.1
 	  if ((comp.pEFF7 ^ oldpEFF7) & EFF7_ROCACHE) set_banks(); //Alone Coder 0.36.4
 	  return; 
    }

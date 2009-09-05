@@ -161,7 +161,7 @@ virtkeyt pckeys[] =
 
 };
 
-zxkey zxk[] =
+zxkey zxk_default[] =
 {
    { "KRIGHT", &input.kjoy, ~1 },
    { "KLEFT",  &input.kjoy, ~2 },
@@ -219,6 +219,85 @@ zxkey zxk[] =
    { "B",   input.kbd+7, ~0x10 },
 
 };
+
+zxkey zxk_bk08[] =
+{
+   { "KRIGHT", &input.kjoy, ~1 },
+   { "KLEFT",  &input.kjoy, ~2 },
+   { "KDOWN",  &input.kjoy, ~4 },
+   { "KUP",    &input.kjoy, ~8 },
+   { "KFIRE",  &input.kjoy, ~16},
+
+   { "ALT", input.kbd+0, ~0x01 },
+   { "Z",   input.kbd+0, ~0x02 },
+   { "X",   input.kbd+0, ~0x04 },
+   { "C",   input.kbd+0, ~0x08 },
+   { "V",   input.kbd+0, ~0x10 },
+   { "RUS", input.kbd+0, ~0x20 },
+   { "SHF", input.kbd+0, ~0x80 },
+
+   { "A",   input.kbd+1, ~0x01 },
+   { "S",   input.kbd+1, ~0x02 },
+   { "D",   input.kbd+1, ~0x04 },
+   { "F",   input.kbd+1, ~0x08 },
+   { "G",   input.kbd+1, ~0x10 },
+   { "BSL", input.kbd+1, ~0x20 },
+   { "SL",  input.kbd+1, ~0x80 },
+
+   { "Q",   input.kbd+2, ~0x01 },
+   { "W",   input.kbd+2, ~0x02 },
+   { "E",   input.kbd+2, ~0x04 },
+   { "R",   input.kbd+2, ~0x08 },
+   { "T",   input.kbd+2, ~0x10 },
+   { "CMA", input.kbd+2, ~0x20 },
+   { "PNT", input.kbd+2, ~0x80 },
+
+   { "1",   input.kbd+3, ~0x01 },
+   { "2",   input.kbd+3, ~0x02 },
+   { "3",   input.kbd+3, ~0x04 },
+   { "4",   input.kbd+3, ~0x08 },
+   { "5",   input.kbd+3, ~0x10 },
+   { "TIL", input.kbd+3, ~0x20 },
+   { "TAB", input.kbd+3, ~0x80 },
+
+   { "0",   input.kbd+4, ~0x01 },
+   { "9",   input.kbd+4, ~0x02 },
+   { "8",   input.kbd+4, ~0x04 },
+   { "7",   input.kbd+4, ~0x08 },
+   { "6",   input.kbd+4, ~0x10 },
+   { "MNS", input.kbd+4, ~0x20 },
+   { "PLS", input.kbd+4, ~0x80 },
+
+   { "P",   input.kbd+5, ~0x01 },
+   { "O",   input.kbd+5, ~0x02 },
+   { "I",   input.kbd+5, ~0x04 },
+   { "U",   input.kbd+5, ~0x08 },
+   { "Y",   input.kbd+5, ~0x10 },
+   { "LB",  input.kbd+5, ~0x20 },
+   { "RB",  input.kbd+5, ~0x80 },
+
+   { "ENT", input.kbd+6, ~0x01 },
+   { "L",   input.kbd+6, ~0x02 },
+   { "K",   input.kbd+6, ~0x04 },
+   { "J",   input.kbd+6, ~0x08 },
+   { "H",   input.kbd+6, ~0x10 },
+   { "COL", input.kbd+6, ~0x20 },
+   { "QUO", input.kbd+6, ~0x80 },
+
+   { "SPC", input.kbd+7, ~0x01 },
+   { "CTL", input.kbd+7, ~0x02 },
+   { "M",   input.kbd+7, ~0x04 },
+   { "N",   input.kbd+7, ~0x08 },
+   { "B",   input.kbd+7, ~0x10 },
+   { "R/A", input.kbd+7, ~0x20 },
+   { "CPS", input.kbd+7, ~0x80 }
+};
+
+zxkeymap zxk_maps[] =
+{
+   { "default", zxk_default, sizeof zxk_default / sizeof *zxk_default },
+   { "BK08", zxk_bk08, sizeof zxk_bk08 / sizeof *zxk_bk08 }
+} ;
 
 PALETTEENTRY syspalette[0x100];
 
