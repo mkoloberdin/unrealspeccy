@@ -141,10 +141,10 @@ void load_ula_preset()
    if (conf.ula_preset >= num_ula) return;
    char line[128], name[64];
    sprintf(name, "PRESET.%s", ulapreset[conf.ula_preset]);
-   static char defaults[] = "71680,17989,224,50,0,0";
+   static char defaults[] = "71680,17989,224,50,32,0,0";
    GetPrivateProfileString("ULA", name, defaults, line, sizeof line, ininame);
    unsigned t1, t2, t3, t4;
-   sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d", &conf.frame, &conf.paper, &conf.t_line, &conf.intfq, &t1, &t2, &t3, &t4);
+   sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d,%d", &conf.frame, &conf.paper, &conf.t_line, &conf.intfq, &conf.intlen, &t1, &t2, &t3, &t4);
    conf.even_M1 = (unsigned char)t1; conf.border_4T = (unsigned char)t2;
    conf.floatbus = (unsigned char)t3; conf.floatdos = (unsigned char)t4;
 }
@@ -214,7 +214,8 @@ void load_config(char *fname)
    conf.tape_autostart = GetPrivateProfileInt(misc, "TapeAutoStart", 1, ininame);
    conf.EFF7_mask = GetPrivateProfileInt(misc, "EFF7mask", 0, ininame);
 
-   GetPrivateProfileString(rom, "ATM", nil, conf.atm_rom_path, sizeof conf.atm_rom_path, ininame);
+   GetPrivateProfileString(rom, "ATM1", nil, conf.atm1_rom_path, sizeof conf.atm1_rom_path, ininame);
+   GetPrivateProfileString(rom, "ATM2", nil, conf.atm2_rom_path, sizeof conf.atm2_rom_path, ininame);
    GetPrivateProfileString(rom, "SCORP", nil, conf.scorp_rom_path, sizeof conf.scorp_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFROM", nil, conf.prof_rom_path, sizeof conf.prof_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFI", nil, conf.profi_rom_path, sizeof conf.profi_rom_path, ininame);
@@ -223,7 +224,8 @@ void load_config(char *fname)
    GetPrivateProfileString(rom, "GS", nil, conf.gs_rom_path, sizeof conf.gs_rom_path, ininame);
    addpath(conf.gs_rom_path);
    #endif
-   addpath(conf.atm_rom_path);
+   addpath(conf.atm1_rom_path);
+   addpath(conf.atm2_rom_path);
    addpath(conf.scorp_rom_path);
    addpath(conf.prof_rom_path);
    addpath(conf.profi_rom_path);
@@ -261,6 +263,7 @@ void load_config(char *fname)
    conf.paper = GetPrivateProfileInt(ula, "Paper", 17989, ininame);
    conf.t_line = GetPrivateProfileInt(ula, "Line", 224, ininame);
    conf.intfq = GetPrivateProfileInt(ula, "int", 50, ininame);
+   conf.intlen = GetPrivateProfileInt(ula, "intlen", 32, ininame);
    conf.frame = GetPrivateProfileInt(ula, "Frame", 71680, ininame);
    conf.border_4T = GetPrivateProfileInt(ula, "4TBorder", 0, ininame);
    conf.even_M1 = GetPrivateProfileInt(ula, "EvenM1", 0, ininame);
@@ -554,6 +557,11 @@ void apply_memory()
       base_dos_rom = ROM_BASE_M + 1*PAGE;
       base_128_rom = ROM_BASE_M + 2*PAGE;
       base_sys_rom = ROM_BASE_M + 3*PAGE;
+   } else if (conf.mem_model == MM_ATM450) {
+      base_sys_rom = ROM_BASE_M + 0*PAGE;
+      base_dos_rom = ROM_BASE_M + 1*PAGE;
+      base_128_rom = ROM_BASE_M + 2*PAGE;
+      base_sos_rom = ROM_BASE_M + 3*PAGE;
    } else {
       base_128_rom = ROM_BASE_M + 0*PAGE;
       base_sos_rom = ROM_BASE_M + 1*PAGE;
@@ -571,7 +579,7 @@ void apply_memory()
    } else {
 
       if (conf.mem_model == MM_ATM710) {
-         romsize = load_rom(conf.atm_rom_path, ROM_BASE_M, 64);
+         romsize = load_rom(conf.atm2_rom_path, ROM_BASE_M, 64);
          if (romsize != 64 && romsize != 128 && romsize != 512 && romsize != 1024)
             errexit("invalid ROM size for ATM bios");
          unsigned char *lastpage = ROM_BASE_M + (romsize-64)*1024;
@@ -588,6 +596,7 @@ void apply_memory()
          if (conf.mem_model == MM_PROFI) romname = conf.profi_rom_path;
          if (conf.mem_model == MM_SCORP) romname = conf.scorp_rom_path;
          if (conf.mem_model == MM_KAY) romname = conf.kay_rom_path;
+         if (conf.mem_model == MM_ATM450) romname = conf.atm1_rom_path;
          if (!romname) errexit("ROMSET should be defined for this memory model");
 
          romsize = load_rom(romname, ROM_BASE_M, 64);

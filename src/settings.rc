@@ -112,9 +112,9 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,7,133,115,10
 END
 
-IDD_ULA DIALOGEX 0, 0, 180, 132
+IDD_ULA DIALOG DISCARDABLE  0, 0, 180, 132
 STYLE DS_3DLOOK | WS_CHILD | WS_BORDER
-FONT 8, "MS Sans Serif", 0, 0, 0x1
+FONT 8, "MS Sans Serif"
 BEGIN
     LTEXT           "Loa&d Preset",IDC_STATIC,7,9,45,8
     COMBOBOX        IDC_ULAPRESET,62,7,111,74,CBS_DROPDOWNLIST | WS_VSCROLL | 
@@ -125,25 +125,25 @@ BEGIN
                     WS_TABSTOP,7,40,43,10
     CONTROL         "&4T border",IDC_4TBORDER,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,7,53,44,10
-    CONTROL         "memory &contention",IDC_CONTMEM,"Button",
-                    BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,7,66,84,10
-    LTEXT           "t-states per &int",IDC_STATIC,75,27,51,8
-    EDITTEXT        IDE_FRAME,133,25,40,12,ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "t-states per &line",IDC_STATIC,72,40,57,8
-    EDITTEXT        IDE_LINE,133,38,40,12,ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "start of &paper",IDC_STATIC,79,53,46,8
-    EDITTEXT        IDE_PAPER,133,51,40,12,ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "i&nt fq",IDC_STATIC,107,67,23,8
-    EDITTEXT        IDE_INT,133,65,40,12,ES_AUTOHSCROLL
     CONTROL         "&Unstable data bus",IDC_FLOAT_BUS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,7,80,73,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,65,73,10
     CONTROL         "Unstable D&B (in DOS)",IDC_FLOAT_DOS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,88,80,85,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,7,78,85,10
+    LTEXT           "t-states per &int",IDC_STATIC,79,27,47,8
+    EDITTEXT        IDE_FRAME,133,25,40,12,ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "t-states per &line",IDC_STATIC,76,40,51,8
+    EDITTEXT        IDE_LINE,133,38,40,12,ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "start of &paper",IDC_STATIC,83,53,46,8
+    EDITTEXT        IDE_PAPER,133,51,40,12,ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "i&nt fq",IDC_STATIC,109,66,19,8
+    EDITTEXT        IDE_INT,133,64,40,12,ES_AUTOHSCROLL
+    LTEXT           "in&t len",IDC_STATIC,107,79,21,8
+    EDITTEXT        IDE_INT_LEN,133,77,40,12,ES_AUTOHSCROLL
+    GROUPBOX        "ATM options",IDC_STATIC,7,92,166,33
     CONTROL         "&Swap A5-A7, A8-A10 on ATM RG0",IDC_ATM_SWAP,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,14,102,127,10
     CONTROL         "Use ATM p&alette",IDC_ATMPAL,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,14,113,69,10
-    GROUPBOX        "ATM options",IDC_STATIC,7,92,166,33
 END
 
 IDD_LEDS DIALOG DISCARDABLE  0, 0, 188, 146

@@ -38,7 +38,8 @@ void __fastcall render_dbl(unsigned char *dst, unsigned pitch)
    if (comp.pEFF7 & EFF7_512) { rend_512(dst, pitch); return; }
    if (comp.pEFF7 & EFF7_4BPP) { rend_p4bpp(dst, pitch); return; }
    if ((comp.pDFFD & 0x80) && conf.mem_model == MM_PROFI) { rend_profi(dst, pitch); return; }
-   if (conf.mem_model == MM_ATM710) { rend_atm(dst, pitch); return; }
+   if (conf.mem_model == MM_ATM450) { rend_atm_1(dst, pitch); return; }
+   if (conf.mem_model == MM_ATM710) { rend_atm_2(dst, pitch); return; }
 
    rend_dbl(dst, pitch);
 }

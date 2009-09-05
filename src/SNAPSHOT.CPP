@@ -94,7 +94,8 @@ int readSNA128()
    cpu.af = hdr->af; cpu.bc = hdr->bc; cpu.de = hdr->de; cpu.hl = hdr->hl;
    cpu.ix = hdr->ix; cpu.iy = hdr->iy; cpu.sp = hdr->sp; cpu.pc = hdr->pc;
    cpu.i = hdr->i; cpu.r_low = hdr->r; cpu.r_hi = hdr->r & 0x80; cpu.im = hdr->im;
-   cpu.iff1 = hdr->iff1?1:0; comp.pFE = hdr->pFE; comp.p7FFD = hdr->p7FFD;
+   cpu.iff1 = hdr->iff1?1:0; comp.p7FFD = hdr->p7FFD;
+   comp.pFE = hdr->pFE; comp.border_attr = comp.pFE & 7;
    memcpy(memory+PAGE*5, hdr->page5, PAGE);
    memcpy(memory+PAGE*2, hdr->page2, PAGE);
    memcpy(memory+PAGE*(hdr->p7FFD & 7), hdr->active_page, PAGE);
@@ -117,7 +118,8 @@ int readSNA48()
    cpu.af = hdr->af; cpu.bc = hdr->bc; cpu.de = hdr->de; cpu.hl = hdr->hl;
    cpu.ix = hdr->ix; cpu.iy = hdr->iy; cpu.sp = hdr->sp;
    cpu.i = hdr->i; cpu.r_low = hdr->r; cpu.r_hi = hdr->r & 0x80; cpu.im = hdr->im;
-   cpu.iff1 = hdr->iff1?1:0; comp.pFE = hdr->pFE; comp.p7FFD = 0x30;
+   cpu.iff1 = hdr->iff1?1:0; comp.p7FFD = 0x30;
+   comp.pFE = hdr->pFE; comp.border_attr = comp.pFE & 7;
    memcpy(memory+PAGE*5, hdr->page5, PAGE);
    memcpy(memory+PAGE*2, hdr->page2, PAGE);
    memcpy(memory+PAGE*0, hdr->active_page, PAGE);
@@ -138,7 +140,8 @@ int readSP()
    cpu.iff1 = (hdr->flags & 1);
    cpu.im = 1 + ((hdr->flags >> 1) & 1);
    cpu.iff2 = (hdr->flags >> 2) & 1;
-   comp.pFE = hdr->pFE; comp.p7FFD = 0x30;
+   comp.p7FFD = 0x30;
+   comp.pFE = hdr->pFE; comp.border_attr = comp.pFE & 7;
    for (unsigned i = 0; i < hdr->len; i++)
       wmdbg(hdr->start + i, snbuf[i + 0x26]);
    set_banks(); return 1;
@@ -158,7 +161,8 @@ int writeSNA(FILE *ff)
    hdr->ix = cpu.ix; hdr->iy = cpu.iy; hdr->sp = cpu.sp; hdr->pc = cpu.pc;
    hdr->i = cpu.i; hdr->r = (cpu.r_low & 0x7F)+cpu.r_hi; hdr->im = cpu.im;
    hdr->iff1 = cpu.iff1 ? 0xFF : 0;
-   hdr->pFE = comp.pFE; hdr->p7FFD = comp.p7FFD;
+   hdr->p7FFD = comp.p7FFD;
+   hdr->pFE = comp.pFE; comp.border_attr = comp.pFE & 7;
    unsigned savesize = sizeof hdrSNA128;
    unsigned char mapped = 0x24 | (1 << (comp.p7FFD & 7));
    if (comp.p7FFD == 0x30) { // save 48k
@@ -238,6 +242,7 @@ int readZ80()
    cpu.i = hdr->i, cpu.r_low = hdr->r & 0x7F;
    cpu.r_hi = ((hdr->flags & 1) << 7);
    comp.pFE = (hdr->flags >> 1) & 7;
+   comp.border_attr = comp.pFE;
    cpu.iff1 = hdr->iff1, cpu.iff2 = hdr->iff2; cpu.im = (hdr->im & 3);
    comp.p7FFD = (model48k) ? 0x30 : hdr->p7FFD;
    set_banks(); return 1;

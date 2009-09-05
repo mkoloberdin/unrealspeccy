@@ -1,5 +1,5 @@
 
-// input: ports 7FFD,1FFD,DFFD,FFF7,FF77, flags CF_TRDOS,CF_CACHEON,CF_SYSTEMROM
+// input: ports 7FFD,1FFD,DFFD,FFF7,FF77, flags CF_TRDOS,CF_CACHEON
 void set_banks()
 {
    bankw[1] = bankr[1] = RAM_BASE_M + 5*PAGE;
@@ -7,12 +7,15 @@ void set_banks()
    temp.base = memory + ((comp.p7FFD & 8) ? 7*PAGE : 5*PAGE);
    if (temp.base_2) temp.base_2 = temp.base;
 
-   unsigned char *bank0;
+   // these flags will be re-calculated
+   comp.flags &= ~(CF_DOSPORTS | CF_LEAVEDOSRAM | CF_LEAVEDOSADR | CF_SETDOSROM);
 
-   if (comp.flags & CF_TRDOS) bank0 = (comp.p7FFD & 0x10)? base_dos_rom : base_sys_rom, comp.flags |= CF_LEAVEROM | CF_DOSPORTS;
-   else bank0 = (comp.p7FFD & 0x10)? base_sos_rom : base_128_rom, comp.flags &= ~(CF_LEAVEROM | CF_DOSPORTS);
+   unsigned char *bank0, *bank3;
 
-   unsigned bank = (comp.p7FFD & 7); unsigned char *bank3;
+   if (comp.flags & CF_TRDOS) bank0 = (comp.p7FFD & 0x10)? base_dos_rom : base_sys_rom;
+   else bank0 = (comp.p7FFD & 0x10)? base_sos_rom : base_128_rom;
+
+   unsigned bank = (comp.p7FFD & 7);
 
    switch (conf.mem_model)
    {
@@ -59,19 +62,35 @@ void set_banks()
          break;
 
       case MM_ATM450:
-         bank += ((comp.pFDFD & 0x07) << 3);
-         bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE; break;
+      {
+         // RAM
+         bank += ((comp.pFDFD & 0x07) << 3); // original ATM uses D2 as ROM address extension, not RAM
+         bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
+         if (!(comp.aFE & 0x80)) {
+            bankw[1] = bankr[1] = RAM_BASE_M + 4*PAGE;
+            bank0 = RAM_BASE_M;
+            break;
+         }
+
+         // ROM
+         if (comp.p7FFD & 0x20) comp.aFB &= ~0x80;
+         if ((comp.flags & CF_TRDOS) && (comp.pFDFD & 8)) comp.aFB |= 0x80; // more priority, then 7FFD
+         if (comp.aFB & 0x80) { bank0 = base_sys_rom; break; } // CPSYS signal
+         // system rom not used on 7FFD.4=0 and DOS=1
+         if (comp.flags & CF_TRDOS) bank0 = base_dos_rom;
+         break;
+      }
 
       case MM_ATM710:
       {
          if (!(comp.aFF77 & 0x200)) // ~cpm=0
-            comp.flags |= CF_TRDOS | CF_DOSPORTS;
+            comp.flags |= CF_TRDOS;
          if (!(comp.aFF77 & 0x100)) { // pen=0
             bankr[1] = bankr[2] = bank3 = bank0 = ROM_BASE_M + PAGE * temp.rom_mask;
             break;
          }
-         int i = ((comp.p7FFD & 0x10) >> 2);
-         for (int bank = 0; bank < 4; bank++) {
+         unsigned i = ((comp.p7FFD & 0x10) >> 2);
+         for (unsigned bank = 0; bank < 4; bank++) {
             switch (comp.pFFF7[i+bank] & 0xC0) {
                case 0x00: // RAM from 7FFD
                   bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE*( (comp.p7FFD & 7) + (comp.pFFF7[i+bank] & 0x38 & temp.ram_mask) );
@@ -83,14 +102,14 @@ void set_banks()
                   bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE*(comp.pFFF7[i+bank] & temp.ram_mask);
                   break;
                case 0xC0: // ROM from FFF7
-                  bankr[bank] = ROM_BASE_M + PAGE*((comp.pFFF7[i+bank] & temp.rom_mask));
+                  bankr[bank] = ROM_BASE_M + PAGE*(comp.pFFF7[i+bank] & temp.rom_mask);
                   break;
             }
          }
          bank0 = bankr[0]; bank3 = bankr[3];
          break;
       }
-      default: bank = 0; bank3 = RAM_BASE_M + 0*PAGE;
+      default: bank3 = RAM_BASE_M + 0*PAGE;
    }
 
    bankw[0] = bankr[0] = bank0;
@@ -101,11 +120,14 @@ void set_banks()
    if (bankr[2] >= ROM_BASE_M) bankw[2] = TRASH_M;
    if (bankr[3] >= ROM_BASE_M) bankw[3] = TRASH_M;
 
-   comp.flags &= ~CF_SETDOSROM;
-   // CF_SETDOSROM flag used to enter tr-dos on executing 3Dxx
-   if ((comp.p7FFD & 0x10) && !(comp.flags & CF_TRDOS) && conf.trdos_present) { // B-48, inactive DOS, DOS present
-      // for ATM and KAY, TR-DOS not started on executing RAM 3Dxx
-      if (!((conf.mem_model == MM_ATM710 || conf.mem_model == MM_KAY) && bankr[0] < RAM_BASE_M+PAGE*MAX_RAM_PAGES))
+
+   unsigned char dosflags = CF_LEAVEDOSRAM;
+   if (conf.mem_model == MM_PENTAGON || conf.mem_model == MM_PROFI) dosflags = CF_LEAVEDOSADR;
+
+   if (comp.flags & CF_TRDOS) comp.flags |= dosflags | CF_DOSPORTS;
+   else if ((comp.p7FFD & 0x10) && conf.trdos_present) { // B-48, inactive DOS, DOS present
+      // for Scorp, ATM-1/2 and KAY, TR-DOS not started on executing RAM 3Dxx
+      if (!((dosflags & CF_LEAVEDOSRAM) && bankr[0] < RAM_BASE_M+PAGE*MAX_RAM_PAGES))
          comp.flags |= CF_SETDOSROM;
    }
 
@@ -126,7 +148,7 @@ void set_banks()
 
    if (temp.led.osw && (trace_rom | trace_ram)) {
       for (unsigned i = 0; i < 4; i++) {
-         bank = (bankr[i] - RAM_BASE_M) / PAGE;
+         unsigned bank = (bankr[i] - RAM_BASE_M) / PAGE;
          if (bank < MAX_PAGES) used_banks[bank] = 1;
       }
    }
@@ -150,7 +172,7 @@ void set_scorp_profrom(unsigned read_address)
    set_banks();
 }
 
-__inline unsigned char *am_r(unsigned addr)
+Z80INLINE unsigned char *am_r(unsigned addr)
 {
 #ifdef MOD_VID_VD
    if (comp.vdbase && (unsigned)((addr & 0xFFFF) - 0x4000) < 0x1800) return comp.vdbase + (addr & 0x1FFF);
@@ -179,19 +201,19 @@ void set_mode(ROM_MODE mode)
    // comp.aFF77 |= 0x100; // enable ATM memory
    switch (mode) {
       case RM_128:
-         comp.flags &= ~(CF_TRDOS | CF_SYSTEMROM);
+         comp.flags &= ~CF_TRDOS;
          comp.p7FFD &= ~0x10;
          break;
       case RM_SOS:
-         comp.flags &= ~(CF_TRDOS | CF_SYSTEMROM);
+         comp.flags &= ~CF_TRDOS;
          comp.p7FFD |= 0x10;
          break;
       case RM_SYS:
-         comp.flags = (comp.flags | CF_TRDOS | CF_SYSTEMROM);
+         comp.flags |= CF_TRDOS;
          comp.p7FFD &= ~0x10;
          break;
       case RM_DOS:
-         comp.flags = (comp.flags | CF_TRDOS) & ~CF_SYSTEMROM;
+         comp.flags |= CF_TRDOS;
          comp.p7FFD |=  0x10;
          break;
    }

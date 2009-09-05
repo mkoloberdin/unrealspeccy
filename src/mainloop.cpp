@@ -15,7 +15,6 @@ void spectrum_frame()
    showleds();
 
    if (!cpu.iff1 || // int disabled in CPU
-        cpu.t == cpu.eipos || // interrupt not after EI
         (conf.mem_model == MM_ATM710 && !(comp.pFF77 & 0x20))) // int disabled by ATM hardware
    {
       unsigned char *mp = am_r(cpu.pc);
@@ -23,26 +22,11 @@ void spectrum_frame()
       if (*(unsigned short*)mp == WORD2(0x18,0xFE) ||
           ((*mp == 0xC3) && *(unsigned short*)(mp+1) == (unsigned short)cpu.pc))
          strcpy(statusline, "CPU STOPPED"), statcnt = 10;
-   } else {
-      unsigned intad;
-      if (cpu.im < 2) {
-         intad = 0x38;
-      } else { // im2
-         unsigned lo = ((comp.flags & CF_DOSPORTS)? conf.floatdos : conf.floatbus)? ((BYTE)rdtsc()) : 0xFF;
-         unsigned vec =lo+cpu.i*0x100;
-         intad = z80dbg::rm(vec)+0x100*z80dbg::rm(vec+1);
-      }
-
-      cpu.t += (cpu.im < 2) ? 13 : 19;
-      z80dbg::wm(--cpu.sp, cpu.pch);
-      z80dbg::wm(--cpu.sp, cpu.pcl);
-      cpu.pc = intad;
-      cpu.halted = 0;
-      cpu.iff1 = cpu.iff2 = 0;
    }
 
    comp.t_states += conf.frame;
    cpu.t -= conf.frame;
+   cpu.eipos -= conf.frame;
    comp.frame_counter++;
 }
 

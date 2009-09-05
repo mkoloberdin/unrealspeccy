@@ -318,6 +318,7 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
       active = 1; setpal(0);
 //      sound_play();
       adjust_mouse_cursor();
+      input.nokb = 20;
       uMessage = WM_USER;
    }
    if (uMessage == WM_KILLFOCUS && !pause) {
@@ -344,7 +345,7 @@ BOOL CALLBACK WndProc(HWND hwnd,UINT uMessage,WPARAM wparam,LPARAM lparam)
          input.kjoy = (input.kjoy & 0x10) | mousedirs[nn];
          return 0;
       }
-   } else if (uMessage == WM_LBUTTONDOWN && !conf.lockmouse) main_mouse();
+   } else if (uMessage == WM_LBUTTONDOWN && !conf.lockmouse) input.nomouse = 20, main_mouse();
 
    if (uMessage == WM_SIZE || uMessage == WM_MOVE || uMessage == WM_USER) {
       GetClientRect(wnd, &temp.client);

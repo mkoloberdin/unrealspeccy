@@ -107,6 +107,9 @@ __inline int sign_pm(int a) { return (a < 0)? -1 : 1; }
 
 char K_INPUT::readdevices()
 {
+   if (nokb) nokb--;
+   if (nomouse) nomouse--;
+
    kbdpc[VK_JLEFT] = kbdpc[VK_JRIGHT] = kbdpc[VK_JUP] = kbdpc[VK_JDOWN] = kbdpc[VK_JFIRE] = 0;
    if (active && dijoyst) {
       dijoyst->Poll(); DIJOYSTATE js;
@@ -121,7 +124,7 @@ char K_INPUT::readdevices()
    mbuttons = 0xFF;
    msx_prev = msx, msy_prev = msy;
    kbdpc[VK_LMB] = kbdpc[VK_RMB] = kbdpc[VK_MMB] = kbdpc[VK_MWU] = kbdpc[VK_MWD] = 0;
-   if (conf.fullscr || conf.lockmouse)
+   if ((conf.fullscr || conf.lockmouse) && !nomouse)
    {
       unsigned cl1, cl2;
       cl1 = abs(msx - msx_prev) * ay_reset_t / conf.frame;
@@ -147,9 +150,13 @@ char K_INPUT::readdevices()
       if (wheel_delta > 0) kbdpc[VK_MWU] = 0x80;
       prev_wheel = md.lZ;
    }
-   GetKeyboardState(kbdpc);
    lastkey = process_msgs();
-   if (lastkey) kbdpc[lastkey] = 0x80;
+
+   if (nokb) memset(kbdpc, 0, sizeof kbdpc);
+   else {
+      GetKeyboardState(kbdpc);
+      if (lastkey) kbdpc[lastkey] = 0x80;
+   }
 
    return lastkey? 1 : 0;
 }
@@ -257,8 +264,9 @@ unsigned char ATM_KBD::read(unsigned char scan, unsigned char zxdata)
             // reset!
             this->reset();
             cpu.int_flags = cpu.ir_ = cpu.pc = 0; cpu.im = 0;
-            comp.aFF77 = comp.pFF77 = comp.p7FFD = 0;
-            comp.flags = 0; set_banks();
+            comp.p7FFD = comp.flags = 0;
+            set_atm_FF77(0,0);
+            set_banks();
             break;
          case 16:
          case 18:

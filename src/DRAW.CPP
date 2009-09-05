@@ -144,17 +144,6 @@ void video_permanent_tables()
       t.settab2[i] = r2*4; // *4 - convert square 2x2 to 4x4
    }
 
-   // atm palette
-   for (i = 0; i < 0x100; i++) {         // grbG--RB
-      unsigned v = i ^ 0xFF; // grbG--RB => Gg0Rr0Bb
-      t.atm_pal_map[i] = ((v & 0x80) >> 1) | // g
-                         ((v & 0x40) >> 3) | // r
-                         ((v & 0x20) >> 5) | // b
-                         ((v & 0x10) << 3) | // G
-                         ((v & 0x02) << 3) | // R
-                         ((v & 0x01) << 1);  // B
-   }
-
    i = 0; // calc screen addresses
    for (int p = 0; p < 4; p++)
       for (int y = 0; y < 8; y++)
@@ -252,7 +241,7 @@ void make_colortab(char flash_active)
       colortab[a] = paper*0x10 + ink;
       colortab_s8[a] = colortab[a] << 8; colortab_s24[a] = colortab[a] << 24;
    }
-   if (conf.mem_model == MM_ATM710) atm_zc_tables(); // update with new flash bit
+   if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450) atm_zc_tables(); // update with new flash bit
 }
 
 // make attrtab: pc-attr + 0x100*pixel -> palette index
@@ -340,6 +329,28 @@ void atm_zc_tables() // atm,profi screens (use normal zx-flash)
             t.zctab32ad[pass][at] = t.sctab32[pass][pc_attr],
             t.zctab32ad[pass][at+0x100] = t.sctab32[pass][pc_attr+0x100];
       }
+   }
+
+   // atm palette mapping (port out to palette index)
+   for (unsigned i = 0; i < 0x100; i++) {
+      unsigned v = i ^ 0xFF, dst;
+      if (conf.mem_model == MM_ATM450)
+         dst = // ATM1: --grbGRB => Gg0Rr0Bb
+               ((v & 0x20) << 1) | // g
+               ((v & 0x10) >> 1) | // r
+               ((v & 0x08) >> 3) | // b
+               ((v & 0x04) << 5) | // G
+               ((v & 0x02) << 3) | // R
+               ((v & 0x01) << 1);  // B
+      else
+         dst = // ATM2: grbG--RB => Gg0Rr0Bb
+               ((v & 0x80) >> 1) | // g
+               ((v & 0x40) >> 3) | // r
+               ((v & 0x20) >> 5) | // b
+               ((v & 0x10) << 3) | // G
+               ((v & 0x02) << 3) | // R
+               ((v & 0x01) << 1);  // B
+      t.atm_pal_map[i] = dst;
    }
 }
 
@@ -478,7 +489,7 @@ void pixel_tables()
    if (temp.obpp > 8 && conf.noflic) calc_noflic_16_32();
 
    if ((temp.rflags & (RF_DRIVER|RF_2X|RF_USEFONT))==(RF_DRIVER|RF_2X) && // render="double"
-       (conf.mem_model == MM_ATM710 || conf.mem_model == MM_PROFI))
+       (conf.mem_model == MM_ATM450 || conf.mem_model == MM_ATM710 || conf.mem_model == MM_PROFI))
       hires_sc_tables();
 }
 
@@ -605,7 +616,7 @@ void apply_video()
 {
    load_ula_preset();
    temp.rflags = renders[conf.render].flags;
-   if (conf.atm.use_pal && (conf.mem_model == MM_ATM710)) {
+   if (conf.atm.use_pal && (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450)) {
       temp.rflags |= RF_ATMPAL | RF_PALB;
       // disable palette noflic, only if it is really used
       if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_USEFONT | RF_8BPCH)) == RF_DRIVER) conf.noflic = 0;
@@ -722,7 +733,8 @@ __inline void init_frame()
    // disable multicolors, border still works
    if ((temp.rflags & RF_BORDER) || // chunk/etc filter
        (conf.mem_model == MM_PROFI && (comp.pDFFD & 0x80)) ||   // profi hires screen
-       (conf.mem_model == MM_ATM710 && (comp.pFF77 & 7) != 3) ) // ATM hires screen
+       (conf.mem_model == MM_ATM710 && (comp.pFF77 & 7) != 3) ||  // ATM-2 hires screen
+       (conf.mem_model == MM_ATM450 && (comp.aFE & 0x60) != 0x60)) // ATM-1 hires screen
    {
       // if border update disabled, dont show anything on zx-screen
       if (!conf.updateb) return;

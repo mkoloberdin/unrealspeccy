@@ -53,7 +53,8 @@ char select_romfile(char *dstname)
 
 char *MemDlg_get_bigrom()
 {
-   if (c1.mem_model == MM_ATM710) return c1.atm_rom_path;
+   if (c1.mem_model == MM_ATM450) return c1.atm1_rom_path;
+   if (c1.mem_model == MM_ATM710) return c1.atm2_rom_path;
    if (c1.mem_model == MM_PROFI) return c1.profi_rom_path;
    if (c1.mem_model == MM_SCORP) return c1.scorp_rom_path;
    if (c1.mem_model == MM_PROFSCORP) return c1.prof_rom_path;
@@ -169,6 +170,11 @@ void mem_set_sizes()
    EnableWindow(GetDlgItem(dlg, IDC_SINGLE_ROM), romname? 1 : 0);
    if (romname) SetDlgItemText(dlg, IDE_BIGROM, romname);
    else c1.use_romset = 1, setcheck(IDC_CUSTOM_ROM,1), setcheck(IDC_SINGLE_ROM,0);
+
+   int cache_ok = (c1.mem_model == MM_ATM450)? 0 : 1;
+   EnableWindow(GetDlgItem(dlg, IDC_CACHE0), cache_ok);
+   EnableWindow(GetDlgItem(dlg, IDC_CACHE16), cache_ok);
+   EnableWindow(GetDlgItem(dlg, IDC_CACHE32), cache_ok);
 
    MemDlg_set_visible();
 }
@@ -311,7 +317,7 @@ BOOL CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             if (pre == -1) return 1;
             CONFIG tmp = conf;
             conf.ula_preset = (unsigned char)pre; load_ula_preset();
-            c1.frame = conf.frame, c1.intfq = conf.intfq, c1.t_line = conf.t_line,
+            c1.frame = conf.frame, c1.intfq = conf.intfq, c1.intlen = conf.intlen, c1.t_line = conf.t_line,
             c1.paper = conf.paper, c1.even_M1 = conf.even_M1, c1.border_4T = conf.border_4T;
             c1.floatbus = conf.floatbus, c1.floatdos = conf.floatdos;
             conf = tmp;
@@ -326,6 +332,7 @@ BOOL CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       c1.t_line = getint(IDE_LINE);
       c1.paper = getint(IDE_PAPER);
       c1.intfq = getint(IDE_INT);
+      c1.intlen = getint(IDE_INT_LEN);
       c1.nopaper = getcheck(IDC_NOPAPER);
       c1.even_M1 = getcheck(IDC_EVENM1);
       c1.border_4T = getcheck(IDC_4TBORDER);
@@ -344,6 +351,7 @@ refresh:
       setint(IDE_LINE, c1.t_line);
       setint(IDE_PAPER, c1.paper);
       setint(IDE_INT, c1.intfq);
+      setint(IDE_INT_LEN, c1.intlen);
       setcheck(IDC_NOPAPER, c1.nopaper);
       setcheck(IDC_EVENM1, c1.even_M1);
       setcheck(IDC_4TBORDER, c1.border_4T);

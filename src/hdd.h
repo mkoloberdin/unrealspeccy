@@ -114,7 +114,7 @@ struct ATA_DEVICE
    void exec_mode_select();
 
    unsigned char sense[0x40]; unsigned senselen;
-   unsigned char transbf[65535]; // ATAPI is able to tranfer so much data
+   unsigned char transbf[0xFFFF]; // ATAPI is able to tranfer 0xFFFF bytes. passing more leads to error
 
    ATA_DEVICE() { hDevice = INVALID_HANDLE_VALUE; }
    ~ATA_DEVICE() { if (hDevice != INVALID_HANDLE_VALUE) CloseHandle(hDevice); }

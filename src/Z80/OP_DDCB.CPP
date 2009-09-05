@@ -154,7 +154,8 @@ unsigned reg_offset[] = { 1,0, 5,4, 9,8, 2,13 };
 #endif
 
 #ifndef Z80_COMMON
-__inline void __fastcall ddfd(Z80 *cpu, unsigned char opcode) {
+Z80INLINE void __fastcall ddfd(Z80 *cpu, unsigned char opcode)
+{
    unsigned char op1; // last DD/FD prefix
    do {
       op1 = opcode;
@@ -187,10 +188,13 @@ __inline void __fastcall ddfd(Z80 *cpu, unsigned char opcode) {
    ((op1 == 0xDD) ? ix_opcode[opcode] : iy_opcode[opcode])(cpu);
 }
 
-void __fastcall op_DD(Z80 *cpu) {
+void __fastcall op_DD(Z80 *cpu)
+{
    ddfd(cpu, 0xDD);
 }
-void __fastcall op_FD(Z80 *cpu) {
+
+void __fastcall op_FD(Z80 *cpu)
+{
    ddfd(cpu, 0xFD);
 }
 #endif

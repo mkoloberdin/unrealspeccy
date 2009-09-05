@@ -64,7 +64,7 @@ int ATA_DEVICE::pass_through(void *databuf, int bufsize)
    if (senselen = dst.p.SenseInfoLength) memcpy(sense, dst.sense, senselen);
 
 #ifdef DUMP_HDD_IO
-printf("sense=%d,data=%d,res=%d (%d)\n", senselen, passed_length, outsize, sizeof(srb.p));
+printf("sense=%d, data=%d, srbsz=%d/%d, dir=%d\n", senselen, passed_length, outsize, sizeof(srb.p), dst.p.DataIn);
 printf("srb:"); dump1((BYTE*)&dst, outsize);
 printf("data:"); dump1((BYTE*)databuf, 0x40);
 #endif
@@ -581,10 +581,11 @@ void ATA_DEVICE::handle_atapi_packet()
       goto ok;
    }
 
-   if (pass_through(transbf, sizeof(transbf))) {
+   if (pass_through(transbf, sizeof transbf)) {
       if (senselen) { reg.err = sense[2] << 4; goto err; } // err = sense key
     ok:
-      if (!passed_length) { command_ok(); return; }
+      if (!cdb.CDB6READWRITE.OperationCode) passed_length = 0; // bugfix in cdrom driver: TEST UNIT READY has no data
+      if (!passed_length /* || passed_length == sizeof transbf */ ) { command_ok(); return; }
       reg.atapi_count = passed_length;
       reg.intreason = INT_IO;
       reg.status = STATUS_DRQ;

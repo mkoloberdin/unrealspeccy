@@ -88,6 +88,7 @@
 #define IDC_FLIP                        1071
 #define IDE_INT                         1072
 #define IDC_WPB                         1073
+#define IDE_INT_LEN                     1073
 #define IDC_WPC                         1074
 #define IDC_WPD                         1075
 #define IDC_SND_BASS                    1076
@@ -135,7 +136,6 @@
 #define IDC_FILEBANK                    1104
 #define IDE_VTXYEAR                     1105
 #define IDC_4TBORDER                    1105
-#define IDC_CONTMEM                     1106
 #define IDB_ROMSEL_P                    1106
 #define IDC_LED_TIME                    1107
 #define IDC_GSRESET                     1108
@@ -276,7 +276,6 @@
 #define IDE_BIGROM                      1229
 #define IDC_MEM_R                       1230
 #define IDC_MEM_W                       1231
-#define IDC_SHOWALL                     1231
 #define IDC_SMUC                        1232
 #define IDC_MOUSE_NONE                  1233
 #define IDC_MOUSE_KEMPSTON              1234
@@ -287,17 +286,10 @@
 #define IDC_SIMPLE                      1237
 #define IDC_FIR0                        1238
 #define IDC_FIR1                        1239
-#define IDC_FIR3                        1240
 #define IDC_FIR2                        1240
-#define IDC_FRAMES_2                    1241
 #define IDC_FRAMES                      1242
-#define IDC_FRAMES_3                    1243
-#define IDC_FRAMES_4                    1243
-#define IDC_LIST1                       1243
 #define IDC_LISTBOX                     1243
 #define IDC_RESULTS                     1243
-#define IDC_FRAMES_6                    1244
-#define IDC_FRAMES_8                    1245
 #define IDC_LED_MEMBAND                 1246
 #define IDC_LED_MEMBAND_X               1247
 #define IDC_LED_MEMBAND_Y               1248

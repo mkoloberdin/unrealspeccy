@@ -34,7 +34,7 @@ void FILEPREVIEWINFO::OnChange()
    SendMessage(list.h, LVM_DELETEALLITEMS, 0, 0);
    if (r < 0 || (GetFileAttributes(filename) & FILE_ATTRIBUTE_DIRECTORY)) return;
 
-   #if 0
+   #if 0 // too slow for every file
    TRKCACHE t;
    FDD TestDrive;
    unsigned char type = what_is(filename);

@@ -26,7 +26,7 @@ struct K_INPUT
       volatile unsigned rkbd_x4[2];
    };
 
-   unsigned lastkey;
+   unsigned lastkey, nokb, nomouse;
 
    enum { KM_DEFAULT, KM_KEYSTICK, KM_PASTE_HOLD, KM_PASTE_RELEASE } keymode;
 
@@ -66,5 +66,7 @@ struct K_INPUT
       // random data on coords -> some programs detects mouse by this
       ay_x0 = msx = 31,
       ay_y0 = msy = 85;
+
+      nokb = nomouse = 0;
    }
 };

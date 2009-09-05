@@ -53,6 +53,8 @@ void create_font_tables();
 
 void reset(ROM_MODE mode);
 
+void debug_events();
+
 void __fastcall render_rsm(unsigned char*, unsigned);
 void __fastcall render_advmame(unsigned char *dst, unsigned pitch);
 void __fastcall render_small(unsigned char *dst, unsigned pitch);

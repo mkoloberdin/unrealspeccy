@@ -185,7 +185,7 @@ struct
         { "ZS SCORPION", "SCORPION",                    256,  RAM_256 | RAM_1024 },
         { "ZS SCORPION + PROF ROM", "PROFSCORP",        256,  RAM_256 | RAM_1024 },
         { "PROFI", "PROFI",                             1024, RAM_1024 },
-        { "ATM 4.50 (himem only)", "ATM450",            512,  RAM_512 | RAM_1024 },
+        { "ATM-TURBO v4.50", "ATM450",                  512,  RAM_512 | RAM_1024 },
         { "ATM-TURBO 2+ v7.10", "ATM710",               1024, RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
         { "Nemo's KAY", "KAY",                          256,  RAM_256 | RAM_1024 },
 };
@@ -217,6 +217,7 @@ struct CONFIG
    unsigned t_line; // t-states per line
    unsigned frame;  // t-states per frame
    unsigned intfq;  // usually 50Hz
+   unsigned intlen; // length of INT signal (for Z80)
    unsigned nopaper;// hide paper
 
    unsigned render, driver, fontsize;
@@ -315,7 +316,8 @@ struct CONFIG
    char dos_rom_path[0x200];
    char zx128_rom_path[0x200];
    char sys_rom_path[0x200];
-   char atm_rom_path[0x200];
+   char atm1_rom_path[0x200];
+   char atm2_rom_path[0x200];
    char scorp_rom_path[0x200];
    char prof_rom_path[0x200];
    char profi_rom_path[0x200];
@@ -481,7 +483,8 @@ struct COMPUTER
    unsigned char pDFFD, pFDFD, p1FFD, pFF77;
    __int64 t_states; // inc with conf.frame by each frame
    unsigned frame_counter; // inc each frame
-   unsigned char pFFF7[8];
+   unsigned char aFE, aFB; // ATM 4.50 system ports
+   unsigned char pFFF7[8]; // ATM 7.10 memory map
    unsigned aFF77;
    unsigned active_ay;
 
@@ -515,13 +518,13 @@ struct COMPUTER
 };
 
 // bits for COMPUTER::flags
-#define CF_DOSPORTS  0x01       // tr-dos ports are accessible
-#define CF_TRDOS     0x02       // DOSEN trigger
-#define CF_SETDOSROM 0x04       // tr-dos ROM become active at #3Dxx
-#define CF_LEAVEROM  0x08       // ROM will be closed at pc>#4000 (executing RAM in ATM)
-#define CF_CACHEON   0x10       // cache active
-#define CF_SYSTEMROM 0x20       // service ROM active (pentagon grm)
-#define CF_PROFROM   0x40       // PROF-ROM active
+#define CF_DOSPORTS     0x01    // tr-dos ports are accessible
+#define CF_TRDOS        0x02    // DOSEN trigger
+#define CF_SETDOSROM    0x04    // tr-dos ROM become active at #3Dxx
+#define CF_LEAVEDOSRAM  0x08    // DOS ROM will be closed at executing RAM
+#define CF_LEAVEDOSADR  0x10    // DOS ROM will be closed at pc>#4000
+#define CF_CACHEON      0x20    // cache active
+#define CF_PROFROM      0x80    // PROF-ROM active
 
 #define TAPE_QUANTUM 64
 struct tzx_block

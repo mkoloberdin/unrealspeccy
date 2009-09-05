@@ -64,9 +64,12 @@ void out(unsigned port, unsigned char val)
       spkr_dig = (val & 0x10) ? conf.sound.beeper : 0;
       mic_dig = (val & 0x08) ? conf.sound.micout : 0;
 
-      unsigned char new_border = (val & 7); ; if (conf.mem_model == MM_ATM710) new_border += ((port & 8) ^ 8);
+      unsigned char new_border = (val & 7);
+      if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450) new_border += ((port & 8) ^ 8);
       if (comp.border_attr ^ new_border) update_screen();
       comp.border_attr = new_border;
+
+      if (conf.mem_model == MM_ATM450) set_atm_aFE((unsigned char)port);
 
       comp.pFE = val;
       // do not return! intro to navy seals (by rst7) uses out #FC for to both FE and 7FFD
@@ -89,10 +92,8 @@ set1FFD:
             set_banks(); return;
          }
 
-         if (port == 0x1FFD && (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP)) {
-            comp.p1FFD = val;
-            set_banks(); return;
-         }
+         if (conf.mem_model == MM_ATM450 && (port & 0x8202) == (0x7DFD & 0x8202)) { atm_writepal(val); return; }
+
          // if (conf.mem_model == MM_ATM710 && (port & 0x8202) != (0x7FFD & 0x8202)) return; // strict 7FFD decoding on ATM-2
 
          // 7FFD
@@ -105,12 +106,10 @@ set1FFD:
          if ((comp.p7FFD ^ val) & 0x08) update_screen();
          comp.p7FFD = val; set_banks(); return;
       }
-      if (port == 0xDFFD && conf.mem_model == MM_PROFI) {
-         comp.pDFFD = val; set_banks(); return;
-      }
-      if (port == 0xFDFD && conf.mem_model == MM_ATM450) {
-         comp.pFDFD = val; set_banks(); return;
-      }
+
+      if (port == 0xDFFD && conf.mem_model == MM_PROFI) { comp.pDFFD = val; set_banks(); return; }
+      if (conf.mem_model == MM_ATM450 && (port & 0x8202) == (0xFDFD & 0x8202)) { comp.pFDFD = val; set_banks(); return; }
+
       if ((port & 0xC0FF) == 0xC0FD) { // A15=A14=1, FxFD - AY select register
          if (conf.sound.ay_scheme == AY::SCHEME_CHRV && ((val & 0xFE) == 0xFE)) comp.active_ay = val & 1;
          unsigned ay = (conf.sound.ay_scheme == AY::SCHEME_QUADRO)? ay = (port >> 12) & 1 : comp.active_ay;
@@ -157,14 +156,6 @@ __inline unsigned char in1(unsigned port)
 {
    port &= 0xFFFF;
    brk_port_in = port;
-   if (conf.cache) {
-      if ((unsigned char)port == 0xFB) { // open cache
-         comp.flags |= CF_CACHEON; set_banks(); return 0xFF;
-      }
-      if ((unsigned char)port == 0x7B) { // close cache
-         comp.flags &= ~CF_CACHEON; set_banks(); return 0xFF;
-      }
-   }
 
    if (comp.flags & CF_DOSPORTS) {
       if (conf.ide_scheme == IDE_ATM && (port & 0x1F) == 0x0F) {
@@ -226,7 +217,9 @@ __inline unsigned char in1(unsigned port)
    }
    if (!(port & 1)) { // port #FE
       if ((cpu.pc & 0xFFFF) == 0x0564 && bankr[0][0x0564]==0x1F && conf.tape_autostart && !comp.tape.play_pointer) start_tape();
-      return input.read(port >> 8);
+      unsigned char val = input.read(port >> 8);
+      if (conf.mem_model == MM_ATM450) val = (val & 0x7F) | atm450_z(cpu.t);
+      return val;
    }
    if ((port & 0x8202) == (0x7FFD & 0x8202) && (conf.mem_model == MM_ATM710 || conf.ide_scheme == IDE_ATM)) { // ATM-2 IDE+DAC/ADC
       unsigned char irq = 0x40;
@@ -242,14 +235,28 @@ __inline unsigned char in1(unsigned port)
       if (reg == 14 && conf.input.mouse == 2) { input.mouse_joy_led |= 1; return input.aymouse_rd(); }
       return comp.ay[ay].reg[reg];
    }
-   if ((unsigned char)port == 0xFF) {
-      update_screen();
-      if (vmode != 2) return 0xFF; // ray is not in paper
-      return temp.base[vcurr->atr_offs + (cpu.t - vcurr[-1].next_t)/4];
+
+   if ((port & 0x7F) == 0x7B) { // FB/7B
+      if (conf.mem_model == MM_ATM450) {
+         comp.aFB = (unsigned char)port;
+         set_banks();
+      } else if (conf.cache) {
+         comp.flags &= ~CF_CACHEON;
+         if (port & 0x80) comp.flags |= CF_CACHEON;
+         set_banks();
+      }
+      return 0xFF;
    }
+
    if (port == 0xBFF7 && conf.cmos && (comp.pEFF7 & EFF7_CMOS)) return cmos_read();
    if ((port & 0xF8FF) == 0xF8EF && modem.open_port) return modem.read((port >> 8) & 7);
 
+   if ((unsigned char)port == 0xFF) {
+      update_screen();
+      if (vmode != 2) return 0xFF; // ray is not in paper
+      unsigned ula_t = (cpu.t+temp.border_add) & temp.border_and;
+      return temp.base[vcurr->atr_offs + (ula_t - vcurr[-1].next_t)/4];
+   }
    return 0xFF;
 }
 

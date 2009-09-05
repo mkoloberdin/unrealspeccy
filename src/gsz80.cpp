@@ -72,13 +72,14 @@ void gs_byte_to_dac(unsigned addr, unsigned char byte)
    temp.led.gscnt[chan]++;
 }
 
-__inline unsigned char rm(unsigned addr)
+Z80INLINE unsigned char rm(unsigned addr)
 {
    unsigned char byte = gsbankr[(addr >> 14) & 3][addr & (PAGE-1)];
    if ((addr & 0xE000) == 0x6000) gs_byte_to_dac(addr, byte);
    return byte;
 }
-__inline void wm(unsigned addr, unsigned char val)
+
+Z80INLINE void wm(unsigned addr, unsigned char val)
 {
    unsigned char *bank = gsbankw[(addr >> 14) & 3];
 #ifndef TRASH_PAGE
@@ -86,7 +87,9 @@ __inline void wm(unsigned addr, unsigned char val)
 #endif
    bank[addr & (PAGE-1)] = val;
 }
-__inline unsigned char m1_cycle(Z80 *cpu) {
+
+Z80INLINE unsigned char m1_cycle(Z80 *cpu)
+{
    cpu->r_low++; cpu->t += 4;
    return rm(cpu->pc++);
 }
@@ -135,12 +138,7 @@ unsigned char in(unsigned port)
    return 0xFF;
 }
 
-#include "z80n.cpp"
-#include "z80e.cpp"
-#include "z80l.cpp"
-#include "z80x.cpp"
-#include "z80y.cpp"
-#include "z80xl.cpp"
+#include "z80/cmd.cpp"
 
 void flush_gs_z80()
 {
