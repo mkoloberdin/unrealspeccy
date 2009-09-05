@@ -476,7 +476,16 @@ again:
          }
          fclose(ff);
          if (!res) MessageBox(GetForegroundWindow(), "write error", "Save", MB_ICONERROR);
-         else if (drvs[ofn.nFilterIndex]!=-1) comp.wd.fdd[drvs[ofn.nFilterIndex]].optype=0, strcpy(comp.wd.fdd[drvs[ofn.nFilterIndex]].name, ofn.lpstrFile);
+         else if (drvs[ofn.nFilterIndex]!=-1) {
+			 comp.wd.fdd[drvs[ofn.nFilterIndex]].optype=0, strcpy(comp.wd.fdd[drvs[ofn.nFilterIndex]].name, ofn.lpstrFile);
+			 //---------Alone Coder
+			 char *name = ofn.lpstrFile; for (char *x = name; *x; x++) if (*x == '\\') name = x+1;
+			 char wintitle[0x200];
+			 strcpy(wintitle,name);
+			 strcat(wintitle," - UnrealSpeccy");
+			 SetWindowText(wnd, wintitle);
+			 //~---------Alone Coder
+		 }
       } else MessageBox(GetForegroundWindow(), "Can't open file for writing", "Save", MB_ICONERROR);
    }
    eat();

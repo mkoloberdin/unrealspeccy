@@ -90,7 +90,7 @@ unsigned char asm_tab_z80[] =
    1, 0x40, 0xC0, // ld r8,r8
    _ld, _zr8_, ',', _zr81_, 0,
    1, 0x80, 0xC0, // op r8
-   _zop, ' ', _zr81, 0,
+   _zop/*, ' '*/, _zr81, 0,
    1, 0xC0, 0xC7, // ret cc
    'r','e','t',' ',_zf,0,
    1, 0xC2, 0xC7, // jp cc, nnnn
@@ -98,7 +98,7 @@ unsigned char asm_tab_z80[] =
    1, 0xC4, 0xC7, // call cc, nnnn
    'c','a','l','l',' ',_zf,',',_iw,0,
    1, 0xC6, 0xC7, // op immb
-   _zop, ' ', _ib, 0,
+   _zop/*, ' '*/, _ib, 0,
    1, 0xC1, 0xCF, // pop r16a
    'p','o','p',' ',_zr16a,0,
    1, 0xC5, 0xCF, // push r16a
@@ -252,7 +252,8 @@ char cbtab[] = "rlc \0\0\0rrc \0\0\0rl \0\0\0\0rr \0\0\0\0sla \0\0\0sra \0\0\0sl
                "res 0,\0res 1,\0res 2,\0res 3,\0res 4,\0res 5,\0res 6,\0res 7,\0"
                "set 0,\0set 1,\0set 2,\0set 3,\0set 4,\0set 5,\0set 6,\0set 7,\0";
 char zjr[] = "xxxxxx\0xxxxxx\0djnz \0\0jr \0\0\0\0jr nz,\0jr z,\0\0jr nc,\0jr c,\0";
-char zop[] = "add\0adc\0sub\0sbc\0and\0xor\0or\0\0cp";
+//char zop[] = "add\0adc\0sub\0sbc\0and\0xor\0or\0\0cp"; lvd
+char zop[] = "add a,\0\0adc a,\0\0sub \0\0\0\0sbc a,\0\0and \0\0\0\0xor \0\0\0\0or \0\0\0\0\0cp \0\0\0\0\0";
 char zf[] = "nz\0z\0\0nc\0c\0\0po\0pe\0p\0\0m";
 // =======================================================================
 
@@ -303,7 +304,8 @@ unsigned char *disasm(unsigned char *cmd, unsigned current, char labels)
                l1 = zjr+7*((*rcmd>>3)&7);
                break;
             case _zop: // z80 operations at rcmd & 0x38
-               l1 = zop+4*((*rcmd>>3)&7);
+               //l1 = zop+4*((*rcmd>>3)&7); lvd
+               l1 = zop+8*((*rcmd>>3)&7);
                break;
             case _zf: // z80 flags at rcmd & 0x38
                l1 = zf+3*((*rcmd>>3)&7);
@@ -365,16 +367,19 @@ unsigned char *disasm(unsigned char *cmd, unsigned current, char labels)
          strcat(asmbuf, l1);
       }
       // make tabulation between instruction and operands
-      {
-         char b1[0x40], *p = asmbuf, *q = b1;
-         while (*p != ' ' && *p) *q++ = *p++;
-         *q++ = *p;
-         if (*p) {
-            while (q < b1+4) *q++ = ' ';
-            while (*++p) *q++ = *p;
-         }
-         *q = 0;
-         strcpy(asmbuf, b1);
+	  {
+//			if( !cpu.logena ) //LVD
+			{
+				char b1[0x40], *p = asmbuf, *q = b1;
+				while (*p != ' ' && *p) *q++ = *p++;
+				*q++ = *p;
+				if (*p) {
+					while (q < b1+5) *q++ = ' '; // +5 - tab size=5, was 4
+					while (*++p) *q++ = *p;
+				}
+				*q = 0;
+				strcpy(asmbuf, b1);
+			}
          return max(cm, cmd+*ptr);
       }
 nextcmd:
@@ -463,7 +468,7 @@ int assemble(unsigned addr)
                *rcmd |= (in << 3);
                break;
             case _zop: // z80 ops
-               if ((in = getindex(&cc, zop, 4, 8)) < 0) goto nextcmd;
+               if ((in = getindex(&cc, zop, 8, 8)) < 0) goto nextcmd;
                *rcmd |= (in << 3);
                break;
             case _zf: // z80 flags

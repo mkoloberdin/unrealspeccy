@@ -175,8 +175,8 @@ BOOL CALLBACK pokedlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
        (msg == WM_SYSCOMMAND && wp == SC_CLOSE)) EndDialog(dlg, 0);
    if (msg == WM_COMMAND && LOWORD(wp) == IDOK)
    {
-      SendDlgItemMessage(dlg, IDE_POKE, WM_GETTEXT, sizeof snbuf, (LPARAM)snbuf);
-      int r = dopoke(0);
+      SendDlgItemMessage(dlg, IDE_POKE, WM_GETTEXT, /*sizeof snbuf*/640*480*4, (LPARAM)snbuf); //Alone Coder 0.36.5
+	  int r = dopoke(0);
       if (r) MessageBox(dlg, "Incorrect format", 0, MB_ICONERROR),
              SendDlgItemMessage(dlg, IDE_POKE, EM_SETSEL, r, r);
       else dopoke(1), EndDialog(dlg, 0);

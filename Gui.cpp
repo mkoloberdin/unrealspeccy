@@ -1334,7 +1334,10 @@ void setup_dlg()
    sound_stop();
 
    c1 = conf; PropertySheet(&psh);
-   if (dlgok) conf = c1;
+   if (dlgok) {
+	   conf = c1;
+	   frametime = conf.frame; //Alone Coder 0.36.5
+   };
 
    eat();
    SendMessage(wnd, WM_SETFOCUS, (WPARAM)wnd, 0); // show cursor for 'kempston on mouse'

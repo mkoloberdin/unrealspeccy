@@ -134,6 +134,7 @@ void ISA_MODEM::write(unsigned nreg, unsigned char value)
 
       dcb.fBinary = TRUE;
       dcb.fParity = (reg[3] & 8)? TRUE : FALSE;
+//		dcb.fParity = FALSE; // fix suggested by lvd
       dcb.fOutxCtsFlow = FALSE;
       dcb.fOutxDsrFlow = FALSE;
       dcb.fDtrControl = DTR_CONTROL_DISABLE;
@@ -145,7 +146,9 @@ void ISA_MODEM::write(unsigned nreg, unsigned char value)
       dcb.fNull = FALSE;
       dcb.fRtsControl = RTS_CONTROL_DISABLE;
       dcb.fAbortOnError = FALSE;
-      dcb.ByteSize = 6 + (reg[3] & 2) - (reg[3] & 1);
+//      dcb.ByteSize = 6 + (reg[3] & 2) - (reg[3] & 1);
+//		dcb.ByteSize = 8; // fix suggested by lvd
+      dcb.ByteSize = 5 + (reg[3] & 3); // fix by Deathsoft
 
       static const BYTE parity[] = { ODDPARITY, EVENPARITY, MARKPARITY, SPACEPARITY };
       dcb.Parity = (reg[3] & 8)? parity[(reg[3]>>4) & 3] : NOPARITY;
