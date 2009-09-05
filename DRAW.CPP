@@ -1,0 +1,631 @@
+#define MAX_WIDTH_P (64*2)
+#define MAX_WIDTH 512
+#define MAX_HEIGHT 304
+#define MAX_BUFFERS 1
+
+__int64 rbuf__[MAX_HEIGHT*MAX_WIDTH_P*(MAX_BUFFERS+1)/sizeof(__int64)]; // force QWORD align
+const rb2_offs = sizeof(rbuf__) / (MAX_BUFFERS+1);
+unsigned char * const rbuf = (unsigned char*)rbuf__;
+unsigned char * const rbuf_s = rbuf + rb2_offs;
+
+struct videopoint
+{
+   unsigned next_t;
+   unsigned char *screen_ptr;
+   union {
+      unsigned nextvmode;  // for vmode=1
+      unsigned atr_offs;   // for vmode=2
+   };
+   unsigned scr_offs;
+};
+
+#define MAX_FONT_TABLES 0x62000
+struct {
+   union { // switch palette/color values
+      struct { // 8bit
+         unsigned sctab8[2][16*0x100];  //4 bits data+pc-attribute -> 4 palette pixels
+         unsigned sctab8d[2][4*0x100];  //2 bits data+pc-attribute -> 2 palette pixels (doubled)
+      };
+      struct { // 16bit & 32bit
+         unsigned sctab16[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
+         unsigned sctab16d[2][2*0x100]; //1 bit  data+pc-attribute -> 1 pixel (doubled)
+         unsigned sctab32[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
+         union { // switch chunks/noflic
+            unsigned c32tab[0x100][32]; // for chunks 16/32: n_pixels+attr -> chunk color
+            struct {
+               unsigned sctab16_nf[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
+               unsigned sctab16d_nf[2][2*0x100]; //1 bit  data+pc-attribute -> 2 pixels
+               unsigned sctab32_nf[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
+            };
+         };
+      };
+   };
+   union {
+      unsigned bs2h[96][129];      // temp buffer for chunks 2x2 flt
+      unsigned bs4h[48][65];       // temp buffer for chunks 4x4 flt
+      unsigned font_tables[MAX_FONT_TABLES / sizeof(unsigned)]; // for anti-text64
+      union {
+         struct {
+            unsigned atm_ega8[2][0x100];   // ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
+            unsigned zctab8[2][16*0x100];  // 4 bits data+zx-attribute -> 4 palette pixels
+            unsigned zctab8ad[2][4*0x100]; // 2 bits data+zx-attribute -> 2 palette pixels (doubled)
+         };
+         struct {
+            unsigned atm_ega16[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
+            unsigned zctab16[2][4*0x100];  // 2 bits data+pc-attribute -> 2 pixels
+            unsigned zctab16ad[2][2*0x100];// 1 bits data+pc-attribute -> 1 pixel (doubled)
+         };
+         struct {
+            unsigned atm_ega32[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
+            unsigned zctab32[2][2*0x100];  // 1 bit  data+pc-attribute -> 1 pixel
+            unsigned zctab32ad[2][2*0x100];// 1 bit  data+pc-attribute -> 1 pixel
+         };
+      };
+   };
+   // pre-calculated
+   unsigned settab[0x100];         // for chunks 4x4
+   unsigned settab2[0x100];        // for chunks 2x2
+   unsigned dbl[0x100]; // reverse and double pixels (for scaling renderer)
+   unsigned scrtab[256]; // offset to start of line
+   unsigned atrtab[256]; // offset to start of attribute line
+   unsigned atrtab_hwmc[256]; // attribute for HWMC
+   unsigned atm_pal_map[0x100]; // atm palette port value -> palette index
+   struct {   // for AlCo-384
+      unsigned char *s, *a;
+   } alco[304][8];
+} t;
+
+videopoint *vcurr, video[4*MAX_HEIGHT];
+unsigned vmode;  // what are drawing: 0-not visible, 1-border, 2-screen
+unsigned prev_t; // last drawn pixel
+unsigned *atrtab;
+
+unsigned char colortab[0x100];// map zx attributes to pc attributes
+unsigned colortab_s8[0x100], colortab_s24[0x100]; // colortab shifted to 8 and 24
+
+#include "drawnomc.cpp"
+
+PALETTEENTRY pal0[0x100]; // emulator palette
+
+void video_permanent_tables()
+{
+   // pixel doubling table
+   for (unsigned i = 0; i < 0x100; i++) {
+      unsigned res = 0;
+      for (int j = 0x80; j; j/=2) {
+         res <<= 2; if (i & j) res |= 3;
+      }
+      t.dbl[i] = res;
+   }
+
+   for (i = 0; i < 0x100; i++) {
+      unsigned r1 = 0, r2 = 0;
+      if (i & 0x01) r1++,        r2 += 1;
+      if (i & 0x02) r1++,        r2 += 1;
+      if (i & 0x04) r1++,        r2 += 0x100;
+      if (i & 0x08) r1++,        r2 += 0x100;
+      if (i & 0x10) r1 += 0x100, r2 += 0x10000;
+      if (i & 0x20) r1 += 0x100, r2 += 0x10000;
+      if (i & 0x40) r1 += 0x100, r2 += 0x1000000;
+      if (i & 0x80) r1 += 0x100, r2 += 0x1000000;
+      // low byte of settab - number of pixels in low nibble of i
+      // high byte of low word of settab - number of pixels in high nibble of i
+      t.settab[i] = r1;
+      t.settab2[i] = r2*4; // *4 - convert square 2x2 to 4x4
+   }
+
+   // atm palette
+   for (i = 0; i < 0x100; i++) {         // grbG--RB
+      unsigned v = i ^ 0xFF; // grbG--RB => Gg0Rr0Bb
+      t.atm_pal_map[i] = ((v & 0x80) >> 1) | // g
+                         ((v & 0x40) >> 3) | // r
+                         ((v & 0x20) >> 5) | // b
+                         ((v & 0x10) << 3) | // G
+                         ((v & 0x02) << 3) | // R
+                         ((v & 0x01) << 1);  // B
+   }
+
+   i = 0; // calc screen addresses
+   for (int p = 0; p < 4; p++)
+      for (int y = 0; y < 8; y++)
+         for (int o = 0; o < 8; o++, i++)
+            t.scrtab[i] = p*0x800 + y*0x20 + o*0x100,
+            t.atrtab_hwmc[i] = t.scrtab[i] + 0x2000,
+            t.atrtab[i] = 0x1800 + (p*8+y)*32;
+
+   // alco table
+   static unsigned disp_0[] = { 0x0018, 0x2000, 0x2008, 0x2010, 0x2018, 0x0008 };
+   static unsigned base_s[] = { 0x10000, 0x14000, 0x14800, 0x15000, 0x11800 };
+   static unsigned base_a[] = { 0x11000, 0x15800, 0x15900, 0x15A00, 0x11300 };
+   for (unsigned y = 0; y < 304; y++)
+      for (unsigned x = 0; x < 6; x++) {
+         unsigned disp = disp_0[x] + (y & 0x38)*4;
+         ::t.alco[y][x].a = memory + base_a[y/64] + disp;
+         ::t.alco[y][x].s = memory + base_s[y/64] + disp + (y & 7)*0x100;
+      }
+}
+
+unsigned getYUY2(unsigned r, unsigned g, unsigned b)
+{
+   int y = (int)(0.29*r + 0.59*g + 0.14*b);
+   int u = (int)(128.0 - 0.14*r - 0.29*g + 0.43*b);
+   int v = (int)(128.0 + 0.36*r - 0.29*g - 0.07*b);
+   if (y < 0) y = 0; if (y > 255) y = 255;
+   if (u < 0) u = 0; if (u > 255) u = 255;
+   if (v < 0) v = 0; if (v > 255) v = 255;
+   return WORD4(y,u,y,v);
+}
+
+void create_palette()
+{
+   PALETTE_OPTIONS *pl = &pals[conf.pal];
+   unsigned char brights[4] = { pl->ZZ, pl->ZN, pl->NN, pl->BB };
+   unsigned char brtab[16] =
+      //  ZZ      NN      ZZ      BB
+      { pl->ZZ, pl->ZN, pl->ZZ, pl->ZB,    // ZZ
+        pl->ZN, pl->NN, pl->ZN, pl->NB,    // NN
+        pl->ZZ, pl->ZN, pl->ZZ, pl->ZB,    // ZZ (bright=1,ink=0)
+        pl->ZB, pl->NB, pl->ZB, pl->BB };  // BB
+
+   for (unsigned i = 0; i < 0x100; i++) {
+      unsigned r0, g0, b0;
+      if (temp.rflags & RF_PALB) { // palette index: gg0rr0bb
+         b0 = brights[i & 3];
+         r0 = brights[(i >> 3) & 3];
+         g0 = brights[(i >> 6) & 3];
+      } else { // palette index: ygrbYGRB
+         b0 = brtab[((i>>0)&1)+((i>>2)&2)+((i>>2)&4)+((i>>4)&8)]; // brtab[ybYB]
+         r0 = brtab[((i>>1)&1)+((i>>2)&2)+((i>>3)&4)+((i>>4)&8)]; // brtab[yrYR]
+         g0 = brtab[((i>>2)&1)+((i>>2)&2)+((i>>4)&4)+((i>>4)&8)]; // brtab[ygYG]
+      }
+      // transform with current settings
+      unsigned r = 0xFF & ((r0 * pl->r11 + g0 * pl->r12 + b0 * pl->r13) / 0x100);
+      unsigned g = 0xFF & ((r0 * pl->r21 + g0 * pl->r22 + b0 * pl->r23) / 0x100);
+      unsigned b = 0xFF & ((r0 * pl->r31 + g0 * pl->r32 + b0 * pl->r33) / 0x100);
+      // prepare palette in bitmap header for GDI renderer
+      gdibmp.header.bmiColors[i].rgbRed   = pal0[i].peRed   = r;
+      gdibmp.header.bmiColors[i].rgbGreen = pal0[i].peGreen = g;
+      gdibmp.header.bmiColors[i].rgbBlue  = pal0[i].peBlue  = b;
+   }
+   memcpy(syspalette + 10, pal0 + 10, (246-9) * sizeof *syspalette);
+}
+
+void atm_zc_tables();//forward
+
+// make colortab: zx-attr -> pc-attr
+void make_colortab(char flash_active)
+{
+   if (conf.flashcolor) flash_active = 0;
+   for (unsigned a = 0; a < 0x100; a++) {
+      unsigned char ink = (a&7), paper = (a>>3) & 7, bright = (a>>6) & 1, flash = (a>>7) & 1;
+      if (ink) ink += bright*8; // no bright for 0th color
+      if (paper) paper += (conf.flashcolor? flash : bright)*8; // no bright for 0th color
+      if (flash_active && flash) { unsigned char t = ink; ink = paper; paper = t; }
+      colortab[a] = paper*0x10 + ink;
+      colortab_s8[a] = colortab[a] << 8; colortab_s24[a] = colortab[a] << 24;
+   }
+   if (conf.mem_model == MM_ATM710) atm_zc_tables(); // update with new flash bit
+}
+
+// make attrtab: pc-attr + 0x100*pixel -> palette index
+void attr_tables(unsigned char attrtab[])
+{
+   unsigned char flashcolor = (temp.rflags & RF_MON)? 0 : conf.flashcolor;
+   for (unsigned a = 0; a < 0x100; a++) {
+      unsigned char ink = (a & 0x0F), paper = (a >> 4);
+      if (flashcolor) paper = (paper & 7) + (ink & 8); // paper_bright from ink
+
+      if (temp.rflags & RF_ATMPAL) { //------ for ATM palette - direct values from palette registers
+         attrtab[a] = comp.atm_pal[a >> 4];
+         attrtab[a+0x100] = comp.atm_pal[a & 0x0F];
+      } else if (temp.rflags & RF_PALB) { //----------------------------- for bilinear
+         unsigned char b0,b1, r0,r1, g0,g1;
+         b0 = (paper >> 0) & 1, r0 = (paper >> 1) & 1, g0 = (paper >> 2) & 1;
+         b1 = (ink >> 0) & 1, r1 = (ink >> 1) & 1, g1 = (ink >> 2) & 1;
+
+         if (flashcolor && (a & 0x80)) {
+            b1 += b0, r1 += r0, g1 += g0;
+            r0 = b0 = g0 = 0;
+         } else {
+            b0 *= 2, r0 *= 2, g0 *=2,
+            b1 *= 2, r1 *= 2, g1 *=2;
+         }
+
+         unsigned char br1 = (ink >> 3) & 1;
+         if (r1) r1 += br1;
+         if (g1) g1 += br1;
+         if (b1) b1 += br1;
+
+         unsigned char br0 = (paper >> 3) & 1;
+         if (r0) r0 += br0;
+         if (g0) g0 += br0;
+         if (b0) b0 += br0;
+
+         // palette index: gg0rr0bb
+         attrtab[a+0x100]  = (g1 << 6) + (r1 << 3) + b1;
+         attrtab[a]        = (g0 << 6) + (r0 << 3) + b0;
+      } else //------------------------------------ all others
+      {
+         // palette index: ygrbYGRB
+         if (flashcolor && (a & 0x80)) {
+            attrtab[a] = 0, attrtab[a+0x100] = ink+(paper<<4);
+         } else attrtab[a+0x100] = ink * 0x11, attrtab[a] = paper * 0x11;
+      }
+   }
+}
+
+void atm_ega_tables()
+{
+   for (unsigned pass = 0; pass < 2; pass++) {
+      for (unsigned bt = 0; bt < 0x100; bt++) {
+         unsigned lf = ((bt >> 3) & 7) + ((bt >> 4) & 8);
+         unsigned rt = (bt & 7) + ((bt >> 3) & 8);
+         if (temp.obpp == 8) {
+            t.atm_ega8[pass][bt] = (t.sctab8[pass][0x0F+0x10*rt] & 0xFFFF) +
+                                   (t.sctab8[pass][0x0F+0x10*lf] & 0xFFFF0000);
+         } else if (temp.obpp == 16) {
+            t.atm_ega16[pass][bt*2+0] = t.sctab16[pass][0x03+4*rt],
+            t.atm_ega16[pass][bt*2+1] = t.sctab16[pass][0x03+4*lf];
+         } else /* if (temp.obpp == 32) */ {
+            t.atm_ega32[pass][bt*2+0] = t.sctab32[pass][0x100+rt],
+            t.atm_ega32[pass][bt*2+1] = t.sctab32[pass][0x100+lf];
+         }
+      }
+   }
+}
+
+void atm_zc_tables() // atm,profi screens (use normal zx-flash)
+{
+   for (unsigned pass = 0; pass < 2; pass++) {
+      for (unsigned at = 0; at < 0x100; at++) {
+         unsigned pc_attr = colortab[at];
+         if (temp.obpp == 8)
+            for (unsigned j = 0; j < 4; j++)
+               t.zctab8ad[pass][at*4+j] = t.sctab8d[pass][pc_attr*4+j];
+         else if (temp.obpp == 16)
+            t.zctab16ad[pass][at] = t.sctab16d[pass][pc_attr],
+            t.zctab16ad[pass][at+0x100] = t.sctab16d[pass][pc_attr+0x100];
+         else /* if (temp.obpp == 32) */
+            t.zctab32ad[pass][at] = t.sctab32[pass][pc_attr],
+            t.zctab32ad[pass][at+0x100] = t.sctab32[pass][pc_attr+0x100];
+      }
+   }
+}
+
+void hires_sc_tables()  // atm,profi screens (use zx-attributes & flash -> paper_bright)
+{
+   for (unsigned pass = 0; pass < 2; pass++) {
+      for (unsigned at = 0; at < 0x100; at++) {
+         unsigned pc_attr = (at & 0x80) + (at & 0x38)*2 + (at & 0x40)/8 + (at & 7);
+         if (temp.obpp == 8)
+            for (unsigned j = 0; j < 16; j++)
+               t.zctab8[pass][at*0x10+j] = t.sctab8[pass][pc_attr*0x10+j];
+         else if (temp.obpp == 16)
+            for (unsigned j = 0; j < 4; j++)
+               t.zctab16[pass][at*4+j] = t.sctab16[pass][pc_attr*4+j];
+         else /* if (temp.obpp == 32) */
+            for (unsigned j = 0; j < 2; j++)
+               t.zctab32[pass][at+0x100*j] = t.sctab32[pass][pc_attr+0x100*j];
+      }
+   }
+   if (conf.mem_model == MM_ATM710) atm_ega_tables();
+}
+
+void calc_noflic_16_32()
+{
+   unsigned at, pass;
+   if (temp.obpp == 16) {
+      unsigned shift_mask = 0xFEFEFEFE;
+      if (temp.hi15==0) shift_mask = 0xF7DEF7DE;
+      if (temp.hi15==1) shift_mask = 0x7BDE7BDE;
+      if (temp.hi15==2) shift_mask = 0xFEFEFEFE;
+      for (pass = 0; pass < 2; pass++) {
+         for (at = 0; at < 2*0x100; at++)
+            t.sctab16d_nf[pass][at] = (t.sctab16d[pass][at] & shift_mask)/2;
+         for (at = 0; at < 4*0x100; at++)
+            t.sctab16_nf[pass][at] = (t.sctab16[pass][at] & shift_mask)/2;
+      }
+   }
+   if (temp.obpp == 32) {
+      unsigned shift_mask = 0xFEFEFEFE;
+      for (pass = 0; pass < 2; pass++) {
+         for (at = 0; at < 2*0x100; at++)
+            t.sctab32_nf[pass][at] = (t.sctab32[pass][at] & shift_mask)/2;
+      }
+   }
+}
+
+void pixel_tables()
+{
+   unsigned char attrtab[0x200]; // pc attribute + 1 pixel -> palette index
+   attr_tables(attrtab);
+   for (unsigned pass = 0; pass < 2; pass++) {
+      unsigned pixels[0x100];
+      if (temp.obpp > 8)
+         for (unsigned i = 0; i < 0x100; i++) {
+            unsigned res;
+            unsigned r = pal0[i].peRed, g = pal0[i].peGreen, b = pal0[i].peBlue;
+            if (pass) r = r*conf.scanbright/100, g = g*conf.scanbright/100, b = b*conf.scanbright/100;
+            if (temp.obpp == 16) {
+               if (temp.hi15==0) res = ((b/8) + ((g/4)<<5) + ((r/8)<<11)) * 0x10001;
+               if (temp.hi15==1) res = ((b/8) + ((g/8)<<5) + ((r/8)<<10)) * 0x10001;
+               if (temp.hi15==2) res = getYUY2(r,g,b);
+            } else /* if (temp.obpp == 32) */ res = WORD4(b,g,r,0);
+            pixels[i] = res;
+         }
+      for (unsigned at = 0; at < 0x100; at++)
+      {
+         unsigned char px0 = attrtab[at], px1 = attrtab[at+0x100];
+         unsigned p0 = pixels[px0], p1 = pixels[px1];
+         if (temp.obpp == 8) {
+            if (pass) {
+               if (!conf.scanbright) px0 = px1 = 0;
+               else if (conf.scanbright < 100) {
+                  if (!conf.noflic) { // palette too small to realize noflic scales with shaded scanlines
+                     if (temp.rflags & RF_PALB) {
+                        px0 = (px0 & (px0 << 1) & 0x92929292) |
+                              ((px0 ^ 0xFFFFFFFF) & (px0 >> 1) & 0x49494949);
+                        px1 = (px1 & (px1 << 1) & 0x92929292) |
+                              ((px1 ^ 0xFFFFFFFF) & (px1 >> 1) & 0x49494949);
+                     } else px0 &= 0x0F0F0F0F, px1 &= 0x0F0F0F0F;
+                  }
+               }
+            }
+            for (unsigned j = 0; j < 0x10; j++) {
+               unsigned mask = (j >> 3)*0xFF + (j & 0x04)*(0xFF00/4) +
+                               (j & 0x02)*(0xFF0000/2) + (j & 1)*0xFF000000;
+               t.sctab8[pass][j + at*0x10] = (mask & (px1 * 0x01010101)) + (~mask & (px0 * 0x01010101));
+            }
+            for (j = 0; j < 4; j++) {
+               unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
+               t.sctab8d[pass][j+at*4] = (mask & (px1 * 0x01010101)) + (~mask & (px0 * 0x01010101));
+            }
+         }
+         if (temp.obpp == 16) {
+            t.sctab16d[pass][at] = p0, t.sctab16d[pass][at+0x100] = p1;
+            for (unsigned j = 0; j < 4; j++) {
+               unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
+               t.sctab16[pass][j+at*4] = (mask & p1) + (~mask & p0);
+            }
+         }
+         if (temp.obpp == 32) t.sctab32[pass][at] = p0, t.sctab32[pass][at+0x100] = p1;
+      }
+   }
+   if (temp.obpp > 8 && conf.noflic) calc_noflic_16_32();
+   if ((temp.rflags & (RF_DRIVER|RF_512|RF_USEFONT))==(RF_DRIVER|RF_512) && // render="double"
+       (conf.mem_model == MM_ATM710 || conf.mem_model == MM_PROFI))
+      hires_sc_tables();
+}
+
+void video_color_tables()
+{
+   create_palette();
+   pixel_tables();
+   make_colortab(0);
+
+   if (temp.rflags & (RF_USEC32 | RF_USE32AS16)) {
+      for (unsigned at = 0; at < 0x100; at++) {
+         for (unsigned vl = 0; vl <= 0x10; vl++) {
+            unsigned br = (at & 0x40) ? 0xFF : 0xBF;
+            unsigned c1, c2, res;
+            c1 = (at & 1) >> 0, c2 = (at & 0x08) >> 3;
+            unsigned b = (c1*vl + c2*(0x10-vl))*br/0x10;
+            c1 = (at & 2) >> 1, c2 = (at & 0x10) >> 4;
+            unsigned r = (c1*vl + c2*(0x10-vl))*br/0x10;
+            c1 = (at & 4) >> 2, c2 = (at & 0x20) >> 5;
+            unsigned g = (c1*vl + c2*(0x10-vl))*br/0x10;
+            if (temp.rflags & RF_USE32AS16) {
+               if (temp.hi15==0) res = (b/8) + ((g/4)<<5) + ((r/8)<<11);
+               if (temp.hi15==1) res = (b/8) + ((g/8)<<5) + ((r/8)<<10);
+               if (temp.hi15==2) res = getYUY2(r,g,b);
+               else res *= 0x10001; // for hi15=0,1
+            } else res =  WORD4(b,g,r,0);
+            t.c32tab[at][vl] = res;
+         }
+      }
+   }
+   setpal(0);
+}
+
+void video_timing_tables()
+{
+   if (conf.frame < 2000) conf.frame = 2000;
+   if (conf.t_line < 128) conf.t_line = 128;
+   conf.nopaper &= 1;
+   atrtab = (comp.pEFF7 & EFF7_HWMC) ? t.atrtab_hwmc : t.atrtab;
+
+//   conf.bordersize=2;
+//   temp.scx = 384, temp.scy = 300;
+
+   unsigned width = temp.scx/4;
+   //temp.vidbufsize = temp.scx*temp.scy/4;
+
+   // make video table
+   temp.b_bottom = temp.b_top = 24, temp.b_left = 32;
+   unsigned mid_lines = 192, buf_mid = 256;
+
+   if (conf.bordersize==0) temp.b_top = temp.b_left = 0;
+   if (conf.bordersize==2) temp.b_top = temp.b_left = 64;
+
+   temp.b_right = temp.scx - buf_mid - temp.b_left;
+   temp.b_bottom = temp.scy - mid_lines - temp.b_top;
+
+   temp.pdx = temp.obpp * temp.b_right / ((temp.rflags & RF_512)? 4 : 8);
+   temp.pdy = temp.b_top * ((temp.rflags & RF_512)? 2 : 1);
+
+   if (conf.nopaper) temp.b_bottom += mid_lines, mid_lines=0;
+   int inx = 0;
+
+   unsigned i;
+   #define ts(t) (((int)(t) < 0) ? 0 : t)
+   unsigned t = conf.paper - temp.b_top*conf.t_line;
+   video[inx++].next_t = ts(t - temp.b_left/2);
+   for (i = 0; i < temp.b_top; i++) { // top border
+      video[inx].next_t = ts(t + (buf_mid+temp.b_right)/2);
+      video[inx].screen_ptr = rbuf+width*i;
+      video[inx].nextvmode = 0;
+      inx++; t += conf.t_line;
+      video[inx++].next_t = ts(t - temp.b_left/2);
+   }
+   for (i = 0; i < mid_lines; i++) { // screen+border
+      video[inx].next_t = ts(t);
+      video[inx].screen_ptr = rbuf+width*(i+temp.b_top);
+      video[inx].nextvmode = 2; inx++;
+      video[inx].next_t = ts(t + buf_mid/2);
+      video[inx].screen_ptr = rbuf+width*(i+temp.b_top)+temp.b_left/4;
+      video[inx].scr_offs = ::t.scrtab[i];
+      video[inx].atr_offs = atrtab[i];
+      inx++;
+      video[inx].next_t = ts(t + (buf_mid+temp.b_right)/2);
+      video[inx].screen_ptr = rbuf+width*(i+temp.b_top)+(buf_mid+temp.b_left)/4;
+      video[inx].nextvmode = 0;
+      inx++; t += conf.t_line;
+      video[inx++].next_t = ts(t - temp.b_left/2);
+   }
+   for (i = 0; i < temp.b_bottom; i++) { // bottom border
+      video[inx].next_t = ts(t + (buf_mid+temp.b_right)/2);
+      video[inx].screen_ptr = rbuf+width*(i+temp.b_top+mid_lines);
+      video[inx].nextvmode = 0;
+      inx++; t += conf.t_line;
+      video[inx++].next_t = ts(t - temp.b_left/2);
+   }
+   video[inx-1].next_t = 0x7FFFFFFF;
+
+   temp.evenM1_C0 = conf.even_M1 ? 0xC0 : 0x00;
+   temp.border_add = conf.border_4T ? 6 : 0;
+   temp.border_and = conf.border_4T ? 0xFFFFFFFC : 0xFFFFFFFF;
+
+   for (i = 0; i < 7; i++) {
+      unsigned z = *(&conf.led.ay + i);
+      int x = (signed short)(z & 0xFFFF);
+      int y = (signed short)(((z >> 16) & 0x7FFF) + ((z >> 15) & 0x8000));
+      if (x < 0) x += width*8;
+      if (y < 0) y += temp.scy;
+      *(&temp.led.ay+i) = (z & 0x80000000) ? rbuf + ((x>>2)&0xFE) + y*width : 0;
+   }
+
+   if (temp.rflags & RF_USEFONT) create_font_tables();
+
+   needclr = 2;
+}
+
+void set_video()
+{
+   set_vidmode();
+   video_color_tables();
+}
+
+void apply_video()
+{
+   load_ula_preset();
+   temp.rflags = renders[conf.render].flags;
+   if (conf.atm.use_pal && (conf.mem_model == MM_ATM710)) {
+      temp.rflags |= RF_ATMPAL | RF_PALB;
+      if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_512 | RF_USEFONT)) == (RF_DRIVER | RF_512)) conf.noflic = 0;
+   }
+   set_video();
+   video_timing_tables();
+}
+
+void update_screen()
+{
+   unsigned last_t = (cpu.t+temp.border_add) & temp.border_and;
+   unsigned t = prev_t;
+   if (t >= last_t) return;
+
+   unsigned char b = comp.border_attr; b = (b<<4)+b;
+
+   if (vmode==1) goto mode1;
+   if (vmode==2) goto mode2;
+
+mode0:
+   {
+      vmode = 1;
+      t = vcurr->next_t; vcurr++;
+      if (t >= last_t) { done: prev_t = t; return; }
+   }
+mode1:
+   {
+      unsigned offs = (t - vcurr[-1].next_t);
+      unsigned char *ptr = vcurr->screen_ptr + offs/2;
+      ptr = (unsigned char*)((unsigned)ptr & ~1);
+      if (offs&3) {
+         *ptr++ = ((unsigned)0xFF00 >> ((offs&3)*2));
+         t += 4-(offs&3);
+         *ptr = (*ptr & 0x0F) + (b & 0xF0);  ptr++;
+      }
+      unsigned end = min(vcurr->next_t, last_t);
+      for (; t < end; t+=4) {
+         *(volatile unsigned char*)ptr;
+         *ptr++ = 0, *ptr++ = b;
+      }
+      t = end;
+      if (t == vcurr->next_t) vmode = vcurr->nextvmode, vcurr++;
+      if (t == last_t) goto done;
+      if (!vmode) goto mode0;
+   }
+mode2:
+   {
+      unsigned offs = (t - vcurr[-1].next_t)/4;
+      unsigned char *scr = temp.base + vcurr->scr_offs + offs;
+      unsigned char *atr = temp.base + vcurr->atr_offs + offs;
+      unsigned char *ptr = vcurr->screen_ptr + offs*2;
+      unsigned end = min(last_t, vcurr->next_t);
+      for (int i = 0; t < end; t += 4, i++) {
+         *(volatile unsigned char*)(ptr+2*i);
+         ptr[2*i] = scr[i];
+         ptr[2*i+1] = colortab[atr[i]];
+      }
+      t = end;
+      if (t == vcurr->next_t) vmode = 1, vcurr++;
+      if (t == last_t) goto done; else goto mode1;
+   }
+}
+
+__inline void init_frame()
+{
+   // recreate colors with flash attribute
+   unsigned char frame = (unsigned char)comp.frame_counter;
+   if (!(frame & 15) /* && !conf.flashcolor */ ) make_colortab(frame & 16);
+
+   prev_t = -1; // block MCR
+   temp.base_2 = 0; // block paper trace
+
+   if (temp.vidblock) return;
+
+   // Alco384 - no border/paper rendering
+   if (comp.pEFF7 & EFF7_384) return;
+
+   // GIGASCRREN - no paper rendering
+   if (comp.pEFF7 & EFF7_GIGASCREEN) goto allow_border;
+
+   // disable multicolors, border still works
+   if ((temp.rflags & RF_BORDER) || // chunk/etc filter
+       (conf.mem_model == MM_PROFI && (comp.pDFFD & 0x80)) ||   // profi hires screen
+       (conf.mem_model == MM_ATM710 && (comp.pFF77 & 7) != 3) ) // ATM hires screen
+   {
+      // if border update disabled, dont show anything on zx-screen
+      if (!conf.updateb) return;
+   }
+
+   // paper + border
+   temp.base_2 = temp.base;
+allow_border:
+   prev_t = vmode = 0; vcurr = video;
+}
+
+__inline void flush_frame()
+{
+   if (temp.vidblock) return;
+   if (prev_t != -1) { // MCR on
+      if (prev_t) { // paint until end of frame
+         update_screen();
+         if (comp.pEFF7 & EFF7_GIGASCREEN) draw_gigascreen_no_border();
+      } else { // MCR on, but no screen updates in last frame - use fast painter
+         if (temp.base_2 || (comp.pEFF7 & EFF7_GIGASCREEN)) draw_screen();
+         else draw_border();
+      }
+      return;
+   }
+   if (comp.pEFF7 & EFF7_384) draw_alco();
+}

@@ -1,0 +1,115 @@
+#ifdef MOD_GS
+
+unsigned gs_vfx[0x41];  // logarithmic + mixed with conf.sound.gs
+
+void make_gs_volume(unsigned level = 0x3F)
+{
+   for (int i = 0; i <= 0x40; i++) {
+      const double ln_0x40 = 4.15888308336;
+      unsigned t = i*level/0x3F + 1;
+      gs_vfx[i] = (unsigned)(conf.sound.gs*log((double)t)/ln_0x40);
+   }
+}
+
+#ifdef MOD_GSZ80
+#include "gsz80.cpp"
+#endif
+
+#ifdef MOD_GSBASS
+#include "gshlbass.cpp"
+#include "gshle.cpp"
+#endif
+
+unsigned char in_gs(unsigned char port)
+{
+
+#ifdef MOD_GSZ80
+   if (conf.gs_type == 1) return z80gs::in_gs(port);
+#endif
+
+#ifdef MOD_GSBASS
+   if (conf.gs_type == 2) return gs.in(port);
+#endif
+
+   return 0xFF;
+}
+
+void out_gs(unsigned char port, unsigned char byte)
+{
+#ifdef MOD_GSZ80
+   if (conf.gs_type == 1) { z80gs::out_gs(port, byte); return; }
+#endif
+
+#ifdef MOD_GSBASS
+   if (conf.gs_type == 2) { gs.out(port, byte); return; }
+#endif
+}
+
+void reset_gs_sound()
+{
+#ifdef MOD_GSZ80
+   z80gs::sound.clear();
+#endif
+
+#ifdef MOD_GSBASS
+   gs.chan[0].sound_state.clear();
+   gs.chan[1].sound_state.clear();
+   gs.chan[2].sound_state.clear();
+   gs.chan[3].sound_state.clear();
+#endif
+}
+
+void reset_gs()
+{
+#ifdef MOD_GSZ80
+   if (conf.gs_type == 1) { z80gs::reset(); return; }
+#endif
+
+#ifdef MOD_GSBASS
+   if (conf.gs_type == 2) { gs.reset(); return; }
+#endif
+}
+
+void apply_gs()
+{
+#ifdef MOD_GSZ80
+   if (conf.gs_type == 1) z80gs::apply_gs();
+#endif
+
+#ifdef MOD_GSBASS
+   if (conf.gs_type == 2) gs.applyconfig();
+#endif
+}
+
+void init_gs()
+{
+#ifdef MOD_GSZ80
+   make_gs_volume(); // for GS-Z80
+#endif
+
+#ifdef MOD_GSBASS
+   gs.hBass = 0;     // for GS-BASS
+#endif
+
+   reset_gs();
+}
+
+void init_gs_frame()
+{
+#ifdef MOD_GSZ80
+   if (conf.gs_type==1) z80gs::init_gs_frame();
+#endif
+}
+
+void flush_gs_frame()
+{
+#ifdef MOD_GSZ80
+   if (conf.gs_type==1) { z80gs::flush_gs_frame(); return; }
+#endif
+
+#ifdef MOD_GSBASS
+   if (conf.sound.gs==2) { gs.mix_fx(); return; }
+#endif
+}
+
+#endif  // MOD_GS
