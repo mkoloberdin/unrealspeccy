@@ -1,12 +1,12 @@
-call compile rc settings.rc
-call compile ms emul.cpp /link settings.res
+@set msg=
+call compile rc /fo"settings.res" src/settings.rc
+call compile ms src/emul.cpp /Fe"unreal.exe" /YX"stdheads.pch" /link settings.res
 @if errorlevel 1 goto fail
-fs -rn emul.exe >nul
-fs -c  emul.exe  >nul
-copy emul.exe unreal.exe
+fs -rn unreal.exe >nul
+fs -c  unreal.exe >nul
 @goto buildok
 :fail
-@echo 
+@echo %MSG%
 :buildok
-@echo 
+@echo %MSG%
 ::net send CRAY "compile done"
