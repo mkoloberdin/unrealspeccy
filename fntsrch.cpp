@@ -1,3 +1,12 @@
+#include "std.h"
+
+#include "resource.h"
+#include "emul.h"
+#include "vars.h"
+#include "dxr_text.h"
+
+#include "util.h"
+
 #ifdef MOD_SETTINGS
 unsigned font_maxmem = 0xFFFF;
 unsigned char r21=1, r30=1, r41=1, r61=1, r80=1, rae=1, rf0=0, roth=0;
@@ -388,13 +397,15 @@ void save_font()
 
 void FontFromFile(HWND dlg)
 {
-   OPENFILENAME ofn = { /*OPENFILENAME_SIZE_VERSION_400*/sizeof OPENFILENAME }; //Alone Coder
+   OPENFILENAME ofn = { 0 };
    char fname[0x200]; *fname = 0;
+
+   ofn.lStructSize = (WinVerMajor < 5) ? OPENFILENAME_SIZE_VERSION_400 : sizeof(OPENFILENAME);
    ofn.hwndOwner = dlg;
    ofn.lpstrFilter = "font files (*.FNT,*.FNX)\0*.fnt;*.fnx\0All files\0*.*\0";
    ofn.lpstrFile = fname; ofn.nMaxFile = sizeof fname;
    ofn.lpstrTitle = "Load font from file";
-   ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+   ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR | OFN_HIDEREADONLY;
    if (!GetOpenFileName(&ofn)) return;
 
    FILE *ff = fopen(fname, "rb"); if (!ff) return;

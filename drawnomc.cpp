@@ -1,3 +1,9 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "drawnomc.h"
 
 void draw_border()
 {
@@ -11,35 +17,62 @@ void draw_gigascreen_no_border();
 
 void draw_screen()
 {
-   if (comp.pEFF7 & EFF7_384) { draw_alco(); return; }
-   if (conf.nopaper) { draw_border(); return; }
+/* [vv] Отключен, т.к. этот бит использется для DDp scroll
+   if (comp.pEFF7 & EFF7_384)
+   {
+       draw_alco();
+       return;
+   }
+*/
+
+   if (conf.nopaper)
+   {
+       draw_border();
+       return;
+   }
 //   if (comp.pEFF7 & EFF7_GIGASCREEN) { draw_border(); draw_gigascreen_no_border(); return; } //Alone Coder
 
    unsigned char *dst = rbuf;
    unsigned br = comp.border_attr * 0x11001100;
 
-   unsigned i; //Alone Coder 0.36.7
-   for (/*unsigned*/ i = temp.b_top*temp.scx/16; i; i--)
-      *(unsigned*)dst = br, dst += 4;
+   unsigned i;
+   for (i = temp.b_top * temp.scx / 16; i; i--)
+   {
+      *(unsigned*)dst = br;
+      dst += 4;
+   }
 
-   unsigned x; //Alone Coder 0.36.7
-   for (int y = 0; y < 192; y++) {
-      *(volatile unsigned*)dst;
-      for (/*unsigned*/ x = temp.b_left; x; x-=16)
-         *(unsigned*)dst = br, dst += 4;
+   for (int y = 0; y < 192; y++)
+   {
+//[vv] *(volatile unsigned*)dst;
 
-      for (x = 0; x < 32; x++) {
-         *(volatile unsigned char*)dst;
+      unsigned x;
+      for (x = temp.b_left; x; x -= 16)
+      {
+         *(unsigned*)dst = br;
+         dst += 4;
+      }
+
+      for (x = 0; x < 32; x++)
+      {
+//[vv]   *(volatile unsigned char*)dst;
          *dst++ = temp.base[t.scrtab[y] + x];
          *dst++ = colortab[temp.base[atrtab[y] + x]];
       }
 
-      *(volatile unsigned*)dst;
-      for (x = temp.b_right; x; x-=16)
-         *(unsigned*)dst = br, dst += 4;
+//[vv]      *(volatile unsigned*)dst;
+      for (x = temp.b_right; x; x -= 16)
+      {
+         *(unsigned*)dst = br;
+         dst += 4;
+      }
    }
-   for (i = temp.b_bottom*temp.scx/16; i; i--)
-      *(unsigned*)dst = br, dst += 4;
+
+   for (i = temp.b_bottom*temp.scx / 16; i; i--)
+   {
+      *(unsigned*)dst = br;
+      dst += 4;
+   }
 }
 
 void draw_gigascreen_no_border()
@@ -57,4 +90,3 @@ void draw_gigascreen_no_border()
       dst += temp.scx / 4;
    }
 }
-

@@ -1,3 +1,8 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
 
 void draw_alco_384()
 {

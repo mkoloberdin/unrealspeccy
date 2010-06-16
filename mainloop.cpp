@@ -1,3 +1,19 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "sound.h"
+#include "draw.h"
+#include "dx.h"
+#include "dxr_rsm.h"
+#include "leds.h"
+#include "memory.h"
+#include "snapshot.h"
+#include "emulkeys.h"
+#include "vs1001.h"
+#include "z80.h"
+
+#include "util.h"
 
 void spectrum_frame()
 {
@@ -7,8 +23,18 @@ void spectrum_frame()
    init_snd_frame();
    init_frame();
 
-   (dbgchk) ? z80dbg::z80loop() : z80fast::z80loop();
-   if (modem.open_port) modem.io();
+   if(cpu.dbgchk)
+   {
+       cpu.SetDbgMemIf();
+       z80dbg::z80loop();
+   }
+   else
+   {
+       cpu.SetFastMemIf();
+       z80fast::z80loop();
+   }
+   if (modem.open_port)
+       modem.io();
 
    flush_snd_frame();
    flush_frame();
@@ -18,10 +44,17 @@ void spectrum_frame()
         (conf.mem_model == MM_ATM710 && !(comp.pFF77 & 0x20))) // int disabled by ATM hardware
    {
       unsigned char *mp = am_r(cpu.pc);
-      if (cpu.halted) strcpy(statusline, "CPU HALTED"), statcnt = 10;
+      if (cpu.halted)
+      {
+          strcpy(statusline, "CPU HALTED");
+          statcnt = 10;
+      }
       if (*(unsigned short*)mp == WORD2(0x18,0xFE) ||
           ((*mp == 0xC3) && *(unsigned short*)(mp+1) == (unsigned short)cpu.pc))
-         strcpy(statusline, "CPU STOPPED"), statcnt = 10;
+      {
+         strcpy(statusline, "CPU STOPPED");
+         statcnt = 10;
+      }
    }
 
    comp.t_states += conf.frame;
@@ -35,7 +68,7 @@ void do_idle()
    static unsigned long long last_cpu = rdtsc();
    for (;;)
    {
-      __asm__("pause");
+      asm_pause();
       unsigned long long cpu = rdtsc();
       if ((cpu-last_cpu) >= temp.ticks_frame)
           break;
@@ -111,12 +144,15 @@ void __declspec(noreturn) mainloop(const bool &Exit)
       for (unsigned f = rsm.needframes[rsm.frame]; f; f--)
       {
          temp.sndblock = !conf.sound.enabled;
-         temp.inputblock = temp.vidblock;
+         temp.inputblock = temp.vidblock && conf.sound.enabled;
          spectrum_frame();
+         VideoSaver();
 
          // message handling before flip (they paint to rbuf)
          if (!temp.inputblock)
+         {
              dispatch(conf.atm.xt_kbd ? ac_main_xt : ac_main);
+         }
          if (!temp.sndblock)
          {
              do_sound();

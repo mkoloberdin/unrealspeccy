@@ -1,3 +1,10 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "wd93crc.h"
+
+#include "util.h"
 
 struct UDI
 {
@@ -65,7 +72,8 @@ int FDD::write_udi(FILE *ff)
 
    unsigned char *dst = snbuf+0x10;
    for (unsigned c = 0; c < cyls; c++)
-      for (unsigned s = 0; s < sides; s++) {
+      for (unsigned s = 0; s < sides; s++)
+      {
          *dst++ = 0;
          unsigned len = trklen[c][s];
          *(unsigned short*)dst = len; dst += 2;

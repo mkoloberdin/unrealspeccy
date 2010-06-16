@@ -1,3 +1,23 @@
+#include "std.h"
+
+#include "resource.h"
+#include "emul.h"
+#include "vars.h"
+#include "config.h"
+#include "draw.h"
+#include "dx.h"
+#include "debug.h"
+#include "memory.h"
+#include "sound.h"
+#include "savesnd.h"
+#include "tape.h"
+#include "gui.h"
+#include "leds.h"
+#include "snapshot.h"
+#include "wd93dat.h"
+#include "init.h"
+#include "z80.h"
+#include "util.h"
 
 void main_pause()
 {
@@ -19,7 +39,11 @@ void main_pause()
 
 void main_debug()
 {
-   dbgchk = dbgbreak = 1;
+   Z80 &cpu = CpuMgr.Cpu();
+
+   cpu.dbgchk = 1;
+   cpu.dbgbreak = 1;
+   dbgbreak = 1;
 }
 
 enum { FIX_FRAME = 0, FIX_LINE, FIX_PAPER, FIX_NOPAPER, FIX_HWNC, FIX_LAST };
@@ -210,7 +234,8 @@ void main_poke()
    sound_play();
 }
 
-void main_starttape() {
+void main_starttape()
+{
    //if (comp.tape.play_pointer) stop_tape(); else start_tape();
    (comp.tape.play_pointer) ? stop_tape() : start_tape();
 }
@@ -256,7 +281,7 @@ void m_nmi(ROM_MODE page)
 {
    set_mode(page);
    sprintf(statusline, "NMI to %s", getrom(page)); statcnt = 50;
-   cpu.sp -= 2; z80dbg::wm(cpu.sp, cpu.pcl); z80dbg::wm(cpu.sp+1, cpu.pch);
+   cpu.sp -= 2; cpu.DbgMemIf->wm(cpu.sp, cpu.pcl); cpu.DbgMemIf->wm(cpu.sp+1, cpu.pch);
    cpu.pc = 0x66; cpu.iff1 = cpu.halted = 0;
 }
 void main_nmi() { m_nmi(RM_NOCHANGE); }
@@ -308,20 +333,29 @@ void main_autofire()
 void main_save()
 {
    sound_stop();
-   if (conf.cmos) save_nv();
+   if (conf.cmos)
+       save_nv();
    unsigned char optype = 0;
-   for (int i = 0; i < 4; i++) {
-      if (!comp.wd.fdd[i].test()) return;
+   for (int i = 0; i < 4; i++)
+   {
+      if (!comp.wd.fdd[i].test())
+          return;
       optype |= comp.wd.fdd[i].optype;
    }
 
-   if (!optype) sprintf(statusline, "all saved"), statcnt = 30;
+   if (!optype)
+       sprintf(statusline, "all saved"), statcnt = 30;
 }
 
 void main_fullscr()
 {
-   if (!(temp.rflags & (RF_GDI|RF_OVR|RF_CLIP))) sprintf(statusline, "only for overlay/gdi modes"), statcnt = 30;
-   else conf.fullscr ^= 1, apply_video();
+   if (!(temp.rflags & (RF_GDI|RF_OVR|RF_CLIP)))
+       sprintf(statusline, "only for overlay/gdi modes"), statcnt = 30;
+   else
+   {
+       conf.fullscr ^= 1;
+       apply_video();
+   }
 }
 
 void main_mouse()
@@ -361,9 +395,9 @@ void wnd_resize(int scale)
 
    ShowWindow(wnd, SW_RESTORE);
    DWORD style = GetWindowLong(wnd, GWL_STYLE);
-   RECT rc = { 0,0, temp.ox * scale, temp.oy * scale };
+   RECT rc = { 0, 0, temp.ox * scale, temp.oy * scale };
    AdjustWindowRect(&rc, style, 0);
-   SetWindowPos(wnd, 0, 0,0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOCOPYBITS | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+   SetWindowPos(wnd, 0, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOCOPYBITS | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
    sprintf(statusline, "scale: %dx", scale);
    statcnt = 50;
 }
@@ -375,10 +409,11 @@ void main_sizem() { wnd_resize(0); }
 void correct_exit()
 {
    sound_stop();
-   for (int i = 0; i < 4; i++)
-      if (!comp.wd.fdd[i].test())
-          return;
+   if(!done_fdd(true))
+       return;
+
    nowait = 1;
+   normal_exit = true;
    exit();
 }
 

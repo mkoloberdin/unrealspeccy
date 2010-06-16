@@ -1,10 +1,17 @@
-#define MAX_WIDTH_P (64*2)
-#define MAX_WIDTH 512
-#define MAX_HEIGHT 304
-#define MAX_BUFFERS 8
+#include "std.h"
 
-const int rb2_offs = MAX_HEIGHT*MAX_WIDTH_P;
-const int sizeof_rbuf = rb2_offs*(MAX_BUFFERS+2);
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "drawnomc.h"
+#include "dx.h"
+#include "dxr_text.h"
+#include "dxr_rsm.h"
+#include "dxr_advm.h"
+#include "memory.h"
+#include "config.h"
+
+#include "util.h"
 
 #ifdef CACHE_ALIGNED
 CACHE_ALIGNED unsigned char rbuf[sizeof_rbuf];
@@ -16,106 +23,56 @@ unsigned char * const rbuf = (unsigned char*)rbuf__;
 unsigned char * const rbuf_s = rbuf + rb2_offs; // frames to mix with noflic and resampler filters
 unsigned char * const save_buf = rbuf_s + rb2_offs*MAX_BUFFERS; // used in monitor
 
-struct videopoint
-{
-   unsigned next_t;
-   unsigned char *screen_ptr;
-   union {
-      unsigned nextvmode;  // for vmode=1
-      unsigned atr_offs;   // for vmode=2
-   };
-   unsigned scr_offs;
-};
+T t;
 
-const int sc2lines_width = MAX_WIDTH*2;
-
-#define MAX_FONT_TABLES 0x62000
-CACHE_ALIGNED struct {
-   struct { // switch palette/color values
-      // 8bit
-      unsigned sctab8[2][16*0x100];  //4 bits data+pc-attribute -> 4 palette pixels
-      unsigned sctab8d[2][4*0x100];  //2 bits data+pc-attribute -> 2 palette pixels (doubled)
-      unsigned sctab8q[2*0x100];     //1 bit  data+pc-attribute -> 1 palette pixel (quad)
-      // 16bit & 32bit
-      unsigned sctab16[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
-      unsigned sctab16d[2][2*0x100]; //1 bit  data+pc-attribute -> 1 pixel (doubled)
-      unsigned sctab32[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
-   };
-
-   union { // switch chunks/noflic
-      unsigned c32tab[0x100][32]; // for chunks 16/32: n_pixels+attr -> chunk color
-      struct {
-         unsigned sctab16_nf[2][4*0x100];  //2 bits data+pc-attribute -> 2 pixels
-         unsigned sctab16d_nf[2][2*0x100]; //1 bit  data+pc-attribute -> 2 pixels
-         unsigned sctab32_nf[2][2*0x100];  //1 bit  data+pc-attribute -> 1 pixel
-      };
-   };
-
-   unsigned char attrtab[0x200]; // pc attribute + bit (pixel on/off) -> palette index
-
-   CACHE_ALIGNED union {
-      unsigned p4bpp8[2][0x100];   // ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
-      unsigned p4bpp16[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
-      unsigned p4bpp32[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
-   };
-   CACHE_ALIGNED union {
-      unsigned p4bpp16_nf[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
-      unsigned p4bpp32_nf[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
-   };
-   CACHE_ALIGNED union {
-      struct {
-         unsigned zctab8[2][16*0x100];  // 4 bits data+zx-attribute -> 4 palette pixels
-         unsigned zctab8ad[2][4*0x100]; // 2 bits data+zx-attribute -> 2 palette pixels (doubled)
-      };
-      struct {
-         unsigned zctab16[2][4*0x100];  // 2 bits data+pc-attribute -> 2 pixels
-         unsigned zctab16ad[2][2*0x100];// 1 bits data+pc-attribute -> 1 pixel (doubled)
-      };
-      struct {
-         unsigned zctab32[2][2*0x100];  // 1 bit  data+pc-attribute -> 1 pixel
-         unsigned zctab32ad[2][2*0x100];// 1 bit  data+pc-attribute -> 1 pixel
-      };
-   };
-
-   union {
-      struct {
-         CACHE_ALIGNED unsigned char scale2buf[8][sc2lines_width];    // temp buffer for scale2x,3x filter
-         CACHE_ALIGNED unsigned char scale4buf[8][sc2lines_width];    // temp buffer for scale4x filter
-      };
-      unsigned bs2h[96][129];      // temp buffer for chunks 2x2 flt
-      unsigned bs4h[48][65];       // temp buffer for chunks 4x4 flt
-      unsigned font_tables[MAX_FONT_TABLES / sizeof(unsigned)]; // for anti-text64
-   };
-   // pre-calculated
-   unsigned settab[0x100];         // for chunks 4x4
-   unsigned settab2[0x100];        // for chunks 2x2
-   unsigned dbl[0x100]; // reverse and double pixels (for scaling renderer)
-   unsigned scrtab[256]; // offset to start of line
-   unsigned atrtab[256]; // offset to start of attribute line
-   unsigned atrtab_hwmc[256]; // attribute for HWMC
-   unsigned atm_pal_map[0x100]; // atm palette port value -> palette index
-   struct {   // for AlCo-384
-      unsigned char *s, *a;
-   } alco[304][8];
-
-   #ifdef MOD_VID_VD
-   __m64 vdtab[2][4][256];
-   #endif
-
-} t;
-
-videopoint *vcurr, video[4*MAX_HEIGHT];
+videopoint *vcurr;
+videopoint video[4*MAX_HEIGHT];
 unsigned vmode;  // what are drawing: 0-not visible, 1-border, 2-screen
 unsigned prev_t; // last drawn pixel
 unsigned *atrtab;
 
 unsigned char colortab[0x100];// map zx attributes to pc attributes
-unsigned colortab_s8[0x100], colortab_s24[0x100]; // colortab shifted to 8 and 24
+// colortab shifted to 8 and 24
+unsigned colortab_s8[0x100];
+unsigned colortab_s24[0x100];
 
+/*
 #include "drawnomc.cpp"
 #include "draw_384.cpp"
+*/
 
 PALETTEENTRY pal0[0x100]; // emulator palette
+
+void AtmVideoController::PrepareFrameATM2(int VideoMode)
+{
+    for (int y=0; y<256; y++)
+    {
+        if ( VideoMode == 6 )
+        {
+            // смещени€ в текстовом видеорежиме
+            Scanlines[y].Offset = 64*(y/8);
+        } else {
+            // смещени€ в растровом видеорежиме
+            Scanlines[y].Offset = (y<56) ? 0 : 40*(y-56);
+        }
+        Scanlines[y].VideoMode = VideoMode;
+    }
+    CurrentRayLine = 0;
+    IncCounter_InRaster = 0;
+    IncCounter_InBorder = 0;
+}
+
+void AtmVideoController::PrepareFrameATM1(int VideoMode)
+{
+    for (int y=56; y<256; y++)
+    {
+        Scanlines[y].Offset = 40*(y-56);
+        Scanlines[y].VideoMode = VideoMode;
+    }
+}
+
+
+AtmVideoController AtmVideoCtrl;
 
 void video_permanent_tables()
 {
@@ -176,6 +133,11 @@ void video_permanent_tables()
       ((unsigned char*)t.vdtab[1])[i] = ((unsigned char*)t.vdtab[0])[i] & 0x0F;
    _mm_empty();
    #endif
+
+   temp.offset_vscroll_prev = 0;
+   temp.offset_vscroll = 0;
+   temp.offset_hscroll_prev = 0;
+   temp.offset_hscroll = 0;
 }
 
 unsigned getYUY2(unsigned r, unsigned g, unsigned b)
@@ -220,6 +182,7 @@ void create_palette()
       unsigned r = 0xFF & ((r0 * pl->r11 + g0 * pl->r12 + b0 * pl->r13) / 0x100);
       unsigned g = 0xFF & ((r0 * pl->r21 + g0 * pl->r22 + b0 * pl->r23) / 0x100);
       unsigned b = 0xFF & ((r0 * pl->r31 + g0 * pl->r32 + b0 * pl->r33) / 0x100);
+
       // prepare palette in bitmap header for GDI renderer
       gdibmp.header.bmiColors[i].rgbRed   = pal0[i].peRed   = r;
       gdibmp.header.bmiColors[i].rgbGreen = pal0[i].peGreen = g;
@@ -271,25 +234,35 @@ void make_colortab(char flash_active)
 void attr_tables()
 {
    unsigned char flashcolor = (temp.rflags & RF_MON)? 0 : conf.flashcolor;
-   for (unsigned a = 0; a < 0x100; a++) {
+   for (unsigned a = 0; a < 0x100; a++)
+   {
       unsigned char ink = (a & 0x0F), paper = (a >> 4);
-      if (flashcolor) paper = (paper & 7) + (ink & 8); // paper_bright from ink
+      if (flashcolor)
+          paper = (paper & 7) + (ink & 8); // paper_bright from ink
 
-      if (temp.rflags & RF_GRAY) { // grayscale palette
+      if (temp.rflags & RF_GRAY)
+      { // grayscale palette
          t.attrtab[a] = paper*16;
          t.attrtab[a+0x100] = ink*16;
-      } else if (temp.rflags & RF_ATMPAL) { //------ for ATM palette - direct values from palette registers
-         t.attrtab[a] = comp.atm_pal[a >> 4];
-         t.attrtab[a+0x100] = comp.atm_pal[a & 0x0F];
-      } else if (temp.rflags & RF_PALB) { //----------------------------- for bilinear
+      }
+      else if (temp.rflags & RF_COMPPAL)
+      { //------ for ATM palette - direct values from palette registers
+         t.attrtab[a] = comp.comp_pal[a >> 4];
+         t.attrtab[a+0x100] = comp.comp_pal[a & 0x0F];
+      }
+      else if (temp.rflags & RF_PALB)
+      { //----------------------------- for bilinear
          unsigned char b0,b1, r0,r1, g0,g1;
          b0 = (paper >> 0) & 1, r0 = (paper >> 1) & 1, g0 = (paper >> 2) & 1;
          b1 = (ink >> 0) & 1, r1 = (ink >> 1) & 1, g1 = (ink >> 2) & 1;
 
-         if (flashcolor && (a & 0x80)) {
+         if (flashcolor && (a & 0x80))
+         {
             b1 += b0, r1 += r0, g1 += g0;
             r0 = b0 = g0 = 0;
-         } else {
+         }
+         else
+         {
             b0 *= 2, r0 *= 2, g0 *=2,
             b1 *= 2, r1 *= 2, g1 *=2;
          }
@@ -307,12 +280,20 @@ void attr_tables()
          // palette index: gg0rr0bb
          t.attrtab[a+0x100]  = (g1 << 6) + (r1 << 3) + b1;
          t.attrtab[a]        = (g0 << 6) + (r0 << 3) + b0;
-      } else //------------------------------------ all others
+      }
+      else //------------------------------------ all others
       {
          // palette index: ygrbYGRB
-         if (flashcolor && (a & 0x80)) {
-            t.attrtab[a] = 0, t.attrtab[a+0x100] = ink+(paper<<4);
-         } else t.attrtab[a+0x100] = ink * 0x11, t.attrtab[a] = paper * 0x11;
+         if (flashcolor && (a & 0x80))
+         {
+             t.attrtab[a] = 0;
+             t.attrtab[a+0x100] = ink+(paper<<4);
+         }
+         else
+         {
+             t.attrtab[a] = paper * 0x11;
+             t.attrtab[a+0x100] = ink * 0x11;
+         }
       }
    }
 }
@@ -422,28 +403,43 @@ void calc_noflic_16_32()
 // pal.index => raw video data, shadowed with current scanline pass
 unsigned raw_data(unsigned index, unsigned pass, unsigned bpp)
 {
-   if (bpp == 8) {
+   if (bpp == 8)
+   {
 
-      if (pass) {
-         if (!conf.scanbright) return 0;
+      if (pass)
+      {
+         if (!conf.scanbright)
+             return 0;
          // palette too small to realize noflic/atari with shaded scanlines
-         if (conf.scanbright < 100 && !conf.noflic && !conf.atariset[0]) {
-            if (temp.rflags & RF_PALB) index = (index & (index << 1) & 0x92) | ((index ^ 0xFF) & (index >> 1) & 0x49);
-            else index &= 0x0F;
+         if (conf.scanbright < 100 && !conf.noflic && !conf.atariset[0])
+         {
+            if (temp.rflags & RF_PALB)
+                index = (index & (index << 1) & 0x92) | ((index ^ 0xFF) & (index >> 1) & 0x49);
+            else
+                index &= 0x0F;
          }
       }
       return index * 0x01010101;
    }
 
    unsigned r = pal0[index].peRed, g = pal0[index].peGreen, b = pal0[index].peBlue;
-   if (pass) r = r*conf.scanbright/100, g = g*conf.scanbright/100, b = b*conf.scanbright/100;
+   if (pass)
+   {
+       r = r * conf.scanbright / 100;
+       g = g * conf.scanbright / 100;
+       b = b * conf.scanbright / 100;
+   }
 
-   if (bpp == 32) return WORD4(b,g,r,0);
+   if (bpp == 32)
+       return WORD4(b,g,r,0);
 
    // else (bpp == 16)
-   if (temp.hi15==0) return ((b/8) + ((g/4)<<5) + ((r/8)<<11)) * 0x10001;
-   if (temp.hi15==1) return ((b/8) + ((g/8)<<5) + ((r/8)<<10)) * 0x10001;
-   if (temp.hi15==2) return getYUY2(r,g,b);
+   if (temp.hi15==0)
+       return ((b/8) + ((g/4)<<5) + ((r/8)<<11)) * 0x10001;
+   if (temp.hi15==1)
+       return ((b/8) + ((g/8)<<5) + ((r/8)<<10)) * 0x10001;
+   if (temp.hi15==2)
+       return getYUY2(r,g,b);
    return 0;
 }
 
@@ -465,10 +461,12 @@ unsigned atari_to_raw(unsigned at, unsigned pass)
 void pixel_tables()
 {
    attr_tables();
-   for (unsigned pass = 0; pass < 2; pass++) {
+   for (unsigned pass = 0; pass < 2; pass++)
+   {
       for (unsigned at = 0; at < 0x100; at++)
       {
-         unsigned px0 = t.attrtab[at], px1 = t.attrtab[at+0x100];
+         unsigned px0 = t.attrtab[at];
+         unsigned px1 = t.attrtab[at+0x100];
          unsigned p0 = raw_data(px0, pass, temp.obpp);
          unsigned p1 = raw_data(px1, pass, temp.obpp);
 
@@ -476,28 +474,32 @@ void pixel_tables()
          t.sctab32[pass][at] = raw_data(px0, pass, 32);
          t.sctab32[pass][at+0x100] = raw_data(px1, pass, 32);
 
-                 unsigned j; //Alone Coder
          // 8 bit
-         for (/*unsigned*/ j = 0; j < 0x10; j++) {
+         unsigned j;
+         for (j = 0; j < 0x10; j++)
+         {
             unsigned mask = (j >> 3)*0xFF + (j & 0x04)*(0xFF00/4) +
                             (j & 0x02)*(0xFF0000/2) + (j & 1)*0xFF000000;
             t.sctab8[pass][j + at*0x10] = (mask & p1) + (~mask & p0);
          }
-         for (j = 0; j < 4; j++) {
+         for (j = 0; j < 4; j++)
+         {
             unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
             t.sctab8d[pass][j+at*4] = (mask & p1) + (~mask & p0);
          }
          t.sctab8q[at] = p0, t.sctab8q[at+0x100] = p1;
 
          // 16 bit
-         for (/*unsigned*/ j = 0; j < 4; j++) {
+         for (j = 0; j < 4; j++)
+         {
             unsigned mask = (j >> 1)*0xFFFF + (j & 1)*0xFFFF0000;
             t.sctab16[pass][j+at*4] = (mask & p1) + (~mask & p0);
          }
          t.sctab16d[pass][at] = p0, t.sctab16d[pass][at+0x100] = p1;
 
          unsigned atarimode;
-         if (!(temp.rflags & RF_MON) && (atarimode = temp.ataricolors[at])) {
+         if (!(temp.rflags & RF_MON) && (atarimode = temp.ataricolors[at]))
+         {
             unsigned rawdata[4], i;
             for (i = 0; i < 4; i++) rawdata[i] = atari_to_raw((atarimode >> (8*i)) & 0xFF, pass);
             for (i = 0; i < 16; i++) t.sctab8[pass][at*0x10+i] = rawdata[i/4] + 16*rawdata[i & 3];
@@ -553,7 +555,11 @@ void video_color_tables()
 
 void video_timing_tables()
 {
-   if (conf.frame < 2000) conf.frame = 2000;
+   if (conf.frame < 2000)
+   {
+       conf.frame = 2000;
+       cpu.SetTpi(conf.frame);
+   }
    if (conf.t_line < 128) conf.t_line = 128;
    conf.nopaper &= 1;
    atrtab = (comp.pEFF7 & EFF7_HWMC) ? t.atrtab_hwmc : t.atrtab;
@@ -581,14 +587,16 @@ void video_timing_tables()
    #define ts(t) (((int)(t) < 0) ? 0 : t)
    unsigned t = conf.paper - temp.b_top*conf.t_line;
    video[inx++].next_t = ts(t - temp.b_left/2);
-   for (i = 0; i < temp.b_top; i++) { // top border
+   for (i = 0; i < temp.b_top; i++)
+   { // top border
       video[inx].next_t = ts(t + (buf_mid+temp.b_right)/2);
       video[inx].screen_ptr = rbuf+width*i;
       video[inx].nextvmode = 0;
       inx++; t += conf.t_line;
       video[inx++].next_t = ts(t - temp.b_left/2);
    }
-   for (i = 0; i < mid_lines; i++) { // screen+border
+   for (i = 0; i < mid_lines; i++)
+   { // screen+border
       video[inx].next_t = ts(t);
       video[inx].screen_ptr = rbuf+width*(i+temp.b_top);
       video[inx].nextvmode = 2; inx++;
@@ -603,7 +611,8 @@ void video_timing_tables()
       inx++; t += conf.t_line;
       video[inx++].next_t = ts(t - temp.b_left/2);
    }
-   for (i = 0; i < temp.b_bottom; i++) { // bottom border
+   for (i = 0; i < temp.b_bottom; i++)
+   { // bottom border
       video[inx].next_t = ts(t + (buf_mid+temp.b_right)/2);
       video[inx].screen_ptr = rbuf+width*(i+temp.b_top+mid_lines);
       video[inx].nextvmode = 0;
@@ -616,7 +625,8 @@ void video_timing_tables()
    temp.border_add = conf.border_4T ? 6 : 0;
    temp.border_and = conf.border_4T ? 0xFFFFFFFC : 0xFFFFFFFF;
 
-   for (i = 0; i < NUM_LEDS; i++) {
+   for (i = 0; i < NUM_LEDS; i++)
+   {
       unsigned z = *(&conf.led.ay + i);
       int x = (signed short)(z & 0xFFFF);
       int y = (signed short)(((z >> 16) & 0x7FFF) + ((z >> 15) & 0x8000));
@@ -643,17 +653,27 @@ void apply_video()
 {
    load_ula_preset();
    temp.rflags = renders[conf.render].flags;
-   if (conf.atm.use_pal && (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450)) {
-      temp.rflags |= RF_ATMPAL | RF_PALB;
+   if (conf.use_comp_pal && (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450 || conf.mem_model == MM_PROFI))
+   {
+      temp.rflags |= RF_COMPPAL | RF_PALB;
       // disable palette noflic, only if it is really used
-      if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_USEFONT | RF_8BPCH)) == RF_DRIVER) conf.noflic = 0;
+      if (temp.obpp == 8 && (temp.rflags & (RF_DRIVER | RF_USEFONT | RF_8BPCH)) == RF_DRIVER)
+      conf.noflic = 0;
    }
-   if (renders[conf.render].func == render_rsm) conf.flip = 1; // todo: revert back after returning from frame resampler //Alone Coder
-   if (renders[conf.render].func == render_advmame) {
-      if (conf.videoscale == 2) temp.rflags |= RF_2X;
-      if (conf.videoscale == 3) temp.rflags |= RF_3X;
-      if (conf.videoscale == 4) temp.rflags |= RF_4X;
+
+   if (renders[conf.render].func == render_rsm)
+       conf.flip = 1; // todo: revert back after returning from frame resampler //Alone Coder
+
+   if (renders[conf.render].func == render_advmame)
+   {
+      if (conf.videoscale == 2)
+          temp.rflags |= RF_2X;
+      if (conf.videoscale == 3)
+          temp.rflags |= RF_3X;
+      if (conf.videoscale == 4)
+          temp.rflags |= RF_4X;
    } //Alone Coder
+
    set_video();
    calc_rsm_tables();
    video_timing_tables();
@@ -661,10 +681,12 @@ void apply_video()
 
 __inline unsigned char *raypointer()
 {
-   if (prev_t > conf.frame) return rbuf + rb2_offs;
-   if (!vmode) return vcurr[1].screen_ptr;
-   unsigned offs = (prev_t - vcurr[-1].next_t)/4;
-   return vcurr->screen_ptr + (offs+1)*2;
+   if (prev_t > conf.frame)
+       return rbuf + rb2_offs;
+   if (!vmode)
+       return vcurr[1].screen_ptr;
+   unsigned offs = (prev_t - vcurr[-1].next_t) / 4;
+   return vcurr->screen_ptr + (offs+1) * 2;
 }
 
 __inline void clear_until_ray()
@@ -685,62 +707,89 @@ void paint_scr(char alt) // alt=0/1 - main/alt screen, alt=2 - ray-painted
    }
 }
 
+// ¬ызываетс€ при записи в видеопам€ть нового значени€
 void update_screen()
 {
-   unsigned last_t = (cpu.t+temp.border_add) & temp.border_and;
+   unsigned last_t = (cpu.t + temp.border_add) & temp.border_and;
    unsigned t = prev_t;
-   if (t >= last_t) return;
+   if (t >= last_t)
+       return;
 
-   unsigned char b = comp.border_attr; b = (b<<4)+b;
+   unsigned char b = comp.border_attr;
+   b = (b<<4)+b;
 
-   if (vmode==1) goto mode1;
-   if (vmode==2) goto mode2;
+   if (vmode == 1)
+       goto mode1;
+   if (vmode == 2)
+       goto mode2;
 
-mode0:
+mode0: // not visible
    {
       vmode = 1;
-      t = vcurr->next_t; vcurr++;
-      if (t >= last_t) { done: prev_t = t; return; }
+      t = vcurr->next_t;
+      vcurr++;
+      if (t >= last_t)
+      {
+      done:
+          prev_t = t;
+          return;
+      }
    }
-mode1:
+mode1: // border
    {
       unsigned offs = (t - vcurr[-1].next_t);
       unsigned char *ptr = vcurr->screen_ptr + offs/2;
-      ptr = (unsigned char*)(ULONG_PTR(ptr) & ~1);
-      if (offs&3) {
-         *ptr++ = ((unsigned)0xFF00 >> ((offs&3)*2));
-         t += 4-(offs&3);
-         *ptr = (*ptr & 0x0F) + (b & 0xF0);  ptr++;
+      ptr = (unsigned char*)(ULONG_PTR(ptr) & ~ULONG_PTR(1));
+      if(offs & 3)
+      {
+         *ptr++ = ((unsigned)0xFF00 >> ((offs & 3)*2));
+         t += 4 -(offs & 3);
+         *ptr = (*ptr & 0x0F) + (b & 0xF0);
+         ptr++;
       }
       unsigned end = min(vcurr->next_t, last_t);
-      for (; t < end; t+=4) {
+      for (; t < end; t+=4)
+      {
          *(volatile unsigned char*)ptr;
-         *ptr++ = 0, *ptr++ = b;
+         *ptr++ = 0; *ptr++ = b;
       }
       t = end;
-      if (t == vcurr->next_t) vmode = vcurr->nextvmode, vcurr++;
-      if (t == last_t) goto done;
-      if (!vmode) goto mode0;
+      if (t == vcurr->next_t)
+      {
+          vmode = vcurr->nextvmode;
+          vcurr++;
+      }
+      if (t == last_t)
+          goto done;
+      if (!vmode)
+          goto mode0;
    }
-mode2:
+mode2: // screen
    {
       unsigned offs = (t - vcurr[-1].next_t)/4;
       unsigned char *scr = temp.base + vcurr->scr_offs + offs;
       unsigned char *atr = temp.base + vcurr->atr_offs + offs;
       unsigned char *ptr = vcurr->screen_ptr + offs*2;
       unsigned end = min(last_t, vcurr->next_t);
-      for (int i = 0; t < end; t += 4, i++) {
+      for (int i = 0; t < end; t += 4, i++)
+      {
          *(volatile unsigned char*)(ptr+2*i);
          ptr[2*i] = scr[i];
          ptr[2*i+1] = colortab[atr[i]];
       }
       t = end;
-      if (t == vcurr->next_t) vmode = 1, vcurr++;
-      if (t == last_t) goto done; else goto mode1;
+      if (t == vcurr->next_t)
+      {
+          vmode = 1;
+          vcurr++;
+      }
+      if (t == last_t)
+          goto done;
+      goto mode1;
    }
 }
 
-__inline void init_frame()
+void init_frame()
 {
    // recreate colors with flash attribute
    unsigned char frame = (unsigned char)comp.frame_counter;
@@ -750,11 +799,14 @@ __inline void init_frame()
    prev_t = -1; // block MCR
    temp.base_2 = 0; // block paper trace
 
-   if (temp.vidblock) return;
+   if (temp.vidblock)
+       return;
 
+/* [vv] ќтключен, т.к. этот бит использетс€ дл€ DDp scroll
    // AlCo384 - no border/paper rendering
-   if (comp.pEFF7 & EFF7_384) return;
-
+   if (comp.pEFF7 & EFF7_384)
+       return;
+*/
    // GIGASCREEN - no paper rendering
 //   if (comp.pEFF7 & EFF7_GIGASCREEN) goto allow_border; //Alone Coder
 
@@ -764,30 +816,65 @@ __inline void init_frame()
        (conf.mem_model == MM_ATM710 && (comp.pFF77 & 7) != 3) ||  // ATM-2 hires screen
        (conf.mem_model == MM_ATM450 && (comp.aFE & 0x60) != 0x60)) // ATM-1 hires screen
    {
+       if ( conf.mem_model == MM_ATM710 && !cpu.dbgchk)
+       {
+           // ATM2, один из расширенных видеорежимов
+           AtmVideoCtrl.PrepareFrameATM2(comp.pFF77 & 7);
+       }
+
+       if (conf.mem_model == MM_ATM450 && !cpu.dbgchk)
+       {
+           // ATM1, один из расширенных видеорежимов
+           AtmVideoCtrl.PrepareFrameATM1( (comp.aFE >> 5) & 3 );
+
+       }
+       
       // if border update disabled, dont show anything on zx-screen
-      if (!conf.updateb) return;
+      if (!conf.updateb)
+          return;
    }
 
    // paper + border
    temp.base_2 = temp.base;
 allow_border:
-   prev_t = vmode = 0; vcurr = video;
+   prev_t = vmode = 0;
+   vcurr = video;
 }
 
-__inline void flush_frame()
+void flush_frame()
 {
-   if (temp.vidblock) return;
-   if (prev_t != -1) { // MCR on
-      if (prev_t) { // paint until end of frame
+   if (temp.vidblock)
+       return;
+   if (prev_t != -1)
+   { // MCR on
+      if (prev_t)
+      {  // paint until end of frame
          // paint until screen bottom, even if n_lines*t_line < cpu.t (=t_frame)
-         unsigned t = cpu.t; cpu.t = 0x7FFF0000;
-         update_screen(); cpu.t = t;
+         unsigned t = cpu.t;
+         cpu.t = 0x7FFF0000;
+         update_screen();
+         cpu.t = t;
 //         if (comp.pEFF7 & EFF7_GIGASCREEN) draw_gigascreen_no_border(); //Alone Coder
-      } else { // MCR on, but no screen updates in last frame - use fast painter
-         if (temp.base_2 /*|| (comp.pEFF7 & EFF7_GIGASCREEN)*/ /*Alone Coder*/) draw_screen();
-             else draw_border();
+      }
+      else
+      { // MCR on, but no screen updates in last frame - use fast painter
+         if (temp.base_2 /*|| (comp.pEFF7 & EFF7_GIGASCREEN)*/ /*Alone Coder*/)
+             draw_screen();
+         else
+             draw_border();
       }
       return;
    }
-   if (comp.pEFF7 & EFF7_384) draw_alco();
+   if (comp.pEFF7 & EFF7_384)
+       draw_alco();
+}
+
+void load_spec_colors()
+{
+   // spectrum colors -> palette indexes (RF_PALB - gg0rr0bb format)
+   static unsigned char comp_pal[16] =
+      { 0x00, 0x02, 0x10, 0x12, 0x80, 0x82, 0x90, 0x92,
+        0x00, 0x03, 0x18, 0x1B, 0xC0, 0xC3, 0xD8, 0xDB };
+   memcpy(comp.comp_pal, comp_pal, sizeof comp.comp_pal);
+   temp.comp_pal_changed = 1;
 }

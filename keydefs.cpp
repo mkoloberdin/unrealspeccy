@@ -1,3 +1,20 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "emulkeys.h"
+#include "snapshot.h"
+#include "gui.h"
+#include "savesnd.h"
+#include "cheat.h"
+#include "dbgreg.h"
+#include "dbgcmd.h"
+#include "dbgoth.h"
+#include "dbgrwdlg.h"
+#include "dbgbpx.h"
+#include "dbgtrace.h"
+#include "dbglabls.h"
+#include "dbgmem.h"
 
 action ac_main[] =
 {
@@ -17,7 +34,8 @@ action ac_main[] =
    { "main.selectdriver", main_selectdriver },
    { "main.pokedialog", main_poke },
    { "main.starttape", main_starttape },
-   { "main.screenshot", scrshot },
+   { "main.screenshot", main_scrshot },
+   { "main.savevideo", main_savevideo },
    { "main.reset", main_reset },
    { "main.reset128", main_reset128 },
    { "main.resetsys", main_resetsys },

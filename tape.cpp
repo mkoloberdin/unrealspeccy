@@ -1,11 +1,13 @@
-#define Z80FQ 3500000
+#include "std.h"
 
-struct TAPEINFO
-{
-   char desc[280];
-   unsigned pos;
-   unsigned t_size;
-};
+#include "emul.h"
+#include "vars.h"
+#include "tape.h"
+#include "memory.h"
+
+#include "util.h"
+
+#define Z80FQ 3500000
 
 unsigned tape_pulse[0x100];
 unsigned max_pulses = 0;
@@ -23,17 +25,28 @@ unsigned appendable;
 
 unsigned find_pulse(unsigned t)
 {
-   if (max_pulses < 0x100) {
+   if (max_pulses < 0x100)
+   {
       for (unsigned i = 0; i < max_pulses; i++)
-         if (tape_pulse[i] == t) return i;
+         if (tape_pulse[i] == t)
+             return i;
       tape_pulse[max_pulses] = t;
       return max_pulses++;
    }
-   if (!tape_err) errmsg("pulse table full"), tape_err = 1;
+   if (!tape_err)
+   {
+       errmsg("pulse table full");
+       tape_err = 1;
+   }
    unsigned nearest = 0; int delta = 0x7FFFFFFF;
    for (unsigned i = 0; i < 0x100; i++)
+   {
       if (delta > abs((int)t - (int)tape_pulse[i]))
-         nearest = i, delta = abs((int)t - (int)tape_pulse[i]);
+      {
+         nearest = i;
+         delta = abs((int)t - (int)tape_pulse[i]);
+      }
+   }
    return nearest;
 }
 
@@ -97,8 +110,6 @@ void closetape()
    comp.tape.edge_change = 0x7FFFFFFFFFFFFFFF;
    comp.tape.tape_bit = -1;
 }
-#define init_tape closetape
-#define done_tape closetape
 
 void reserve(unsigned datasize)
 {
@@ -181,14 +192,22 @@ int readCSW()
 {
    closetape();
    named_cell("CSW tape image");
-   if (snbuf[0x1B] != 1) return 0; // unknown compression type
-   unsigned rate = Z80FQ / *(unsigned short*)(snbuf+0x19); // usually 3.5mhz / 44khz
-   if (!rate) return 0;
+   if (snbuf[0x1B] != 1)
+       return 0; // unknown compression type
+   unsigned rate = Z80FQ / *(unsigned short*)(snbuf + 0x19); // usually 3.5mhz / 44khz
+   if (!rate)
+       return 0;
    reserve(snapsize - 0x18);
-   if (!(snbuf[0x1C] & 1)) tape_image[tape_imagesize++] = find_pulse(1);
-   for (unsigned char *ptr = snbuf+0x20; ptr < snbuf+snapsize; ) {
+   if (!(snbuf[0x1C] & 1))
+       tape_image[tape_imagesize++] = find_pulse(1);
+   for (unsigned char *ptr = snbuf + 0x20; ptr < snbuf + snapsize; )
+   {
       unsigned len = *ptr++ * rate;
-      if (!len) len = *(unsigned*)ptr / rate, ptr += 4;
+      if (!len)
+      {
+          len = *(unsigned*)ptr * rate;
+          ptr += 4;
+      }
       tape_image[tape_imagesize++] = find_pulse(len);
    }
    tape_image[tape_imagesize++] = find_pulse(Z80FQ/10);
@@ -607,11 +626,15 @@ int readTZX()
 unsigned char tape_bit() // used in io.cpp & sound.cpp
 {
    __int64 cur = comp.t_states + cpu.t;
-   if (cur < comp.tape.edge_change) return (unsigned char)comp.tape.tape_bit;
-   while (comp.tape.edge_change < cur) {
-      if (!temp.sndblock) {
+   if (cur < comp.tape.edge_change)
+       return (unsigned char)comp.tape.tape_bit;
+   while (comp.tape.edge_change < cur)
+   {
+      if (!temp.sndblock)
+      {
          unsigned t = (unsigned)(comp.tape.edge_change - comp.t_states - temp.cpu_t_at_frame_start);
-         if ((int)t >= 0) {
+         if ((int)t >= 0)
+         {
             unsigned tape_in = conf.sound.micin_vol & comp.tape.tape_bit;
 //            comp.tape.sound.update(t, tape_in, tape_in); //Alone Coder
             comp.tape_sound.update(t, tape_in, tape_in); //Alone Coder
@@ -619,8 +642,10 @@ unsigned char tape_bit() // used in io.cpp & sound.cpp
       }
       unsigned pulse; comp.tape.tape_bit ^= -1;
       if (comp.tape.play_pointer == comp.tape.end_of_tape ||
-          (pulse = tape_pulse[*comp.tape.play_pointer++]) == -1) stop_tape();
-      else comp.tape.edge_change += pulse;
+          (pulse = tape_pulse[*comp.tape.play_pointer++]) == -1)
+              stop_tape();
+      else
+          comp.tape.edge_change += pulse;
    }
    return (unsigned char)comp.tape.tape_bit;
 }
@@ -629,32 +654,40 @@ void fast_tape()
 {
    unsigned char *ptr = am_r(cpu.pc);
    unsigned p = *(unsigned*)ptr;
-   if (p == WORD4(0x3D,0x20,0xFD,0xA7)) { // dec a:jr nz,$-1
+   if (p == WORD4(0x3D,0x20,0xFD,0xA7))
+   { // dec a:jr nz,$-1
       cpu.t += ((unsigned char)(cpu.a-1))*16; cpu.a = 1;
       return;
    }
-   if ((unsigned short)p == WORD2(0x10,0xFE)) { // djnz $
+   if ((unsigned short)p == WORD2(0x10,0xFE))
+   { // djnz $
       cpu.t += ((unsigned char)(cpu.b-1))*13; cpu.b = 1;
       return;
    }
-   if ((unsigned short)p == WORD2(0x3D,0xC2) && (cpu.pc & 0xFFFF)==(p>>16)) { // dec a:jp nz,$-1
+   if ((unsigned short)p == WORD2(0x3D,0xC2) && (cpu.pc & 0xFFFF)==(p>>16))
+   { // dec a:jp nz,$-1
       cpu.t += ((unsigned char)(cpu.a-1))*14; cpu.a = 1;
       return;
    }
-   if ((p | WORD4(0,0,0,0xFF)) == WORD4(0x04,0xC8,0x3E,0xFF)) {
+   if ((p | WORD4(0,0,0,0xFF)) == WORD4(0x04,0xC8,0x3E,0xFF))
+   {
       if (*(unsigned*)(ptr+4) == WORD4(0xDB,0xFE,0x1F,0xD0) &&
           *(unsigned*)(ptr+8) == WORD4(0xA9,0xE6,0x20,0x28) && ptr[12] == 0xF3)
       { // find edge (rom routine)
-         for (;;) {
-            if (cpu.b == 0xFF) return;
-            if ((tape_bit() ? 0x20 : 0) ^ (cpu.c & 0x20)) return;
+         for (;;)
+         {
+            if (cpu.b == 0xFF)
+                return;
+            if ((tape_bit() ? 0x20 : 0) ^ (cpu.c & 0x20))
+                return;
             cpu.b++; cpu.t += 59;
          }
       }
       if (*(unsigned*)(ptr+4) == WORD4(0xDB,0xFE,0xCB,0x1F) &&
           *(unsigned*)(ptr+8) == WORD4(0xA9,0xE6,0x20,0x28) && ptr[12] == 0xF3)
       { // rra,ret nc => rr a (popeye2)
-         for (;;) {
+         for (;;)
+         {
             if (cpu.b == 0xFF) return;
             if ((tape_bit() ^ cpu.c) & 0x20) return;
             cpu.b++; cpu.t += 58;
@@ -663,7 +696,8 @@ void fast_tape()
       if (*(unsigned*)(ptr+4) == WORD4(0xDB,0xFE,0x1F,0x00) &&
           *(unsigned*)(ptr+8) == WORD4(0xA9,0xE6,0x20,0x28) && ptr[12] == 0xF3)
       { // ret nc nopped (some bleep loaders)
-         for (;;) {
+         for (;;)
+         {
             if (cpu.b == 0xFF) return;
             if ((tape_bit() ^ cpu.c) & 0x20) return;
             cpu.b++; cpu.t += 58;
@@ -672,7 +706,8 @@ void fast_tape()
       if (*(unsigned*)(ptr+4) == WORD4(0xDB,0xFE,0xA9,0xE6) &&
           *(unsigned*)(ptr+8) == WORD4(0x40,0xD8,0x00,0x28) && ptr[12] == 0xF3)
       { // no rra, no break check (rana rama)
-         for (;;) {
+         for (;;)
+         {
             if (cpu.b == 0xFF) return;
             if ((tape_bit() ^ cpu.c) & 0x40) return;
             cpu.b++; cpu.t += 59;
@@ -681,7 +716,8 @@ void fast_tape()
       if (*(unsigned*)(ptr+4) == WORD4(0xDB,0xFE,0x1F,0xA9) &&
           *(unsigned*)(ptr+8) == WORD4(0xE6,0x20,0x28,0xF4))
       { // ret nc skipped: routine without BREAK checking (ZeroMusic & JSW)
-         for (;;) {
+         for (;;)
+         {
             if (cpu.b == 0xFF) return;
             if ((tape_bit() ^ cpu.c) & 0x20) return;
             cpu.b++; cpu.t += 54;
@@ -702,10 +738,98 @@ void fast_tape()
        *(unsigned*)(ptr+4) == WORD4(0xA9,0xE6,0x40,0x20) &&
        (*(unsigned*)(ptr+8) | WORD4(0xFF,0,0,0)) == WORD4(0xFF,0x05,0x20,0xF4))
    { // lode runner
-      for (;;) {
+      for (;;)
+      {
          if (cpu.b == 1) return;
          if ((tape_bit() ^ cpu.c) & 0x40) return;
          cpu.t += 52; cpu.b--;
       }
    }
+}
+
+void tape_traps()
+{
+  if ((cpu.pc & 0xFFFF) != 0x056B)
+       return;
+  if(!comp.tape.play_pointer)
+       return;
+
+   unsigned pulse;
+   do
+   {
+       if(comp.tape.play_pointer>=comp.tape.end_of_tape ||
+          (pulse=tape_pulse[*comp.tape.play_pointer++])==-1)
+       {
+           stop_tape();
+           return;
+       }
+   }while(pulse > 770);
+   comp.tape.play_pointer++;
+
+   // loading header
+   cpu.l=0;
+   for(unsigned bit=0x80;bit;bit>>=1)
+   {
+       if(comp.tape.play_pointer>=comp.tape.end_of_tape||
+         (pulse=tape_pulse[*comp.tape.play_pointer++])==-1)
+       {
+         stop_tape();
+         cpu.pc = 0x05E2;
+         return;
+       }
+       cpu.l |= (pulse>1240) ? bit : 0;
+       comp.tape.play_pointer++;
+   }
+
+   // loading data
+   do
+   {
+     cpu.l = 0;
+     for(unsigned bit=0x80; bit; bit >>= 1)
+     {
+       if(comp.tape.play_pointer >= comp.tape.end_of_tape ||
+          (pulse = tape_pulse[*comp.tape.play_pointer++])==-1)
+       {
+         stop_tape();
+         cpu.pc = 0x05E2;
+         return;
+       }
+       cpu.l |= (pulse > 1240) ? bit : 0;
+       comp.tape.play_pointer++;
+     }
+     cpu.DbgMemIf->wm(cpu.ix++, cpu.l);
+     cpu.de--;
+   }while(cpu.de & 0xFFFF);
+
+   // loading CRC
+   cpu.l = 0;
+   for(unsigned bit = 0x80; bit; bit >>= 1)
+   {
+     if(comp.tape.play_pointer>=comp.tape.end_of_tape||
+       (pulse=tape_pulse[*comp.tape.play_pointer++])==-1)
+     {
+       stop_tape();
+       cpu.pc = 0x05E2;
+       return;
+     }
+     cpu.l |= (pulse > 1240) ? bit : 0;
+     comp.tape.play_pointer++;
+   }
+
+   cpu.pc = 0x05DF;
+   cpu.f |= CF;
+   cpu.bc = 0xB001;
+   cpu.h = 0;
+
+     /*cpu.pc=0x0604; // the old one
+     unsigned pulse;
+     pulse = tape_pulse[*comp.tape.play_pointer++];
+     if(pulse == -1) stop_tape();
+     else{
+       comp.t_states+=pulse;
+       comp.tape.edge_change = comp.t_states + cpu.t + 520;
+
+       cpu.b+=(pulse-520)/56;
+       cpu.f|=CF;
+     }*/
 }

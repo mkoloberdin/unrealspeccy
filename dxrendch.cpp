@@ -1,3 +1,11 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dx.h"
+#include "dxrframe.h"
+
 RENDER_FUNC auto_ch = 0;
 
 void __fastcall _render_ch_ax(unsigned char *dst, unsigned pitch, RENDER_FUNC c2, RENDER_FUNC c4)

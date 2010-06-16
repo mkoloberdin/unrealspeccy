@@ -1,3 +1,4 @@
+#pragma once
 
 struct ATM_KBD
 {
@@ -56,7 +57,9 @@ struct K_INPUT
    unsigned char aymouse_rd();
    void aymouse_wr(unsigned char val);
 
-   __inline void clear_zx();
+   void clear_zx();
+   inline void press_zx(unsigned char key);
+   bool process_pc_layout();
    void make_matrix();
    char readdevices();
    unsigned char read(unsigned char scan);

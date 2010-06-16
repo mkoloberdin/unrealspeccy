@@ -1,4 +1,14 @@
+#include "std.h"
 
+#include "emul.h"
+#include "vars.h"
+#include "bass.h"
+#include "snd_bass.h"
+#include "gshle.h"
+#include "gs.h"
+#include "sound.h"
+
+#ifdef MOD_GSBASS
 void GSHLE::set_busy(unsigned char newval)
 {
    busy = chan[0].busy = chan[1].busy = chan[2].busy = chan[3].busy = newval;
@@ -278,3 +288,4 @@ DWORD CALLBACK gs_render(HSTREAM handle, void *buffer, DWORD length, void *user)
    }
    return length;
 }
+#endif

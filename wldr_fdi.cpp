@@ -1,3 +1,9 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+
+#include "util.h"
 
 int FDD::read_fdi()
 {

@@ -1,14 +1,13 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "snapshot.h"
+#include "init.h"
+
+#include "util.h"
 
 
-
-forceinline unsigned __int64 rdtsc()
-{
-#ifdef __INTEL_COMPILER
-    return __rdtsc();
-#else
-    __asm rdtsc
-#endif
-}
 
 #ifdef _M_IX86
 void __cdecl fillCpuString(char *dst)
@@ -81,6 +80,7 @@ unsigned __int64 GetCPUFrequency()
    LARGE_INTEGER Start;
    LARGE_INTEGER Stop;
    unsigned long long c1, c2, c3, c4, c;
+   timeBeginPeriod(1);
    QueryPerformanceFrequency(&Frequency);
    Sleep(20);
 
@@ -91,6 +91,7 @@ unsigned __int64 GetCPUFrequency()
    c3 = rdtsc();
    QueryPerformanceCounter(&Stop);
    c4 = rdtsc();
+   timeEndPeriod(1);
    c = c3 - c2 + (c4-c3)/2 + (c2-c1)/2;
    Start.QuadPart = Stop.QuadPart - Start.QuadPart;
 
@@ -109,16 +110,10 @@ void trim(char *dst)
 }
 
 
-#define VK_ALT VK_MENU
-
-#define WORD4(a,b,c,d) (((unsigned)(a))+((unsigned)(b))*0x100+((unsigned)(c))*0x10000+((unsigned)(d))*0x1000000)
-#define WORD2(a,b) ((a)+(b)*0x100)
-#define align_by(a,b) (((ULONG_PTR)(a) + ((b)-1)) & ~((b)-1))
 const char clrline[] = "\r\t\t\t\t\t\t\t\t\t       \r";
 
 #define savetab(x) {FILE *ff=fopen("tab","wb");fwrite(x,sizeof(x),1,ff);fclose(ff);}
 
-#define hexdigit(a) ((a) < 'A' ? (a)-'0' : toupper(a)-'A'+10)
 #define tohex(a) ((a) < 10 ? (a)+'0' : (a)-10+'A')
 
 const char nop = 0;
@@ -213,7 +208,7 @@ unsigned process_msgs()
          DispatchMessage(&msg); //Dexus
       }
       else
-          DispatchMessage(&msg);
+         DispatchMessage(&msg);
    }
    return key;
 }
@@ -225,11 +220,37 @@ void eat() // eat messages
 
 char dispatch_more(action *table)
 {
-   if (!table) return -1;
+   if (!table)
+       return -1;
+
    kbdpc[0] = 0x80; // nil button is always pressed
-   while (table->name) {
-      if (kbdpc[table->k1] & kbdpc[table->k2] &
-          kbdpc[table->k3] & kbdpc[table->k4] & 0x80)
+
+//   __debugbreak();
+   while (table->name)
+   {
+//      printf("%02X|%02X|%02X|%02X\n", table->k1, table->k2, table->k3, table->k4);
+      unsigned k[4] = { table->k1, table->k2, table->k3, table->k4 };
+      unsigned b[4];
+
+      for(unsigned i =0; i< 4; i++)
+      {
+          switch(k[i])
+          {
+          case DIK_MENU:
+              b[i] = kbdpc[DIK_LMENU] | kbdpc[DIK_RMENU];
+          break;
+          case DIK_CONTROL:
+              b[i] = kbdpc[DIK_LCONTROL] | kbdpc[DIK_RCONTROL];
+          break;
+          case DIK_SHIFT:
+              b[i] = kbdpc[DIK_LSHIFT] | kbdpc[DIK_RSHIFT];
+          break;
+          default:
+              b[i] = kbdpc[k[i]];
+          }
+      }
+
+      if (b[0] & b[1] & b[2] & b[3] & 0x80)
       {
          table->func();
          return 1;
@@ -241,8 +262,14 @@ char dispatch_more(action *table)
 
 char dispatch(action *table)
 {
-   if (*droppedFile) { trd_toload = 0; loadsnap(droppedFile); *droppedFile = 0; }
-   if (!input.readdevices()) return 0;
+   if (*droppedFile)
+   {
+       trd_toload = 0;
+       loadsnap(droppedFile);
+       *droppedFile = 0;
+   }
+   if(!input.readdevices())
+       return 0;
 
    dispatch_more(table);
    return 1;
@@ -277,12 +304,12 @@ void dump1(BYTE *p, unsigned sz)
    printf("\n");
 }
 
-void color(int ink = CONSCLR_DEFAULT)
+void color(int ink)
 {
    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), ink);
 }
 
-void err_win32(DWORD errcode = 0xFFFFFFFF)
+void err_win32(DWORD errcode)
 {
    if (errcode == 0xFFFFFFFF) errcode = GetLastError();
 
@@ -300,7 +327,7 @@ void err_win32(DWORD errcode = 0xFFFFFFFF)
    color();
 }
 
-void errmsg(const char *err, const char *str = 0)
+void errmsg(const char *err, const char *str)
 {
    color();
    printf("error: ");
@@ -310,7 +337,7 @@ void errmsg(const char *err, const char *str = 0)
    printf("\n");
 }
 
-void __declspec(noreturn) errexit(const char *err, const char *str = 0)
+void __declspec(noreturn) errexit(const char *err, const char *str)
 {
    errmsg(err, str);
    exit();

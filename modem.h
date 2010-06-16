@@ -1,3 +1,4 @@
+#pragma once
 
 struct ISA_MODEM
 {
@@ -14,7 +15,7 @@ struct ISA_MODEM
    unsigned rhead, rtail, whead, wtail;
    unsigned char rcbuf[BSIZE], wbuf[BSIZE];
 
-   void open(unsigned char port);
+   void open(int port);
    void close();
    void io();
 

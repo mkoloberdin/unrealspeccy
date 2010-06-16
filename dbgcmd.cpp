@@ -1,3 +1,18 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dx.h"
+#include "debug.h"
+#include "dbgpaint.h"
+#include "dbgmem.h"
+#include "dbgrwdlg.h"
+#include "memory.h"
+#include "gui.h"
+#include "util.h"
+
+void out(unsigned port, unsigned char val);
 
 unsigned find1dlg(unsigned start)
 {
@@ -83,14 +98,16 @@ void mon_fill()
 
    unsigned pos = 0;
    for (a1 = addr; a1 <= end; a1++) {
-      wmdbg(a1, pattern[pos]);
+      cpu.DirectWm(a1, pattern[pos]);
       if (++pos == fillsize) pos = 0;
    }
 }
 
 void mon_emul()
 {
-   dbgchk = isbrk();
+   Z80 &cpu = CpuMgr.Cpu();
+   cpu.dbgchk = isbrk(cpu);
+   cpu.dbgbreak = 0;
    dbgbreak = 0;
 }
 
@@ -115,21 +132,29 @@ void mon_scray() { mon_scr(2); }
 void mon_exitsub()
 {
    Z80 &cpu = CpuMgr.Cpu();
-   dbgchk = 1; dbgbreak = 0;
-   cpu.dbg_stophere = cpu.RmDbg(cpu.sp)+0x100*cpu.RmDbg(cpu.sp+1);
+   cpu.dbgchk = 1;
+   cpu.dbgbreak = 0;
+   dbgbreak = 0;
+   cpu.dbg_stophere = cpu.DirectRm(cpu.sp)+0x100*cpu.DirectRm(cpu.sp+1);
 }
 
 void editbank()
 {
    unsigned x = input2(ports_x+5, ports_y+1, comp.p7FFD);
-   if (x != -1) comp.p7FFD = x, set_banks();
+   if (x != -1)
+   {
+       comp.p7FFD = x;
+       set_banks();
+   }
 }
 
 void editextbank()
 {
-   if (!dbg_extport) return;
+   if(!dbg_extport)
+       return;
    unsigned x = input2(ports_x+5, ports_y+2, dgb_extval);
-   if (x != -1) out(dbg_extport, (unsigned char)x);
+   if (x != -1)
+       out(dbg_extport, (unsigned char)x);
 }
 
 void mon_nxt()
@@ -150,8 +175,9 @@ void mon_tool()
    Z80 &cpu = CpuMgr.Cpu();
    static unsigned char unref = 0xCF;
    if (ripper) {
-      OPENFILENAME ofn = { /*OPENFILENAME_SIZE_VERSION_400*/sizeof OPENFILENAME }; //Alone Coder
+      OPENFILENAME ofn = { 0 };
       char savename[0x200]; *savename = 0;
+      ofn.lStructSize = (WinVerMajor < 5) ? OPENFILENAME_SIZE_VERSION_400 : sizeof(OPENFILENAME);
       ofn.lpstrFilter = "Memory dump\0*.bin\0";
       ofn.lpstrFile = savename; ofn.nMaxFile = sizeof savename;
       ofn.lpstrTitle = "Save ripped data";
@@ -161,7 +187,7 @@ void mon_tool()
       ofn.nFilterIndex = 1;
       if (GetSaveFileName(&ofn)) {
          for (unsigned i = 0; i < 0x10000; i++)
-            snbuf[i] = (membits[i] & ripper) ? cpu.RmDbg(i) : unref;
+            snbuf[i] = (cpu.membits[i] & ripper) ? cpu.DirectRm(i) : unref;
          FILE *ff = fopen(savename, "wb");
          if (ff) fwrite(snbuf, 1, 0x10000, ff), fclose(ff);
       }
@@ -183,7 +209,9 @@ void mon_tool()
       unsigned ub;
       if ((ub = input2(tool_x+14,tool_y+4,unref)) == -1) { ripper = 0; return; }
       unref = (unsigned char)ub;
-      if (ripper) for (unsigned i = 0; i < 0x10000; i++) membits[i] &= ~(MEMBITS_R | MEMBITS_W);
+      if (ripper)
+          for (unsigned i = 0; i < 0x10000; i++)
+              cpu.membits[i] &= ~(MEMBITS_R | MEMBITS_W);
    }
 }
 
@@ -200,8 +228,9 @@ void mon_scrshot() { show_scrshot++; if (show_scrshot == 3) show_scrshot = 0; }
 
 void mon_switch_cpu()
 {
-    CpuMgr.CopyToPrev();
+//    CpuMgr.CopyToPrev();
     Z80 &cpu0 = CpuMgr.Cpu();
+    cpu0.dbgbreak = 0;
     CpuMgr.SwitchCpu();
     Z80 &cpu1 = CpuMgr.Cpu();
 

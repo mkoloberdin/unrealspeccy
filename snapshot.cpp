@@ -1,4 +1,19 @@
+#include "std.h"
+
+#include "resource.h"
+#include "emul.h"
+#include "vars.h"
 #include "snapshot.h"
+#include "tape.h"
+#include "memory.h"
+#include "opendlg.h"
+#include "draw.h"
+#include "config.h"
+#include "z80.h"
+#include "sshot_png.h"
+
+#include "util.h"
+
 int readSP();
 int readSNA48();
 int readSNA128();
@@ -23,9 +38,17 @@ unsigned char what_is(char *filename)
    if (snapsize == 49179) type = snSNA_48;
    if (ext == WORD4('t','a','p',' ')) type = snTAP;
    if (ext == WORD4('z','8','0',' ')) type = snZ80;
-   if (conf.trdos_present) {
+   if (conf.trdos_present)
+   {
       if (!snbuf[13] && snbuf[14] && (int)snapsize == snbuf[14]*256+17) type = snHOB;
       if (snapsize >= 8192 && !(snapsize & 0xFF) && ext == WORD4('t','r','d',' ')) type = snTRD;
+
+      if (snapsize >= 8192 && ext == WORD4('i','s','d',' '))
+          type = snISD;
+
+      if (snapsize >= 8192 && ext == WORD4('p','r','o',' '))
+          type = snPRO;
+
       if (!memcmp(snbuf, "SINCLAIR", 8) && (int)snapsize >= 9+(0x100+14)*snbuf[8]) type = snSCL;
       if (!memcmp(snbuf, "FDI", 3) && *(unsigned short*)(snbuf+4) <= MAX_CYLS && *(unsigned short*)(snbuf+6) <= 2) type = snFDI;
       if (((*(short*)snbuf|0x2020) == WORD2('t','d')) && snbuf[4] >= 10 && snbuf[4] <= 21 && snbuf[9] <= 2) type = snTD0;
@@ -39,42 +62,53 @@ unsigned char what_is(char *filename)
 
 int loadsnap(char *filename)
 {
-   if (load_arc(filename)) return 1;
+   if (load_arc(filename))
+       return 1;
    unsigned char type = what_is(filename);
 
-   if (type >= snHOB) {
+   if (type >= snHOB)
+   {
 
-      if (trd_toload == -1) {
+      if (trd_toload == -1)
+      {
          int last = -1;
          for (int i = 0; i < 4; i++) if (trd_loaded[i]) last = i;
          trd_toload = (last == -1)? 0 : ((type == snHOB)? last : (last+1) & 3);
       }
 
       for (unsigned k = 0; k < 4; k++)
-         if (k != trd_toload && !stricmp(comp.wd.fdd[k].name, filename)) {
+      {
+         if (k != trd_toload && !stricmp(comp.wd.fdd[k].name, filename))
+         {
             static char err[] = "This disk image is already loaded to drive X:\n"
                                 "Do you still want to load it to drive Y:?";
             err[43] = k+'A';
             err[84] = trd_toload+'A';
             if (MessageBox(GetForegroundWindow(), err, "Warning", MB_YESNO | MB_ICONWARNING) == IDNO) return 1;
          }
+      }
 
       FDD *drive = comp.wd.fdd + trd_toload;
-      if (!drive->test()) return 0;
+      if (!drive->test())
+          return 0;
       int ok = drive->read(type);
-      if (ok) {
-         if (*conf.appendboot) drive->addboot();
+      if (ok)
+      {
+         if (*conf.appendboot)
+             drive->addboot();
          strcpy(drive->name, filename);
          if (GetFileAttributes(filename) & FILE_ATTRIBUTE_READONLY)
             conf.trdos_wp[trd_toload] = 1;
          drive->snaptype = (type == snHOB || type == snSCL)? snTRD : type;
          trd_loaded[trd_toload] = 1;
 //---------Alone Coder
-		 char *name = filename; for (char *x = name; *x; x++) if (*x == '\\') name = x+1;
-		 char wintitle[0x200];
-		 strcpy(wintitle,name);
-		 strcat(wintitle," - UnrealSpeccy");
-		 SetWindowText(wnd, wintitle);
+         char *name = filename;
+         for (char *x = name; *x; x++)
+             if (*x == '\\') name = x+1;
+         char wintitle[0x200];
+         strcpy(wintitle,name);
+         strcat(wintitle," - UnrealSpeccy");
+         SetWindowText(wnd, wintitle);
 //~---------Alone Coder
       }
       return ok;
@@ -117,7 +151,7 @@ int readSNA128()
 
 int readSNA48()
 {
-   conf.mem_model = MM_PENTAGON; conf.ramsize = 128;
+   //conf.mem_model = MM_PENTAGON; conf.ramsize = 128;  // molodcov_alex
    reset(RM_SOS);
    hdrSNA128 *hdr = (hdrSNA128*)snbuf;
    cpu.alt.af = hdr->altaf; cpu.alt.bc = hdr->altbc;
@@ -131,13 +165,13 @@ int readSNA48()
    memcpy(memory+PAGE*5, hdr->page5, PAGE);
    memcpy(memory+PAGE*2, hdr->page2, PAGE);
    memcpy(memory+PAGE*0, hdr->active_page, PAGE);
-   cpu.pc = cpu.RmDbg(cpu.sp)+0x100*cpu.RmDbg(cpu.sp+1); cpu.sp += 2;
+   cpu.pc = cpu.DirectRm(cpu.sp)+0x100*cpu.DirectRm(cpu.sp+1); cpu.sp += 2;
    set_banks(); return 1;
 }
 
 int readSP()
 {
-   conf.mem_model = MM_PENTAGON; conf.ramsize = 128;
+   //conf.mem_model = MM_PENTAGON; conf.ramsize = 128;  // molodcov_alex
    reset(RM_SOS);
    hdrSP *hdr = (hdrSP*)snbuf;
    cpu.alt.af = hdr->altaf; cpu.alt.bc = hdr->altbc;
@@ -152,7 +186,7 @@ int readSP()
    comp.pEFF7 |= EFF7_LOCKMEM; //Alone Coder
    comp.pFE = hdr->pFE; comp.border_attr = comp.pFE & 7;
    for (unsigned i = 0; i < hdr->len; i++)
-      wmdbg(hdr->start + i, snbuf[i + 0x26]);
+      cpu.DirectWm(hdr->start + i, snbuf[i + 0x26]);
    set_banks(); return 1;
 }
 
@@ -174,9 +208,13 @@ int writeSNA(FILE *ff)
    hdr->pFE = comp.pFE; comp.border_attr = comp.pFE & 7;
    unsigned savesize = sizeof hdrSNA128;
    unsigned char mapped = 0x24 | (1 << (comp.p7FFD & 7));
-   if (comp.p7FFD == 0x30) { // save 48k
-      mapped = 0xFF, savesize = 0xC01B;
-      hdr->sp -= 2; wmdbg(hdr->sp, cpu.pcl); wmdbg(hdr->sp+1, cpu.pch);
+   if (comp.p7FFD == 0x30)
+   { // save 48k
+      mapped = 0xFF;
+      savesize = 0xC01B;
+      hdr->sp -= 2;
+      cpu.DirectWm(hdr->sp, cpu.pcl);
+      cpu.DirectWm(hdr->sp+1, cpu.pch);
    }
    memcpy(hdr->page5, memory+PAGE*5, PAGE);
    memcpy(hdr->page2, memory+PAGE*2, PAGE);
@@ -203,37 +241,49 @@ void unpack_page(unsigned char *dst, int dstlen, unsigned char *src, int srclen)
 
 int readZ80()
 {
-   conf.mem_model = MM_PENTAGON; conf.ramsize = 128;
+   //conf.mem_model = MM_PENTAGON; conf.ramsize = 128;  // molodcov_alex
    hdrZ80 *hdr = (hdrZ80*)snbuf;
    unsigned char *ptr = snbuf + 30;
    unsigned char model48k = (hdr->model < 3);
    reset((model48k|(hdr->p7FFD & 0x10)) ? RM_SOS : RM_128);
-   if (hdr->flags == 0xFF) hdr->flags = 1;
-   if (hdr->pc == 0) { // 2.01
+   if (hdr->flags == 0xFF)
+       hdr->flags = 1;
+   if (hdr->pc == 0)
+   { // 2.01
       ptr += 2 + hdr->len;
       hdr->pc = hdr->newpc;
       memset(RAM_BASE_M, 0, PAGE*8); // clear 128k - first 8 pages
-      while (ptr < snbuf+snapsize) {
-         unsigned char *p48[] = {
+
+      while (ptr < snbuf+snapsize)
+      {
+         unsigned char *p48[] =
+         {
                 base_sos_rom, 0, 0, 0,
                 RAM_BASE_M+2*PAGE, RAM_BASE_M+0*PAGE, 0, 0,
                 RAM_BASE_M+5*PAGE, 0, 0, 0
          };
-         unsigned char *p128[] = {
+         unsigned char *p128[] =
+         {
                 base_sos_rom, base_dos_rom, base_128_rom, RAM_BASE_M+0*PAGE,
                 RAM_BASE_M+1*PAGE, RAM_BASE_M+2*PAGE, RAM_BASE_M+3*PAGE, RAM_BASE_M+4*PAGE,
                 RAM_BASE_M+5*PAGE, RAM_BASE_M+6*PAGE, RAM_BASE_M+7*PAGE, 0
          };
          unsigned len = *(unsigned short*)ptr;
-         if (ptr[2] > 11) return 0;
+         if (ptr[2] > 11)
+             return 0;
          unsigned char *dstpage = model48k ? p48[ptr[2]] : p128[ptr[2]];
-         if (!dstpage) return 0;
+         if (!dstpage)
+             return 0;
          ptr += 3;
-         if (len == 0xFFFF) memcpy(dstpage, ptr, len = PAGE);
-         else unpack_page(dstpage, PAGE, ptr, len);
+         if (len == 0xFFFF)
+             memcpy(dstpage, ptr, len = PAGE);
+         else
+             unpack_page(dstpage, PAGE, ptr, len);
          ptr += len;
       }
-   } else {
+   }
+   else
+   {
       int len = snapsize - 30;
       unsigned char *mem48 = ptr;
       if (hdr->flags & 0x20)
@@ -254,8 +304,15 @@ int readZ80()
    comp.border_attr = comp.pFE;
    cpu.iff1 = hdr->iff1, cpu.iff2 = hdr->iff2; cpu.im = (hdr->im & 3);
    comp.p7FFD = (model48k) ? 0x30 : hdr->p7FFD;
-   if (model48k) comp.pEFF7 |= EFF7_LOCKMEM; //Alone Coder
-   set_banks(); return 1;
+
+   if(hdr->len == 55) // version 3.0 (with 1ffd)
+       comp.p1FFD = hdr->p1FFD;
+
+   if (model48k)
+       comp.pEFF7 |= EFF7_LOCKMEM; //Alone Coder
+   set_banks();
+
+   return 1;
 }
 
 #define arctmp ((char*)rbuf)
@@ -364,19 +421,21 @@ void opensnap(int index)
       x += strlen(x)+1, x += strlen(x)+1;
 
    char fline[0x400];
-   char *src = "all (sna,z80,sp,tap,tzx,csw,trd,scl,fdi,td0,udi,hobeta)\0*.sna;*.z80;*.sp;*.tap;*.tzx;*.csw;*.trd;*.scl;*.td0;*.udi;*.fdi;*.$?;*.!?<\0"
-               "Disk B (trd,scl,fdi,td0,udi,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.$?<\0"
-               "Disk C (trd,scl,fdi,td0,udi,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.$?<\0"
-               "Disk D (trd,scl,fdi,td0,udi,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.$?<\0\0>";
+   char *src = "all (sna,z80,sp,tap,tzx,csw,trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.sna;*.z80;*.sp;*.tap;*.tzx;*.csw;*.trd;*.scl;*.td0;*.udi;*.fdi;*.isd;*.pro;*.$?;*.!?<\0"
+               "Disk B (trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.isd;*.pro;*.$?<\0"
+               "Disk C (trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.isd;*.pro;*.$?<\0"
+               "Disk D (trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.isd;*.pro;*.$?<\0\0>";
    if (!conf.trdos_present)
       src = "ZX files (sna,z80,tap,tzx,csw)\0*.sna;*.z80;*.tap;*.tzx;*.csw<\0\0>";
    for (char *dst = fline; *src != '>'; src++)
       if (*src == '<') strcpy(dst, mask), dst += strlen(dst);
       else *dst++ = *src;
 
-   OPENFILENAME ofn = { /*OPENFILENAME_SIZE_VERSION_400*/sizeof OPENFILENAME }; //Alone Coder
+   OPENFILENAME ofn = { 0 };
    char fname[0x200]; *fname = 0;
    char dir[0x200]; GetCurrentDirectory(sizeof dir, dir);
+
+   ofn.lStructSize = (WinVerMajor < 5) ? OPENFILENAME_SIZE_VERSION_400 : sizeof(OPENFILENAME);
    ofn.hwndOwner = GetForegroundWindow();
    ofn.lpstrFilter = fline;
    ofn.lpstrFile = fname; ofn.nMaxFile = sizeof fname;
@@ -384,9 +443,12 @@ void opensnap(int index)
    ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
    ofn.nFilterIndex = index;
    ofn.lpstrInitialDir = dir;
-   if (GetSnapshotFileName(&ofn, 0)) {
+//   __debugbreak();
+   if (GetSnapshotFileName(&ofn, 0))
+   {
       trd_toload = ofn.nFilterIndex-1;
-      if (!loadsnap(fname)) MessageBox(GetForegroundWindow(), fname, "loading error", MB_ICONERROR);
+      if (!loadsnap(fname))
+          MessageBox(GetForegroundWindow(), fname, "loading error", MB_ICONERROR);
    }
    eat();
 }
@@ -403,7 +465,7 @@ void addref(LPSTR &ptr, unsigned char sntype, char *ref, unsigned drv, unsigned 
 void savesnap(int diskindex)
 {
 again:
-   OPENFILENAME ofn = { /*OPENFILENAME_SIZE_VERSION_400*/sizeof OPENFILENAME }; //Alone Coder
+   OPENFILENAME ofn = { 0 };
    char fname[0x200]; *fname = 0;
    if (diskindex >= 0) {
       strcpy(fname, comp.wd.fdd[diskindex].name);
@@ -414,26 +476,33 @@ again:
 
    snp = 1; char types[600], *ptr = types;
 
-   if (diskindex < 0) {
+   if (diskindex < 0)
+   {
       exts[snp] = WORD4('s','n','a',0); snaps[snp] = snSNA_128; // default
       addref(ptr, snSNA_128, "ZX-Spectrum 128K snapshot (SNA)\0*.sna", -1, WORD4('s','n','a',0));
    }
 
+   ofn.lStructSize = (WinVerMajor < 5) ? OPENFILENAME_SIZE_VERSION_400 : sizeof(OPENFILENAME);
    ofn.nFilterIndex = 1;
 
-   if (conf.trdos_present) {
-
+   if (conf.trdos_present)
+   {
       static char mask[] = "Disk A (TRD)\0*.trd";
-      static const char ex[][3] = { {'T','R','D'}, {'F','D','I'},{'T','D','0'},{'U','D','I'}};
-      static const unsigned ex2[] = { snTRD, snFDI, snTD0, snUDI };
+      static const char ex[][3] = { {'T','R','D'}, {'F','D','I'},{'T','D','0'},{'U','D','I'},{'I','S','D'},{'P','R','O'}};
+      static const unsigned ex2[] = { snTRD, snFDI, snTD0, snUDI, snISD, snPRO };
 
-      for (int n = 0; n < 4; n++) {
-         if (!comp.wd.fdd[n].rawdata) continue;
-         if (diskindex >= 0 && diskindex != n) continue;
+      for (int n = 0; n < 4; n++)
+      {
+         if (!comp.wd.fdd[n].rawdata)
+             continue;
+         if (diskindex >= 0 && diskindex != n)
+             continue;
          mask[5] = 'A'+n;
 
-         for (int i = 0; i < sizeof ex/sizeof(ex[0]); i++) {
-            if (diskindex == n && ex2[i] == comp.wd.fdd[n].snaptype) ofn.nFilterIndex = snp;
+         for (int i = 0; i < sizeof ex/sizeof(ex[0]); i++)
+         {
+            if (diskindex == n && ex2[i] == comp.wd.fdd[n].snaptype)
+                ofn.nFilterIndex = snp;
             memcpy(mask+8, ex[i], 3);
             memcpy(mask+15, ex[i], 3);
             addref(ptr, ex2[i], mask, n, (*(unsigned*)ex[i] & 0xFFFFFF) | 0x202020);
@@ -445,18 +514,21 @@ again:
    ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
    ofn.hwndOwner = GetForegroundWindow();
    char *path = strrchr(fname, '\\');
-   if (path) { // check if directory exists (for files opened from archive)
+   if (path)
+   { // check if directory exists (for files opened from archive)
       char x = *path; *path = 0;
       unsigned atr = GetFileAttributes(fname); *path = x;
       if (atr == -1 || !(atr & FILE_ATTRIBUTE_DIRECTORY)) *fname = 0;
    } else path = fname;
    path = strrchr(path, '.'); if (path) *path = 0; // delete extension
 
-   if (GetSnapshotFileName(&ofn, 1)) {
+   if (GetSnapshotFileName(&ofn, 1))
+   {
       char *fn = strrchr(ofn.lpstrFile, '\\');
       fn = fn? fn+1 : ofn.lpstrFile;
       char *extpos = strrchr(fn, '.');
-      if (!extpos || stricmp(extpos+1, (char*)&exts[ofn.nFilterIndex])) {
+      if (!extpos || stricmp(extpos+1, (char*)&exts[ofn.nFilterIndex]))
+      {
          char *dst = fn + strlen(fn); *dst++ = '.';
          *(unsigned*)dst = exts[ofn.nFilterIndex];
       }
@@ -465,106 +537,293 @@ again:
          goto again;
 
       FILE *ff = fopen(ofn.lpstrFile, "wb");
-      if (ff) {
+      if (ff)
+      {
          int res = 0;
          FDD *saveto = comp.wd.fdd + drvs[ofn.nFilterIndex];
-         switch (snaps[ofn.nFilterIndex]) {
+         switch (snaps[ofn.nFilterIndex])
+         {
             case snSNA_128: res = writeSNA(ff); break;
             case snTRD: res = saveto->write_trd(ff); break;
             case snUDI: res = saveto->write_udi(ff); break;
             case snFDI: res = saveto->write_fdi(ff); break;
             case snTD0: res = saveto->write_td0(ff); break;
+            case snISD: res = saveto->write_isd(ff); break;
+            case snPRO: res = saveto->write_pro(ff); break;
          }
          fclose(ff);
-         if (!res) MessageBox(GetForegroundWindow(), "write error", "Save", MB_ICONERROR);
-         else if (drvs[ofn.nFilterIndex]!=-1) {
-			 comp.wd.fdd[drvs[ofn.nFilterIndex]].optype=0, strcpy(comp.wd.fdd[drvs[ofn.nFilterIndex]].name, ofn.lpstrFile);
-			 //---------Alone Coder
-			 char *name = ofn.lpstrFile; for (char *x = name; *x; x++) if (*x == '\\') name = x+1;
-			 char wintitle[0x200];
-			 strcpy(wintitle,name);
-			 strcat(wintitle," - UnrealSpeccy");
-			 SetWindowText(wnd, wintitle);
-			 //~---------Alone Coder
-		 }
-      } else MessageBox(GetForegroundWindow(), "Can't open file for writing", "Save", MB_ICONERROR);
+         if (!res)
+             MessageBox(GetForegroundWindow(), "write error", "Save", MB_ICONERROR);
+         else if (drvs[ofn.nFilterIndex]!=-1)
+         {
+             comp.wd.fdd[drvs[ofn.nFilterIndex]].optype=0;
+             strcpy(comp.wd.fdd[drvs[ofn.nFilterIndex]].name, ofn.lpstrFile);
+
+             //---------Alone Coder
+             char *name = ofn.lpstrFile;
+             for (char *x = name; *x; x++)
+             {
+                 if (*x == '\\')
+                     name = x+1;
+             }
+             char wintitle[0x200];
+             strcpy(wintitle,name);
+             strcat(wintitle," - UnrealSpeccy");
+             SetWindowText(wnd, wintitle);
+             //~---------Alone Coder
+         }
+      }
+      else
+          MessageBox(GetForegroundWindow(), "Can't open file for writing", "Save", MB_ICONERROR);
    }
    eat();
 }
 
-unsigned char bmpheader32[]=
+void ConvPal8ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 {
-       0x42,0x4d,0x36,0x10,0x0e,0x00,0x00,0x00,
-       0x00,0x00,0x36,0x00,0x00,0x00,0x28,0x00,
-       0x00,0x00,0x80,0x02,0x00,0x00,0xe0,0x01,
-       0x00,0x00,0x01,0x00,0x18,0x00,0x00,0x00,
-       0x00,0x00,0x00,0x10,0x0e,0x00,0x00,0x00,
-       0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-       0x00,0x00,0x00,0x00,0x00,0x00
-};
+    u8 *ds = dst;
+    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    {
+       unsigned char *src = scrbuf + i*dx;
+       for (unsigned y = 0; y < temp.ox; y++)
+       {
+          ds[0] = pal0[src[y]].peBlue;
+          ds[1] = pal0[src[y]].peGreen;
+          ds[2] = pal0[src[y]].peRed;
+          ds += 3;
+       }
+       ds = (PBYTE)(ULONG_PTR(ds + 3) & ~ULONG_PTR(3)); // каждая строка выравнена на 4
+    }
+}
 
-void scrshot()
+void ConvRgb15ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 {
-   char fname[0x200]; static int sshot = 0;
-   sprintf(fname, "sshot%03d.%s", sshot, conf.bmpshot ? "bmp":"scr");
+    u8 *ds = dst;
+    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    {
+       unsigned char *src = scrbuf + i*dx;
+       for (unsigned y = 0; y < temp.ox; y++)
+       {
+          unsigned xx;
+          xx = *(unsigned*)(src + y*2);
+
+          ds[0] = (xx & 0x1F)<<3;
+          ds[1] = (xx & 0x03E0)>>2;
+          ds[2] = (xx & 0x7C00)>>7;
+          ds += 3;
+       }
+       ds = (PBYTE)(ULONG_PTR(ds + 3) & ~ULONG_PTR(3)); // каждая строка выравнена на 4
+    }
+}
+
+void ConvRgb16ToBgr24(u8 *dst, u8 *scrbuf, int dx)
+{
+    u8 *ds = dst;
+    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    {
+       unsigned char *src = scrbuf + i*dx;
+       for (unsigned y = 0; y < temp.ox; y++)
+       {
+          unsigned xx;
+          xx = *(unsigned*)(src + y*2);
+
+          ds[0] = (xx&0x1F)<<3;
+          ds[1] = (xx&0x07E0)>>3;
+          ds[2] = (xx&0xF800)>>8;
+          ds += 3;
+       }
+       ds = (PBYTE)(ULONG_PTR(ds + 3) & ~ULONG_PTR(3)); // каждая строка выравнена на 4
+    }
+}
+
+void ConvYuy2ToBgr24(u8 *dst, u8 *scrbuf, int dx)
+{
+    u8 *ds = dst;
+    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    {
+        unsigned char *src = scrbuf + i*dx;
+        for (unsigned y = 0; y < temp.ox; y++)
+        {
+            unsigned xx;
+            xx = *(unsigned*)(src + y*2);
+
+            int u = src[y/2*4+1], v = src[y/2*4+3], Y = src[y*2];
+            int r = (int)(.4732927654e-2*u-255.3076403+1.989858012*v+.9803921569*Y);
+            int g = (int)(-.9756592292*v+186.0716700-.4780256930*u+.9803921569*Y);
+            int b = (int)(.9803921569*Y+2.004732928*u-255.3076403-.1014198783e-1*v); // mapple rulez!
+            if (r < 0) r = 0; if (r > 255) r = 255;
+            if (g < 0) g = 0; if (g > 255) g = 255;
+            if (b < 0) b = 0; if (b > 255) b = 255;
+
+            ds[0] = b;
+            ds[1] = g;
+            ds[2] = r;
+            ds += 3;
+        }
+        ds = (PBYTE)(ULONG_PTR(ds + 3) & ~ULONG_PTR(3)); // каждая строка выравнена на 4
+    }
+}
+
+void ConvBgr32ToBgr24(u8 *dst, u8 *scrbuf, int dx)
+{
+    u8 *ds = dst;
+    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    {
+       unsigned char *src = scrbuf + i*dx;
+       for (unsigned x = 0; x < temp.ox; x++)
+       {
+          ds[0] = src[0];
+          ds[1] = src[1];
+          ds[2] = src[2];
+          src += 4;
+          ds += 3;
+       }
+       ds = (PBYTE)(ULONG_PTR(ds + 3) & ~ULONG_PTR(3)); // каждая строка выравнена на 4
+    }
+}
+
+
+TColorConverter ConvBgr24 = 0;
+
+void SaveBmp(FILE *File, u8 *ds)
+{
+     static u8 bmpheader32[]=
+     {
+            // BITMAPFILEHEADER
+            0x42,0x4d,           // Type
+            0x36,0x10,0x0e,0x00, // Size
+            0x00,0x00,           // Reserved1
+            0x00,0x00,           // Reserved2
+            0x36,0x00,0x00,0x00, // OffBits
+            // BITMAPINFOHEADER
+            0x28,0x00,0x00,0x00, // Size
+            0x80,0x02,0x00,0x00, // Width
+            0xe0,0x01,0x00,0x00, // Height
+            0x01,0x00,           // Planes
+            0x18,0x00,           // BitCount
+            0x00,0x00,0x00,0x00, // Compression
+            0x00,0x10,0x0e,0x00, // SizeImage
+            0x00,0x00,0x00,0x00, // XPixelsPerMeter
+            0x00,0x00,0x00,0x00, // YPixelsPerMeter
+            0x00,0x00,0x00,0x00, // ClrUsed
+            0x00,0x00,0x00,0x00  // ClrImportant
+     };
+
+    *(unsigned*)(bmpheader32 + 2) = temp.ox * temp.oy * 3 + sizeof(bmpheader32); // filesize
+    *(unsigned*)(bmpheader32 + 0x12) = temp.ox;
+    *(unsigned*)(bmpheader32 + 0x16) = temp.oy;
+    fwrite(bmpheader32, 1, sizeof(bmpheader32), File);
+
+    for(int y = temp.oy - 1; y >= 0 ; y--)
+    {
+        fwrite(ds + ((y * temp.ox * 3 + 3) & ~3), 1, temp.ox * 3, File);
+    }
+}
+
+void SavePng(FILE *File, u8 *ds)
+{
+    static png_color bkgColor = {127, 127, 127};
+
+    if(!temp.PngSupport)
+        return;
+
+    PngSaveImage(File, ds, temp.ox, temp.oy, bkgColor);
+}
+
+typedef void (*TSaver)(FILE *File, u8 *ds);
+
+void main_scrshot()
+{
+   char fname[FILENAME_MAX];
+   static unsigned sshot = 0;
+   static const char *Format[] = { "scr", "bmp", "png" };
+   static const TSaver Saver[] = { SaveBmp, SavePng };
+
+   sprintf(fname, "sshot%06u.%s", sshot, Format[conf.scrshot]);
    addpath(fname);
-   FILE *fileShot = fopen(fname, "wb"); if (!fileShot) return;
-   if (!conf.bmpshot)
+
+   FILE *fileShot = fopen(fname, "wb");
+   if (!fileShot)
+      return;
+
+   if (conf.scrshot == 0)
    {
       fwrite(temp.base, 1, 6912, fileShot);
-      fclose(fileShot);
    }
    else
    {
-      *(unsigned*)(bmpheader32+2) = temp.ox*temp.oy*3 + sizeof bmpheader32; // filesize
-      *(unsigned*)(bmpheader32+0x12) = temp.ox;
-      *(unsigned*)(bmpheader32+0x16) = temp.oy;
-      fwrite(bmpheader32, 1, sizeof bmpheader32, fileShot);
-
       unsigned dx = temp.ox * temp.obpp / 8;
       unsigned char *scrbuf_unaligned = (unsigned char*)malloc(dx * temp.oy + CACHE_LINE);
       unsigned char *scrbuf = (unsigned char*)align_by(scrbuf_unaligned, CACHE_LINE);
       memset(scrbuf, 0, dx * temp.oy);
       renders[conf.render].func(scrbuf, dx); // render to memory buffer (PAL8, YUY2, RGB15, RGB16, RGB32)
 
-      for (int i = temp.oy; i; i--) // convert to RGB32 format
-      {
-         unsigned char *src = scrbuf + (i-1)*dx;
-         unsigned char ds[384*4*3+4];
-         for (unsigned y = 0; y < temp.ox; y++)
-         {
-            unsigned xx,yy;
-            if (temp.obpp == 8)
-                yy = WORD4(pal0[src[y]].peBlue,pal0[src[y]].peGreen,pal0[src[y]].peRed,0);
-            else if (temp.obpp == 16)
-            {
-               xx = *(unsigned*)(src + y*2);
-               if (temp.hi15 == 1) // RGB15
-                   yy = WORD4((xx&0x1F)<<3, (xx&0x03E0)>>2, (xx&0x7C00)>>7, 0);
-               else if (temp.hi15 == 0) // RGB16
-                   yy = WORD4((xx&0x1F)<<3, (xx&0x07E0)>>3, (xx&0xF800)>>8, 0);
-               else if (temp.hi15 == 2) // YUY2
-               {
-                  int u = src[y/2*4+1], v = src[y/2*4+3], Y = src[y*2];
-                  int r = (int)(.4732927654e-2*u-255.3076403+1.989858012*v+.9803921569*Y),
-                      g = (int)(-.9756592292*v+186.0716700-.4780256930*u+.9803921569*Y),
-                      b = (int)(.9803921569*Y+2.004732928*u-255.3076403-.1014198783e-1*v); // mapple rulez!
-                  if (r < 0) r = 0; if (r > 255) r = 255;
-                  if (g < 0) g = 0; if (g > 255) g = 255;
-                  if (b < 0) b = 0; if (b > 255) b = 255;
-                  yy = WORD4(b,g,r,0);
-               }
-            }
-            else if (temp.obpp == 32)
-                yy = WORD4(src[y*4], src[y*4+1], src[y*4+2], 0);
+      u8 *ds = (u8 *)malloc(((temp.ox * 3 + 3) & ~3) * temp.oy);
+      ConvBgr24(ds, scrbuf, dx);
 
-            *(unsigned*)(ds+y*3) = yy;
-         }
-         fwrite(ds, 1, temp.ox*3, fileShot);
-      }
+      Saver[conf.scrshot - 1](fileShot, ds);
+
+      free(ds);
       free(scrbuf_unaligned);
-      fclose(fileShot);
    }
-   sprintf(statusline, "saving %s", strrchr(fname, '\\')+1); statcnt = 30;
+   fclose(fileShot);
+   sprintf(statusline, "saving %s", strrchr(fname, '\\') + 1);
+   statcnt = 30;
    sshot++;
+}
+
+static void VideoFrameSaver()
+{
+   char fname[FILENAME_MAX];
+   static unsigned FrameNum = 0;
+
+   sprintf(fname, "video%06u.png", FrameNum);
+   addpath(fname);
+
+   FILE *fileShot = fopen(fname, "wb");
+   if (!fileShot)
+      return;
+
+   unsigned dx = temp.ox * temp.obpp / 8;
+   unsigned char *scrbuf_unaligned = (unsigned char*)malloc(dx * temp.oy + CACHE_LINE);
+   unsigned char *scrbuf = (unsigned char*)align_by(scrbuf_unaligned, CACHE_LINE);
+   memset(scrbuf, 0, dx * temp.oy);
+   renders[conf.render].func(scrbuf, dx); // render to memory buffer (PAL8, YUY2, RGB15, RGB16, RGB32)
+
+   u8 *ds = (u8 *)malloc(((temp.ox * 3 + 3) & ~3) * temp.oy);
+   ConvBgr24(ds, scrbuf, dx);
+
+   SavePng(fileShot, ds);
+
+   free(ds);
+   free(scrbuf_unaligned);
+   fclose(fileShot);
+   FrameNum++;
+}
+
+static void VideoNullSaver()
+{
+
+}
+
+TVideoSaver VideoSaver = VideoNullSaver;
+
+void main_savevideo()
+{
+   static bool StartSave = false;
+
+   if(!StartSave)
+   {
+       sprintf(statusline, "start saving video");
+       StartSave = true;
+       VideoSaver = VideoFrameSaver;
+   }
+   else
+   {
+       sprintf(statusline, "stop saving video");
+       StartSave = false;
+       VideoSaver = VideoNullSaver;
+   }
+
+   statcnt = 30;
 }

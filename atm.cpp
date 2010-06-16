@@ -1,3 +1,9 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "memory.h"
+#include "draw.h"
 
 void atm_memswap()
 {
@@ -11,9 +17,259 @@ void atm_memswap()
    }
 }
 
+void AtmApplySideEffectsWhenChangeVideomode(unsigned char val)
+{
+    int NewVideoMode = (val & 7);
+    int OldVideoMode = (comp.pFF77 & 7);
+    if (OldVideoMode == 3 || NewVideoMode == 3)
+    {
+        // Переключение из/в sinclair режим не имеет полезных побочных эффектов
+        // (по словам AlCo даже синхра сбивается)
+        return;
+    }
+
+    // Константы можно задать жёстко, потому что между моделями АТМ2 они не меняются.
+    const int tScanlineWidth = 224;
+    const int tScreenWidth = 320/2;
+    const int tEachBorderWidth = (tScanlineWidth - tScreenWidth)/2;
+    const int iLinesAboveBorder = 56;
+
+    int iRayLine = cpu.t / tScanlineWidth;
+    int iRayOffset = cpu.t % tScanlineWidth;
+/*    
+    static int iLastLine = 0;
+    if ( iLastLine > iRayLine )
+    {
+        printf("\nNew Frame Begin\n");
+        __asm int 3;
+    }
+    iLastLine = iRayLine;
+    printf("%d->%d %d %d\n", OldVideoMode, NewVideoMode, iRayLine, iRayOffset);
+*/
+    if (OldVideoMode != 6 && NewVideoMode != 6)
+    {
+        // Нас интересуют только переключения между текстовым режимом и расширенными графическими.
+        // Текстового режима нет ни до, ни после переключения. 
+        // Следовательно, нет и побочных эффектов.
+        
+        // Распространяем новый видеорежим на неотрисованные сканлинии
+        if (iRayOffset >= tEachBorderWidth)
+            ++iRayLine;
+
+        while (iRayLine < 256)
+        {
+            AtmVideoCtrl.Scanlines[iRayLine++].VideoMode = NewVideoMode;
+        }
+//        printf("%d->%d SKIPPED!\n",  OldVideoMode, NewVideoMode);
+        return;
+    }
+
+    //
+    // Терминология и константы:
+    // Экран содержит 312 сканлиний, по 224такта (noturbo) в каждой.
+    //
+    //  "строка" - младшие 3 бита номера отрисовываемой видеоконтроллером (лучом) сканлинии
+    //  "адрес"  - текущий адрес в видеопамяти, с которого выбирает байты видеоконтроллер
+    //             адрес меняется с гранулярностью +8 или +64
+    //  "экран"  - растровая картинка. Со всех сторон окружена "бордюром".
+    //             Размеры бордюра: 
+    //          сверху и снизу от растра: 56 сканлиний
+    //              слева и справа от растра: 32 такта (64пикселя).
+    // 
+    // +64 происходит, когда CROW 1->0, то есть:
+    //  либо в текстмоде при переходе со строки 7 на строку 0,
+    //  либо при переключении текстмод->графика при адресе A5=0,
+    //  либо при переключении графика->текстмод при адресе A5=1 и строке 0..3
+    //
+    // +8 происходит на растре в конце 64-блока пикселей (каждые 32такта) независимо от режима
+    // (ВАЖНО: +8 не завраплены внутри A3..A5 а производят честное сложение с адресом.)
+    //
+    // сброс A3..A5 (накопленных +8) происходит, когда RCOL 1->0, то есть:
+    //  либо в текстмоде при переходе с растра на бордюр,
+    //  либо на бордюре при переключении графика->текстмод
+    //
+
+
+    if (iRayLine >= 256)
+    {
+        return;
+    }
+
+    // Получим оффсет текущей сканлинии (фактически видеоадрес её начала)
+    int Offset = AtmVideoCtrl.Scanlines[iRayLine].Offset;
+
+    // Вычислим реальный видеоадрес, с учётом инкрементов при отрисовке растра.
+    // Также определим, куда применяем +64 инкременты при переключении видеорежима:
+    //  - Если луч на бордюре сверху от растра или на бордюре слева от растра - изменяем оффсет для текущей сканлинии
+    //  - Если луч на растре или на бордюре справа от растра - изменяем оффсет для следующей сканлинии
+    bool bRayOnBorder = true;
+    if ( iRayLine < iLinesAboveBorder || iRayOffset < tEachBorderWidth )
+    {
+        // Луч на бордюре. Либо сверху от растра, либо слева от растра.
+        // Все изменения применяем к текущей сканлинии.
+
+        // Обработаем переключение видеорежима.
+        if ( NewVideoMode == 6 )
+        {
+            // Переключение В текстовый режим.
+            if ( (Offset & 32) //< проверка условия "при адресе A5=1"
+                 && (iRayLine & 7) < 4 //< проверка условия "в строке 0..3"
+               )
+            {
+//                printf("CASE-1: 0x%.4x Incremented (+64) on line %d\n", Offset, iRayLine);
+                Offset += 64;
+                AtmVideoCtrl.Scanlines[iRayLine].Offset = Offset;
+            }
+
+            AtmVideoCtrl.Scanlines[iRayLine].VideoMode = NewVideoMode;
+
+            // После прохода всех точек растра текущей сканлинии в текстовом режиме будут сброшены A3..A5
+            Offset &= (~0x38); // Сброс A3..A5
+//            printf("CASE-1a, reset A3..A5: 0x%.4x\n", Offset);
+            
+            // Рассчёт видеоадресов для нижлежащих сканлиний
+            while (++iRayLine < 256)
+            {
+                if ( 0 == (iRayLine & 7))
+                {
+                    Offset += 64;
+                }
+                AtmVideoCtrl.Scanlines[iRayLine].Offset = Offset;
+                AtmVideoCtrl.Scanlines[iRayLine].VideoMode = NewVideoMode;
+            }
+        } else {
+            // Переключение ИЗ текстового режима.
+            if ( 0 == (Offset & 32) ) //< проверка условия "при адресе A5=0"
+            {
+//                printf("CASE-2: 0x%.4x Incremented (+64) on line %d\n", Offset, iRayLine);
+                Offset += 64;
+                AtmVideoCtrl.Scanlines[iRayLine].Offset = Offset;
+            }
+            AtmVideoCtrl.Scanlines[iRayLine].VideoMode = NewVideoMode;
+
+            // Рассчёт видеоадресов для нижлежащих сканлиний
+            while (++iRayLine < 256)
+            {
+                AtmVideoCtrl.Scanlines[iRayLine].Offset = Offset;
+                AtmVideoCtrl.Scanlines[iRayLine].VideoMode = NewVideoMode;
+            }
+        }
+    } else {
+        // Луч рисует растр, либо бордюр справа от растра.
+
+        // Вычисляем текущее значение видеоадреса
+
+        // Прибавляем к видеоадресу все +64 инкременты, 
+        // сделанные в ходе отрисовки растра данной сканлинии
+        if (iRayLine == AtmVideoCtrl.CurrentRayLine)
+        {
+            Offset += AtmVideoCtrl.IncCounter_InRaster;
+        } else {
+            // Счётчик инкрементов устарел (т.к. накручен на сканлинию отличную от текущей)
+            // Инициализируем его для текущей сканлинии.
+            AtmVideoCtrl.CurrentRayLine = iRayLine;
+            AtmVideoCtrl.IncCounter_InRaster = 0;
+            AtmVideoCtrl.IncCounter_InBorder = 0;
+        }
+        
+        // Прибавляем к видеоадресу все +8 инкременты, произошедшие при отрисовке растра
+        bool bRayInRaster = iRayOffset < (tScreenWidth + tEachBorderWidth);
+        
+        int iScanlineRemainder = 0; //< Сколько +8 инкрементов ещё будет сделано до конца сканлинии 
+                                    //  (т.е. уже после переключения видеорежима)
+        if ( bRayInRaster )
+        {
+            // Луч рисует растр. 
+            // Прибавляем к текущему видеоадресу столько +8, 
+            // сколько было полностью отрисованных 64пиксельных блока.
+            int iIncValue = 8 * ((iRayOffset-tEachBorderWidth)/32);
+            iScanlineRemainder = 40 - iIncValue;
+//            printf("CASE-4: 0x%.4x Incremented (+%d) on line %d\n", Offset, iIncValue, iRayLine);
+            Offset += iIncValue;
+        } else {
+            // Отрисовка растра лучом завершена.
+            // Т.е. все 5-ять 64-пиксельных блока были пройдены. Прибавляем к адресу +40.
+//            printf("CASE-5: 0x%.4x Incremented (+40) on line %d\n", Offset, iRayLine);
+            Offset += 40;
+
+            // Если предыдущим режимом был текстовый режим,
+            // То при переходе с растра на бордюр должны быть сброшены A3..A5
+            if (OldVideoMode == 6)
+            {
+                Offset &= (~0x38); // Сброс A3..A5
+//                printf("CASE-5a, reset A3..A5: 0x%.4x\n", Offset);
+            }
+        }
+
+        // Прибавляем к видеоадресу все +64 инкременты, 
+        // сделанные в ходе отрисовки бордюра за растром данной сканлинии
+        Offset += AtmVideoCtrl.IncCounter_InBorder;
+
+        // Текущее значение видеоадреса вычислено. 
+        // Обрабатываем переключение видеорежима.
+        int OffsetInc = 0;
+        if ( NewVideoMode == 6 )
+        {
+            // Переключение В текстовый режим.
+            if ( (Offset & 32) //< проверка условия "при адресе A5=1"
+                && (iRayLine & 7) < 4 //< проверка условия "в строке 0..3"
+                )
+            {
+                OffsetInc = 64;
+//                printf("CASE-6: 0x%.4x Incremented (+64) on line %d\n", Offset, iRayLine);
+                Offset += OffsetInc;
+            }
+            // Рассчёт видеоадресов для нижлежащих сканлиний
+            Offset += iScanlineRemainder;
+            while (++iRayLine < 256)
+            {
+                if ( 0 == (iRayLine & 7))
+                    Offset += 64;
+                AtmVideoCtrl.Scanlines[iRayLine].Offset = Offset;
+                AtmVideoCtrl.Scanlines[iRayLine].VideoMode = NewVideoMode;
+            }
+        } else {
+            // Переключение ИЗ текстового режима.
+            if ( 0 == (Offset & 32) ) //< проверка условия "при адресе A5=0"
+            {
+                OffsetInc = 64;
+//                printf("CASE-7: 0x%.4x Incremented (+64) on line %d\n", Offset, iRayLine);
+                Offset += OffsetInc;
+            }
+
+            // Рассчёт видеоадресов для нижлежащих сканлиний
+            Offset += iScanlineRemainder;
+            while (++iRayLine < 256)
+            {
+                AtmVideoCtrl.Scanlines[iRayLine].Offset = Offset;
+                AtmVideoCtrl.Scanlines[iRayLine].VideoMode = NewVideoMode;
+                Offset += 40;
+            }
+        }
+
+        // запоминаем сделанный инкремент на случай, 
+        // если их будет несколько в ходе отрисовки текущей сканлинии.
+        if ( bRayInRaster )
+        {
+            AtmVideoCtrl.IncCounter_InRaster += OffsetInc;
+        } else {
+            AtmVideoCtrl.IncCounter_InBorder += OffsetInc;
+        }
+    }
+}
+
 void set_atm_FF77(unsigned port, unsigned char val)
 {
-   if ((comp.pFF77 ^ val) & 1) atm_memswap();
+   if ((comp.pFF77 ^ val) & 1)
+       atm_memswap();
+   
+
+   if ((comp.pFF77 & 7) ^ (val & 7))
+   {
+        // Происходит переключение видеорежима
+        AtmApplySideEffectsWhenChangeVideomode(val);
+   }
+
    comp.pFF77 = val;
    comp.aFF77 = port;
    set_banks();
@@ -27,19 +283,10 @@ void set_atm_aFE(unsigned char addr)
    if ((addr ^ old_aFE) & 0x80) set_banks();
 }
 
-void reset_atm()
-{
-   // spectrum colors -> palette indexes (RF_PALB - gg0rr0bb format)
-   static unsigned char atm_pal[16] =
-      { 0x00, 0x02, 0x10, 0x12, 0x80, 0x82, 0x90, 0x92,
-        0x00, 0x03, 0x18, 0x1B, 0xC0, 0xC3, 0xD8, 0xDB };
-   memcpy(comp.atm_pal, atm_pal, sizeof comp.atm_pal);
-}
-
 void atm_writepal(unsigned char val)
 {
-   comp.atm_pal[comp.border_attr] = t.atm_pal_map[val];
-   temp.atm_pal_changed = 1;
+   comp.comp_pal[comp.border_attr] = t.atm_pal_map[val];
+   temp.comp_pal_changed = 1;
 }
 
 unsigned char atm450_z(unsigned t)

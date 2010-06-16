@@ -1,12 +1,27 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "dxrend.h"
+#include "dxrcopy.h"
+#include "dxr_512.h"
+#include "dxr_4bpp.h"
+#include "dxr_prof.h"
+#include "dxr_atm.h"
+#include "draw.h"
+#include "util.h"
 
 void __fastcall render_small(unsigned char *dst, unsigned pitch)
 {
-   if (conf.noflic) {
+   if (conf.noflic)
+   {
       if (temp.obpp == 8)  { rend_copy8_nf (dst, pitch); }
       if (temp.obpp == 16) { rend_copy16_nf(dst, pitch); }
       if (temp.obpp == 32) { rend_copy32_nf(dst, pitch); }
       memcpy(rbuf_s, rbuf, temp.scy*temp.scx/4);
-   } else {
+   }
+   else
+   {
       if (temp.obpp == 8)  { rend_copy8 (dst, pitch); return; }
       if (temp.obpp == 16) { rend_copy16(dst, pitch); return; }
       if (temp.obpp == 32) { rend_copy32(dst, pitch); return; }
@@ -17,6 +32,7 @@ void rend_dbl(unsigned char *dst, unsigned pitch)
 {
    if (temp.oy > temp.scy && conf.fast_sl)
        pitch *= 2;
+
    if (conf.noflic)
    {
       if (temp.obpp == 8)
@@ -75,15 +91,39 @@ void rend_dbl(unsigned char *dst, unsigned pitch)
 void __fastcall render_dbl(unsigned char *dst, unsigned pitch)
 {
    #ifdef MOD_VID_VD
-   if ((comp.pVD & 8) && temp.obpp == 8) { rend_vd8dbl(dst, pitch); return; }
+   if ((comp.pVD & 8) && temp.obpp == 8)
+   {
+       rend_vd8dbl(dst, pitch);
+       return;
+   }
    #endif
 
    // todo: add ini option to show zx-screen with palette or with MC
-   if (comp.pEFF7 & EFF7_512) { rend_512(dst, pitch); return; }
-   if (comp.pEFF7 & EFF7_4BPP) { rend_p4bpp(dst, pitch); return; }
-   if ((comp.pDFFD & 0x80) && conf.mem_model == MM_PROFI) { rend_profi(dst, pitch); return; }
-   if (conf.mem_model == MM_ATM450) { rend_atm_1(dst, pitch); return; }
-   if (conf.mem_model == MM_ATM710) { rend_atm_2(dst, pitch); return; }
+   if (comp.pEFF7 & EFF7_512)
+   {
+       rend_512(dst, pitch);
+       return;
+   }
+   if (comp.pEFF7 & EFF7_4BPP)
+   {
+       rend_p4bpp(dst, pitch);
+       return;
+   }
+   if ((comp.pDFFD & 0x80) && conf.mem_model == MM_PROFI)
+   {
+       rend_profi(dst, pitch);
+       return;
+   }
+   if (conf.mem_model == MM_ATM450)
+   {
+       rend_atm_1(dst, pitch);
+       return;
+   }
+   if (conf.mem_model == MM_ATM710)
+   {
+       rend_atm_2(dst, pitch);
+       return;
+   }
 
    rend_dbl(dst, pitch);
 }

@@ -1,3 +1,4 @@
+#pragma once
 
 struct GSHLE
 {
@@ -56,11 +57,11 @@ struct GSHLE
    void init_mod();
    void restart_mod(unsigned order, unsigned row);
    void startfx(CHANNEL *ch, float pan);
-   __inline void resetmod();
-   __inline void resetfx();
-   __inline DWORD modgetpos();
-   __inline void stop_mod();
-   __inline void cont_mod();
+   void resetmod();
+   void resetfx();
+   DWORD modgetpos();
+   void stop_mod();
+   void cont_mod();
    void debug_note(unsigned i);
 
    void reportError(char *err);

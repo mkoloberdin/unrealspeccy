@@ -1,3 +1,10 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "wd93crc.h"
+
+#include "util.h"
 
 int FDD::write_td0(FILE *ff)
 {
@@ -45,6 +52,30 @@ int FDD::write_td0(FILE *ff)
 
 
 unsigned unpack_lzh(unsigned char *src, unsigned size, unsigned char *buf);
+
+// No ID address field was present for this sector,
+// but there is a data field. The sector information in
+// the header represents fabricated information.
+const ULONG TD0_SEC_NO_ID = 0x40;
+
+// This sector's data field is missing; no sector data follows this header.
+const ULONG TD0_SEC_NO_DATA = 0x20;
+
+// A DOS sector copy was requested; this sector was not allocated.
+// In this case, no sector data follows this header.
+const ULONG TD0_SEC_NO_DATA2 = 0x10;
+
+#pragma pack(push, 1)
+struct TTd0Sec
+{
+    u8 c;
+    u8 h;
+    u8 s;
+    u8 n;
+    u8 flags;
+    u8 crc;
+};
+#pragma pack(pop)
 
 int FDD::read_td0()
 {
@@ -114,25 +145,56 @@ int FDD::read_td0()
       unsigned s = 0;
       for (unsigned se = 0; se < trkh[0]; se++)
       {
-         unsigned sec_size = 128U << (td0_src[3] & 3); // [vv]
-         unsigned char flags = td0_src[4];
-
-         if(flags & (0x40 | 0x20 |  0x10)) // skip sectors with no data & sectors without headers
+         TTd0Sec *SecHdr = (TTd0Sec *)td0_src;
+         unsigned sec_size = 128U << (SecHdr->n & 3); // [vv]
+         unsigned char flags = SecHdr->flags;
+//         printf("fl=%x\n", flags);
+//         printf("c=%d, h=%d, s=%d, n=%d\n", SecHdr->c, SecHdr->h, SecHdr->s, SecHdr->n);
+         if(flags & (TD0_SEC_NO_ID | TD0_SEC_NO_DATA | TD0_SEC_NO_DATA2)) // skip sectors with no data & sectors without headers
          {
-             td0_src += 6; // sizeof(sec_rec)
+             td0_src += sizeof(TTd0Sec); // sizeof(sec_rec)
 
              unsigned src_size = *(unsigned short*)td0_src;
+//             printf("sz=%d\n", src_size);
              td0_src += 2; // data_len
              unsigned char *end_packed_data = td0_src + src_size;
+/*
+             u8 method = *td0_src++;
+             printf("m=%d\n", method);
+             switch(method)
+             {
+             case 0:
+                 {
+                     char name[MAX_PATH];
+                     sprintf(name, "%02d-%d-%03d-%d.trk", SecHdr->c, SecHdr->h, SecHdr->s, SecHdr->n);
+                     FILE *f = fopen(name, "wb");
+                     fwrite(td0_src, 1, src_size - 1, f);
+                     fclose(f);
+                     break;
+                 }
+             case 1:
+                 {
+                     unsigned n = *(unsigned short*)td0_src;
+                     td0_src += 2;
+                     unsigned short data = *(unsigned short*)td0_src;
+                     printf("len=%d, data=%04X\n", n, data);
+                     break;
+                 }
+             }
+*/
              td0_src = end_packed_data;
              continue;
          }
 
-         *(unsigned*)&t.hdr[s] = *(unsigned*)td0_src; // c, h, s, n
+          // c, h, s, n
+         t.hdr[s].c = SecHdr->c;
+         t.hdr[s].s = SecHdr->h;
+         t.hdr[s].n = SecHdr->s;
+         t.hdr[s].l = SecHdr->n;
          t.hdr[s].c1 = t.hdr[s].c2 = 0;
          t.hdr[s].data = dst;
 
-         td0_src += 6; // sizeof(sec_rec)
+         td0_src += sizeof(TTd0Sec); // sizeof(sec_rec)
 
          unsigned src_size = *(unsigned short*)td0_src;
          td0_src += 2; // data_len
@@ -150,7 +212,7 @@ int FDD::read_td0()
                unsigned n = *(unsigned short*)td0_src;
                td0_src += 2;
                unsigned short data = *(unsigned short*)td0_src;
-               for (unsigned i = 0; i < n; i--)
+               for (unsigned i = 0; i < n; i++)
                   *(unsigned short*)(dst+2*i) = data;
                break;
             }

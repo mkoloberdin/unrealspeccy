@@ -1,46 +1,47 @@
-struct TRegLayout
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "debug.h"
+#include "dbgpaint.h"
+#include "dbgreg.h"
+
+const TRegLayout regs_layout[] =
 {
-   size_t offs;
-   unsigned char width;
-   unsigned char x,y;
-   unsigned char lf,rt,up,dn;
+   { offsetof(TZ80State, a)     ,  8,  3, 0, 0, 1, 0, 2 }, //  0 a
+   { offsetof(TZ80State, f)     ,  8,  5, 0, 0, 5, 1, 2 }, //  1 f
+   { offsetof(TZ80State, bc)    , 16,  3, 1, 2, 6, 0, 3 }, //  2 bc
+   { offsetof(TZ80State, de)    , 16,  3, 2, 3, 7, 2, 4 }, //  3 de
+   { offsetof(TZ80State, hl)    , 16,  3, 3, 4, 8, 3, 4 }, //  4 hl
+   { offsetof(TZ80State, alt.af), 16, 11, 0, 1, 9, 5, 6 }, //  5 af'
+   { offsetof(TZ80State, alt.bc), 16, 11, 1, 2,10, 5, 7 }, //  6 bc'
+   { offsetof(TZ80State, alt.de), 16, 11, 2, 3,11, 6, 8 }, //  7 de'
+   { offsetof(TZ80State, alt.hl), 16, 11, 3, 4,12, 7, 8 }, //  8 hl'
+   { offsetof(TZ80State, sp)    , 16, 19, 0, 5,13, 9,10 }, //  9 sp
+   { offsetof(TZ80State, pc)    , 16, 19, 1, 6,10, 9,11 }, // 10 pc
+   { offsetof(TZ80State, ix)    , 16, 19, 2, 7,15,10,12 }, // 11 ix
+   { offsetof(TZ80State, iy)    , 16, 19, 3, 8,18,11,12 }, // 12 iy
+   { offsetof(TZ80State, i)     ,  8, 28, 0, 9,14,13,16 }, // 13 i
+   { offsetof(TZ80State, r_low) ,  8, 30, 0,13,14,14,17 }, // 14 r
+   { offsetof(TZ80State, im)    ,  2, 26, 2,11,16,13,20 }, // 15 im
+   { offsetof(TZ80State, iff1)  ,  1, 30, 2,15,17,13,24 }, // 16 iff1
+   { offsetof(TZ80State, iff2)  ,  1, 31, 2,16,17,14,25 }, // 17 iff2
+   { offsetof(TZ80State, f)     , 37, 24, 3,12,19,15,18 }, // 18 SF
+   { offsetof(TZ80State, f)     , 36, 25, 3,18,20,15,19 }, // 19 ZF
+   { offsetof(TZ80State, f)     , 35, 26, 3,19,21,15,20 }, // 20 F5
+   { offsetof(TZ80State, f)     , 34, 27, 3,20,22,15,21 }, // 21 HF
+   { offsetof(TZ80State, f)     , 33, 28, 3,21,23,15,22 }, // 22 F3
+   { offsetof(TZ80State, f)     , 32, 29, 3,22,24,16,23 }, // 23 PV
+   { offsetof(TZ80State, f)     , 31, 30, 3,23,25,16,24 }, // 24 NF
+   { offsetof(TZ80State, f)     , 30, 31, 3,24,25,17,25 }, // 25 CF
 };
 
-static const TRegLayout regs_layout[] =
-{
-   { offsetof(Z80, a)     ,  8,  3, 0, 0, 1, 0, 2 }, //  0 a
-   { offsetof(Z80, f)     ,  8,  5, 0, 0, 5, 1, 2 }, //  1 f
-   { offsetof(Z80, bc)    , 16,  3, 1, 2, 6, 0, 3 }, //  2 bc
-   { offsetof(Z80, de)    , 16,  3, 2, 3, 7, 2, 4 }, //  3 de
-   { offsetof(Z80, hl)    , 16,  3, 3, 4, 8, 3, 4 }, //  4 hl
-   { offsetof(Z80, alt.af), 16, 11, 0, 1, 9, 5, 6 }, //  5 af'
-   { offsetof(Z80, alt.bc), 16, 11, 1, 2,10, 5, 7 }, //  6 bc'
-   { offsetof(Z80, alt.de), 16, 11, 2, 3,11, 6, 8 }, //  7 de'
-   { offsetof(Z80, alt.hl), 16, 11, 3, 4,12, 7, 8 }, //  8 hl'
-   { offsetof(Z80, sp)    , 16, 19, 0, 5,13, 9,10 }, //  9 sp
-   { offsetof(Z80, pc)    , 16, 19, 1, 6,10, 9,11 }, // 10 pc
-   { offsetof(Z80, ix)    , 16, 19, 2, 7,15,10,12 }, // 11 ix
-   { offsetof(Z80, iy)    , 16, 19, 3, 8,18,11,12 }, // 12 iy
-   { offsetof(Z80, i)     ,  8, 28, 0, 9,14,13,16 }, // 13 i
-   { offsetof(Z80, r_low) ,  8, 30, 0,13,14,14,17 }, // 14 r
-   { offsetof(Z80, im)    ,  2, 26, 2,11,16,13,20 }, // 15 im
-   { offsetof(Z80, iff1)  ,  1, 30, 2,15,17,13,24 }, // 16 iff1
-   { offsetof(Z80, iff2)  ,  1, 31, 2,16,17,14,25 }, // 17 iff2
-   { offsetof(Z80, f)     , 37, 24, 3,12,19,15,18 }, // 18 SF
-   { offsetof(Z80, f)     , 36, 25, 3,18,20,15,19 }, // 19 ZF
-   { offsetof(Z80, f)     , 35, 26, 3,19,21,15,20 }, // 20 F5
-   { offsetof(Z80, f)     , 34, 27, 3,20,22,15,21 }, // 21 HF
-   { offsetof(Z80, f)     , 33, 28, 3,21,23,15,22 }, // 22 F3
-   { offsetof(Z80, f)     , 32, 29, 3,22,24,16,23 }, // 23 PV
-   { offsetof(Z80, f)     , 31, 30, 3,23,25,16,24 }, // 24 NF
-   { offsetof(Z80, f)     , 30, 31, 3,24,25,17,25 }, // 25 CF
-};
-
+const size_t regs_layout_count = _countof(regs_layout);
 
 void showregs()
 {
    Z80 &cpu = CpuMgr.Cpu();
-   Z80 &prevcpu = CpuMgr.PrevCpu();
+   const TZ80State &prevcpu = CpuMgr.PrevCpu();
 
    unsigned char atr = (activedbg == WNDREGS) ? W_SEL : W_NORM;
    char line[40];
@@ -54,16 +55,22 @@ void showregs()
       tprint(regs_x+26,regs_y+1,"DiHALT", (activedbg == WNDREGS) ? W_DIHALT1 : W_DIHALT2);
    }
    else
-       sprintf(line, "%6d", cpu.t), tprint(regs_x+26,regs_y+1,line,atr);
+   {
+       sprintf(line, "%6d", cpu.t);
+       tprint(regs_x+26,regs_y+1,line,atr);
+   }
 
    cpu.r_low = (cpu.r_low & 0x7F) + cpu.r_hi;
-   for (unsigned i = 0; i < sizeof regs_layout / sizeof *regs_layout; i++)
+   for (unsigned i = 0; i < regs_layout_count; i++)
    {
       unsigned mask = (1 << regs_layout[i].width) - 1;
-      unsigned val = mask & *(unsigned*)(PCHAR(&cpu)+regs_layout[i].offs);
+      unsigned val = mask & *(unsigned*)(PCHAR((TZ80State*)&cpu)+regs_layout[i].offs);
       unsigned char atr1 = atr;
-      if (activedbg == WNDREGS && i == regs_curs) atr1 = W_CURS;
-      if (val != (mask & *(unsigned*)(PCHAR(&prevcpu)+regs_layout[i].offs))) atr1 |= 0x08;
+      if (activedbg == WNDREGS && i == regs_curs)
+          atr1 = W_CURS;
+      if (val != (mask & *(unsigned*)(PCHAR(&prevcpu)+regs_layout[i].offs)))
+          atr1 |= 0x08;
+
       char bf[16];
       switch (regs_layout[i].width)
       {
@@ -75,7 +82,7 @@ void showregs()
       }
       tprint(regs_x + regs_layout[i].x, regs_y + regs_layout[i].y, bf, atr1);
    }
-   static char flg[] = "SZ5H3PNCsz.h.pnc";
+   static const char flg[] = "SZ5H3PNCsz.h.pnc";
    for (unsigned char q = 0; q < 8; q++)
    {
       unsigned ln; unsigned char atr1 = atr;
@@ -98,19 +105,21 @@ void renter()
    debugscr();
    debugflip();
    unsigned char sz = regs_layout[regs_curs].width;
-   unsigned val = ((1 << sz) - 1) & *(unsigned*)(PCHAR(&cpu) + regs_layout[regs_curs].offs);
-   unsigned char *ptr = (unsigned char*)&cpu + regs_layout[regs_curs].offs;
+   unsigned val = ((1 << sz) - 1) & *(unsigned*)(PCHAR((TZ80State*)&cpu) + regs_layout[regs_curs].offs);
+   unsigned char *ptr = PUCHAR((TZ80State*)&cpu) + regs_layout[regs_curs].offs;
    if ((sz == 8 || sz == 16) && ((input.lastkey >= '0' && input.lastkey <= '9') || (input.lastkey >= 'A' && input.lastkey <= 'F')))
       PostThreadMessage(GetCurrentThreadId(), WM_KEYDOWN, input.lastkey, 1);
    switch (sz)
    {
       case 8:
          val = input2(regs_x + regs_layout[regs_curs].x, regs_y + regs_layout[regs_curs].y, val);
-         if (val != -1) *ptr = val;
+         if (val != -1)
+             *ptr = val;
          break;
       case 16:
          val = input4(regs_x + regs_layout[regs_curs].x, regs_y + regs_layout[regs_curs].y, val);
-         if (val != -1) *(unsigned short*)ptr = val;
+         if (val != -1)
+             *(unsigned short*)ptr = val;
          break;
       case 1:
          *ptr ^= 1; break;
@@ -150,7 +159,7 @@ void rcodejump()
     if (regs_layout[regs_curs].width == 16)
     {
          activedbg = WNDTRACE;
-         cpu.trace_curs = cpu.trace_top = *(unsigned short*)(PCHAR(&cpu) + regs_layout[regs_curs].offs);
+         cpu.trace_curs = cpu.trace_top = *(unsigned short*)(PCHAR((TZ80State*)&cpu) + regs_layout[regs_curs].offs);
     }
 }
 void rdatajump()
@@ -160,7 +169,7 @@ void rdatajump()
     {
         activedbg = WNDMEM;
         editor = ED_MEM;
-        cpu.mem_curs = *(unsigned short*)(PCHAR(&cpu) + regs_layout[regs_curs].offs);
+        cpu.mem_curs = *(unsigned short*)(PCHAR((TZ80State*)&cpu) + regs_layout[regs_curs].offs);
     }
 }
 

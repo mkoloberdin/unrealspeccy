@@ -1,9 +1,13 @@
+#include "std.h"
 
-#define MAX_CBP 16
-unsigned cbp[MAX_CBP][128];
-unsigned cbpn;
+#include "resource.h"
+#include "emul.h"
+#include "vars.h"
+#include "debug.h"
+#include "util.h"
 
-enum {
+enum
+{
    DB_STOP = 0,
    DB_CHAR,
    DB_SHORT,
@@ -13,14 +17,13 @@ enum {
 };
 
 unsigned calcerr;
-unsigned calc(unsigned *script)
+unsigned calc(const Z80 *cpu, unsigned *script)
 {
-   Z80 &cpu = CpuMgr.Cpu();
    unsigned stack[64];
    unsigned *sp = stack-1, x;
    while (*script) {
       switch (*script++) {
-         case 'M':             *sp = cpu.RmDbg(*sp);   break;
+         case 'M':             *sp = cpu->DirectRm(*sp);   break;
          case '!':             *sp = !*sp;     break;
          case '~':             *sp = ~*sp;     break;
          case '+':             *(sp-1) += *sp; goto arith;
@@ -31,7 +34,7 @@ unsigned calc(unsigned *script)
          case '&':             *(sp-1) &= *sp; goto arith;
          case '|':             *(sp-1) |= *sp; goto arith;
          case '^':             *(sp-1) ^= *sp; goto arith;
-         case WORD2('-','>'):  *(sp-1) = cpu.RmDbg(*sp + sp[-1]); goto arith;
+         case WORD2('-','>'):  *(sp-1) = cpu->DirectRm(*sp + sp[-1]); goto arith;
          case WORD2('>','>'):  *(sp-1) >>= *sp;goto arith;
          case WORD2('<','<'):  *(sp-1) <<= *sp;goto arith;
          case WORD2('!','='):  *(sp-1) = (sp[-1]!=*sp);goto arith;
@@ -56,53 +59,55 @@ unsigned calc(unsigned *script)
    return *sp;
 }
 
-static struct
-{
-   unsigned reg;
-   void *ptr;
-   unsigned char size;
-} regs[] =
-{
+#define DECL_REGS(var, cpu)                        \
+   static struct                                   \
+   {                                               \
+      unsigned reg;                                \
+      const void *ptr;                             \
+      unsigned char size;                          \
+   } var[] =                                       \
+   {                                               \
+                                                   \
+      { WORD4('O','U','T',0), &brk_port_out, 4 },  \
+      { WORD2('I','N'), &brk_port_in, 4 },         \
+      { WORD4('V','A','L',0), &brk_port_val, 1 },  \
+      { WORD2('F','D'), &comp.p7FFD, 1 },          \
+                                                   \
+      { WORD4('A','F','\'',0), &cpu.alt.af, 2 },   \
+      { WORD4('B','C','\'',0), &cpu.alt.bc, 2 },   \
+      { WORD4('D','E','\'',0), &cpu.alt.de, 2 },   \
+      { WORD4('H','L','\'',0), &cpu.alt.hl, 2 },   \
+      { WORD2('A','\''), &cpu.alt.a, 1 },          \
+      { WORD2('F','\''), &cpu.alt.f, 1 },          \
+      { WORD2('B','\''), &cpu.alt.b, 1 },          \
+      { WORD2('C','\''), &cpu.alt.c, 1 },          \
+      { WORD2('D','\''), &cpu.alt.d, 1 },          \
+      { WORD2('E','\''), &cpu.alt.e, 1 },          \
+      { WORD2('H','\''), &cpu.alt.h, 1 },          \
+      { WORD2('L','\''), &cpu.alt.l, 1 },          \
+                                                   \
+      { WORD2('A','F'), &cpu.af, 2 },              \
+      { WORD2('B','C'), &cpu.bc, 2 },              \
+      { WORD2('D','E'), &cpu.de, 2 },              \
+      { WORD2('H','L'), &cpu.hl, 2 },              \
+      { 'A', &cpu.a, 1 },                          \
+      { 'F', &cpu.f, 1 },                          \
+      { 'B', &cpu.b, 1 },                          \
+      { 'C', &cpu.c, 1 },                          \
+      { 'D', &cpu.d, 1 },                          \
+      { 'E', &cpu.e, 1 },                          \
+      { 'H', &cpu.h, 1 },                          \
+      { 'L', &cpu.l, 1 },                          \
+                                                   \
+      { WORD2('P','C'), &cpu.pc, 2 },              \
+      { WORD2('S','P'), &cpu.sp, 2 },              \
+      { WORD2('I','X'), &cpu.ix, 2 },              \
+      { WORD2('I','Y'), &cpu.iy, 2 },              \
+                                                   \
+      { 'I', &cpu.i, 1 },                          \
+      { 'R', &cpu.r_low, 1 },                      \
+   }
 
-   { WORD4('O','U','T',0), &brk_port_out, 4 },
-   { WORD2('I','N'), &brk_port_in, 4 },
-   { WORD4('V','A','L',0), &brk_port_val, 1 },
-   { WORD2('F','D'), &comp.p7FFD, 1 },
-
-   { WORD4('A','F','\'',0), &cpu.alt.af, 2 },
-   { WORD4('B','C','\'',0), &cpu.alt.bc, 2 },
-   { WORD4('D','E','\'',0), &cpu.alt.de, 2 },
-   { WORD4('H','L','\'',0), &cpu.alt.hl, 2 },
-   { WORD2('A','\''), &cpu.alt.a, 1 },
-   { WORD2('F','\''), &cpu.alt.f, 1 },
-   { WORD2('B','\''), &cpu.alt.b, 1 },
-   { WORD2('C','\''), &cpu.alt.c, 1 },
-   { WORD2('D','\''), &cpu.alt.d, 1 },
-   { WORD2('E','\''), &cpu.alt.e, 1 },
-   { WORD2('H','\''), &cpu.alt.h, 1 },
-   { WORD2('L','\''), &cpu.alt.l, 1 },
-
-   { WORD2('A','F'), &cpu.af, 2 },
-   { WORD2('B','C'), &cpu.bc, 2 },
-   { WORD2('D','E'), &cpu.de, 2 },
-   { WORD2('H','L'), &cpu.hl, 2 },
-   { 'A', &cpu.a, 1 },
-   { 'F', &cpu.f, 1 },
-   { 'B', &cpu.b, 1 },
-   { 'C', &cpu.c, 1 },
-   { 'D', &cpu.d, 1 },
-   { 'E', &cpu.e, 1 },
-   { 'H', &cpu.h, 1 },
-   { 'L', &cpu.l, 1 },
-
-   { WORD2('P','C'), &cpu.pc, 2 },
-   { WORD2('S','P'), &cpu.sp, 2 },
-   { WORD2('I','X'), &cpu.ix, 2 },
-   { WORD2('I','Y'), &cpu.iy, 2 },
-
-   { 'I', &cpu.i, 1 },
-   { 'R', &cpu.r_low, 1 },
-};
 
 unsigned char toscript(char *script, unsigned *dst)
 {
@@ -138,21 +143,38 @@ unsigned char toscript(char *script, unsigned *dst)
       { WORD2('|','|'), 10 }
    };
 
+   const Z80 &cpu = CpuMgr.Cpu();
+
+   DECL_REGS(regs, cpu);
+
    unsigned sp = 0;
    unsigned stack[128];
-   for (char *p = script; *p; p++) if (p[1] != 0x27) *p = toupper(*p);
-   while (*script) {
-      if (*(unsigned char*)script <= ' ') { script++; continue; }
-      if (*script == '\'') { // char
+   for (char *p = script; *p; p++)
+       if (p[1] != 0x27)
+           *p = toupper(*p);
+
+   while (*script)
+   {
+      if (*(unsigned char*)script <= ' ')
+      {
+          script++;
+          continue;
+      }
+
+      if (*script == '\'')
+      { // char
          *dst++ = DB_CHAR;
          *dst++ = script[1];
          if (script[2] != '\'') return 0;
          script += 3; continue;
       }
-      if (isalnum(*script) && *script != 'M') {
+
+      if (isalnum(*script) && *script != 'M')
+      {
          unsigned r = -1, p = *(unsigned*)script;
          unsigned ln = 0;
-         for (int i = 0; i < sizeof regs / sizeof *regs; i++) {
+         for (int i = 0; i < _countof(regs); i++)
+         {
             unsigned mask = 0xFF; ln = 1;
             if (regs[i].reg & 0xFF00) mask = 0xFFFF, ln = 2;
             if (regs[i].reg & 0xFF0000) mask = 0xFFFFFF, ln = 3;
@@ -185,31 +207,53 @@ unsigned char toscript(char *script, unsigned *dst)
       unsigned r = *script++;
       if (strchr("<>=&|-!", (char)r) && strchr("<>=&|", *script))
          r = r + 0x100 * (*script++);
-      for (int i = 0; i < sizeof(prio)/sizeof(*prio); i++)
-         if (prio[i].op == r) { pr = prio[i].prior; break; }
-      if (pr == 0xFF) return 0;
-      if (r != '(')
-      while (sp && ((stack[sp] >> 16 <= pr) || (r == ')' && (stack[sp] & 0xFF) != '('))) { // get from stack
-         *dst++ = stack[sp--] & 0xFFFF;
+      for (int i = 0; i < _countof(prio); i++)
+      {
+         if (prio[i].op == r)
+         {
+             pr = prio[i].prior;
+             break;
+         }
       }
-      if (r == ')') sp--; // del opening bracket
-      else stack[++sp] = r+0x10000*pr; // put to stack
-      if ((int)sp < 0) return 0; // no opening bracket
+      if (pr == 0xFF)
+          return 0;
+      if (r != '(')
+      {
+          while (sp && ((stack[sp] >> 16 <= pr) || (r == ')' && (stack[sp] & 0xFF) != '(')))
+          { // get from stack
+             *dst++ = stack[sp--] & 0xFFFF;
+          }
+      }
+      if (r == ')')
+          sp--; // del opening bracket
+      else
+          stack[++sp] = r+0x10000*pr; // put to stack
+      if ((int)sp < 0)
+          return 0; // no opening bracket
    }
    // empty stack
    while (sp)
    {
-      if ((stack[sp] & 0xFF) == '(') return 0; // no closing bracket
+      if ((stack[sp] & 0xFF) == '(')
+          return 0; // no closing bracket
       *dst++ = stack[sp--] & 0xFFFF;
    }
    *dst = DB_STOP;
-   calcerr = 0; calc(d1);
+
+   calcerr = 0;
+   calc(&cpu, d1);
    return (1-calcerr);
 }
 
 void script2text(char *dst, unsigned *src)
 {
-   char stack[64][0x200], tmp[0x200]; unsigned sp = 0, r;
+   char stack[64][0x200], tmp[0x200];
+   unsigned sp = 0, r;
+
+   const Z80 &cpu = CpuMgr.Cpu();
+
+   DECL_REGS(regs, cpu);
+
    while (r = *src++)
    {
       if (r == DB_CHAR)
@@ -227,11 +271,14 @@ void script2text(char *dst, unsigned *src)
       if (r >= DB_PCHAR && r <= DB_PINT)
       {
          int i; //Alone Coder 0.36.7
-         for (/*int*/ i = 0; i < sizeof regs / sizeof *regs; i++)
+         for (/*int*/ i = 0; i < _countof(regs); i++)
+         {
             if (*src == (unsigned)regs[i].ptr)
                 break;
+         }
          *(unsigned*)&(stack[sp++]) = regs[i].reg;
-         src++; continue;
+         src++;
+         continue;
       }
       if (r == 'M' || r == '~' || r == '!')
       { // unary operators
@@ -243,8 +290,10 @@ void script2text(char *dst, unsigned *src)
       sprintf(tmp, "(%s%s%s)", stack[sp-2], (char*)&r, stack[sp-1]);
       sp--; strcpy(stack[sp-1], tmp);
    }
-   if (!sp) *dst = 0;
-   else strcpy(dst, stack[sp-1]);
+   if (!sp)
+       *dst = 0;
+   else
+       strcpy(dst, stack[sp-1]);
 }
 
 void SetBpxButtons(HWND dlg)
@@ -302,8 +351,10 @@ void FillCondBox(HWND dlg, unsigned cursor)
    HWND box = GetDlgItem(dlg, IDC_CBP);
    ClearListBox(box);
 
-   for (unsigned i = 0; i < cbpn; i++) {
-      char tmp[0x200]; script2text(tmp, cbp[i]);
+   Z80 &cpu = CpuMgr.Cpu();
+   for (unsigned i = 0; i < cpu.cbpn; i++)
+   {
+      char tmp[0x200]; script2text(tmp, cpu.cbp[i]);
       SendMessage(box, LB_ADDSTRING, 0, (LPARAM)tmp);
    }
    SendMessage(box, LB_SETCURSEL, cursor, 0);
@@ -315,10 +366,13 @@ void FillBpxBox(HWND dlg, unsigned address)
    ClearListBox(box);
    unsigned selection = 0;
 
+   Z80 &cpu = CpuMgr.Cpu();
    unsigned end; //Alone Coder 0.36.7
-   for (unsigned start = 0; start < 0x10000; ) {
-      if (!(membits[start] & MEMBITS_BPX)) { start++; continue; }
-      for (/*unsigned*/ end = start; end < 0xFFFF && (membits[end+1] & MEMBITS_BPX); end++);
+   for (unsigned start = 0; start < 0x10000; )
+   {
+      if (!(cpu.membits[start] & MEMBITS_BPX))
+      { start++; continue; }
+      for (/*unsigned*/ end = start; end < 0xFFFF && (cpu.membits[end+1] & MEMBITS_BPX); end++);
       char tmp[16];
       if (start == end) sprintf(tmp, "%04X", start);
       else sprintf(tmp, "%04X-%04X", start, end);
@@ -336,12 +390,13 @@ void FillMemBox(HWND dlg, unsigned address)
    ClearListBox(box);
    unsigned selection = 0;
 
+   Z80 &cpu = CpuMgr.Cpu();
    unsigned end; //Alone Coder 0.36.7
    for (unsigned start = 0; start < 0x10000; ) {
       const unsigned char mask = MEMBITS_BPR | MEMBITS_BPW;
-      if (!(membits[start] & mask)) { start++; continue; }
-      unsigned active = membits[start];
-      for (/*unsigned*/ end = start; end < 0xFFFF && !((active ^ membits[end+1]) & mask); end++);
+      if (!(cpu.membits[start] & mask)) { start++; continue; }
+      unsigned active = cpu.membits[start];
+      for (/*unsigned*/ end = start; end < 0xFFFF && !((active ^ cpu.membits[end+1]) & mask); end++);
       char tmp[16];
       if (start == end) sprintf(tmp, "%04X ", start);
       else sprintf(tmp, "%04X-%04X ", start, end);
@@ -421,70 +476,93 @@ set_buttons_and_return:
 
    if (id == IDC_MEM_R || id == IDC_MEM_W) goto set_buttons_and_return;
 
-   if (code == LBN_DBLCLK) {
+   if (code == LBN_DBLCLK)
+   {
       if (id == IDC_CBP && MoveBpxFromBoxToEdit(dlg, IDC_CBP, IDE_CBP)) goto del_cond;
       if (id == IDC_BPX && MoveBpxFromBoxToEdit(dlg, IDC_BPX, IDE_BPX)) goto del_bpx;
       if (id == IDC_MEM && MoveBpxFromBoxToEdit(dlg, IDC_MEM, IDE_MEM)) goto del_mem;
    }
 
-   if (id == IDB_CBP_ADD) {
+   if (id == IDB_CBP_ADD)
+   {
       SendDlgItemMessage(dlg, IDE_CBP, WM_GETTEXT, sizeof tmp, (LPARAM)tmp);
       SetFocus(GetDlgItem(dlg, IDE_CBP));
-      if (!toscript(tmp, cbp[cbpn])) {
+      Z80 &cpu = CpuMgr.Cpu();
+      if (!toscript(tmp, cpu.cbp[cpu.cbpn])) {
          MessageBox(dlg, "Error in expression\nPlease do RTFM", 0, MB_ICONERROR);
          return 1;
       }
       SendDlgItemMessage(dlg, IDE_CBP, WM_SETTEXT, 0, 0);
-      FillCondBox(dlg, cbpn++);
+      FillCondBox(dlg, cpu.cbpn++);
+      cpu.dbgchk = isbrk(cpu);
       goto set_buttons_and_return;
    }
 
-   if (id == IDB_BPX_ADD) {
+   if (id == IDB_BPX_ADD)
+   {
       SendDlgItemMessage(dlg, IDE_BPX, WM_GETTEXT, sizeof tmp, (LPARAM)tmp);
       SetFocus(GetDlgItem(dlg, IDE_BPX));
       MEM_RANGE range;
-      if (!GetMemRamge(tmp, range)) {
+      if (!GetMemRamge(tmp, range))
+      {
          MessageBox(dlg, "Invalid breakpoint address / range", 0, MB_ICONERROR);
          return 1;
       }
-      for (unsigned i = range.start; i <= range.end; i++) membits[i] |= MEMBITS_BPX;
+
+      Z80 &cpu = CpuMgr.Cpu();
+      for (unsigned i = range.start; i <= range.end; i++)
+         cpu.membits[i] |= MEMBITS_BPX;
       SendDlgItemMessage(dlg, IDE_BPX, WM_SETTEXT, 0, 0);
       FillBpxBox(dlg, range.start);
+      cpu.dbgchk = isbrk(cpu);
       goto set_buttons_and_return;
    }
 
-   if (id == IDB_MEM_ADD) {
+   if (id == IDB_MEM_ADD)
+   {
       SendDlgItemMessage(dlg, IDE_MEM, WM_GETTEXT, sizeof tmp, (LPARAM)tmp);
       SetFocus(GetDlgItem(dlg, IDE_MEM));
       MEM_RANGE range;
-      if (!GetMemRamge(tmp, range)) {
+      if (!GetMemRamge(tmp, range))
+      {
          MessageBox(dlg, "Invalid watch address / range", 0, MB_ICONERROR);
          return 1;
       }
       unsigned char mask = 0;
       if (IsDlgButtonChecked(dlg, IDC_MEM_R) == BST_CHECKED) mask |= MEMBITS_BPR;
       if (IsDlgButtonChecked(dlg, IDC_MEM_W) == BST_CHECKED) mask |= MEMBITS_BPW;
-      for (unsigned i = range.start; i <= range.end; i++) membits[i] |= mask;
+
+      Z80 &cpu = CpuMgr.Cpu();
+      for (unsigned i = range.start; i <= range.end; i++)
+          cpu.membits[i] |= mask;
       SendDlgItemMessage(dlg, IDE_MEM, WM_SETTEXT, 0, 0);
       CheckDlgButton(dlg, IDC_MEM_R, BST_UNCHECKED);
       CheckDlgButton(dlg, IDC_MEM_W, BST_UNCHECKED);
       FillMemBox(dlg, range.start);
+      cpu.dbgchk = isbrk(cpu);
       goto set_buttons_and_return;
    }
 
-   if (id == IDB_CBP_DEL) {
+   if (id == IDB_CBP_DEL)
+   {
 del_cond:
       SetFocus(GetDlgItem(dlg, IDE_CBP));
       unsigned cur = SendDlgItemMessage(dlg, IDC_CBP, LB_GETCURSEL, 0, 0);
-      if (cur >= cbpn) return 0;
-      cbpn--; memcpy(cbp[cur], cbp[cur+1], sizeof(cbp[0])*(cbpn-cur));
+      Z80 &cpu = CpuMgr.Cpu();
+      if (cur >= cpu.cbpn)
+          return 0;
+      cpu.cbpn--;
+      memcpy(cpu.cbp[cur], cpu.cbp[cur+1], sizeof(cpu.cbp[0])*(cpu.cbpn-cur));
 
-      if (cur && cur == cbpn) cur--;
+      if (cur && cur == cpu.cbpn)
+          cur--;
       FillCondBox(dlg, cur);
+      cpu.dbgchk = isbrk(cpu);
       goto set_buttons_and_return;
    }
 
-   if (id == IDB_BPX_DEL) {
+   if (id == IDB_BPX_DEL)
+   {
 del_bpx:
       SetFocus(GetDlgItem(dlg, IDE_BPX));
       id = IDC_BPX; mask = ~MEMBITS_BPX;
@@ -496,14 +574,20 @@ del_range:
       unsigned start, end;
       sscanf(tmp, "%X", &start);
       if (tmp[4] == '-') sscanf(tmp+5, "%X", &end); else end = start;
-      for (unsigned i = start; i <= end; i++) membits[i] &= mask;
+
+      Z80 &cpu = CpuMgr.Cpu();
+      for (unsigned i = start; i <= end; i++)
+          cpu.membits[i] &= mask;
       if (id == IDC_BPX) FillBpxBox(dlg, 0); else FillMemBox(dlg, 0);
-      if (cur && cur == max) cur--;
+      if (cur && cur == max)
+          cur--;
       SendDlgItemMessage(dlg, id, LB_SETCURSEL, cur, 0);
+      cpu.dbgchk = isbrk(cpu);
       goto set_buttons_and_return;
    }
 
-   if (id == IDB_MEM_DEL) {
+   if (id == IDB_MEM_DEL)
+   {
 del_mem:
       SetFocus(GetDlgItem(dlg, IDE_MEM));
       id = IDC_MEM; mask = ~(MEMBITS_BPR | MEMBITS_BPW);

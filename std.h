@@ -3,7 +3,7 @@
 #define DIRECTINPUT_VERSION 0x0500   // joystick since dx 5.0 (for NT4, need 3.0)
 #define DIRECTSOUND_VERSION 0x0800
 #define DIRECTDRAW_VERSION  0x0500
-#define _CRT_SECURE_NO_DEPRECATE
+//#define _CRT_SECURE_NO_DEPRECATE
 #define _CRT_NONSTDC_NO_DEPRECATE
 #include <windows.h>
 #include <windowsx.h>
@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <limits.h>
 #include <malloc.h>
 #include <conio.h>
 #include <math.h>
@@ -27,7 +28,15 @@
 #else
 #define assert(x)
 #endif
+
+#if _MSC_VER >= 1300
+#include <intrin.h>
 #include <emmintrin.h>
+#endif
+
+#include "ddk.h"
+
+#include "mods.h"
 
 #pragma comment(lib, "dinput.lib")
 #pragma comment(lib, "ddraw.lib")
@@ -39,9 +48,14 @@
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "comctl32.lib")
+#pragma comment(lib, "dxerr8.lib")
 //#pragma comment(linker, "settings.res")
 
 
 #define CACHE_LINE 64
-//#define CACHE_ALIGNED __declspec(align(CACHE_LINE))
+
+#if _MSC_VER >= 1300
+#define CACHE_ALIGNED __declspec(align(CACHE_LINE))
+#else
 #define CACHE_ALIGNED /*Alone Coder*/
+#endif

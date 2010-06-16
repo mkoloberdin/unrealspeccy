@@ -1,3 +1,12 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "debug.h"
+#include "dbgpaint.h"
+#include "dbgtrace.h"
+#include "util.h"
+
 /*
      dialogs design
 
@@ -38,7 +47,8 @@
 
 enum FILEDLG_MODE { FDM_LOAD = 0, FDM_SAVE, FDM_DISASM };
 
-unsigned addr = 0, end = 0xFFFF; unsigned char *memdata;
+unsigned addr = 0, end = 0xFFFF;
+unsigned char *memdata;
 unsigned rw_drive, rw_trk, rw_cyl, rw_tsec, rw_rsec, rw_side;
 char fname[20] = "", trdname[9] = "12345678", trdext[2] = "C";
 
@@ -99,7 +109,7 @@ void write_mem()
    Z80 &cpu = CpuMgr.Cpu();
    u8 *ptr = memdata;
    for(unsigned a1 = addr; a1 <= end; a1++)
-      *cpu.MemDbg(a1) = *ptr++;
+      *cpu.DirectMem(a1) = *ptr++;
 }
 
 void read_mem()
@@ -107,7 +117,7 @@ void read_mem()
    Z80 &cpu = CpuMgr.Cpu();
    unsigned char *ptr = memdata;
    for (unsigned a1 = addr; a1 <= end; a1++)
-     *ptr++ = cpu.RmDbg(a1);
+     *ptr++ = cpu.DirectRm(a1);
 }
 
 char rw_select_drive()
@@ -179,7 +189,7 @@ char rw_trdos_sectors(FILEDLG_MODE mode)
 
       tc.seek(fdd, trk/2, trk & 1, LOAD_SECTORS);
       if (!tc.trkd) { sprintf(ln, "track #%02X not found", trk); rw_err(ln); break; }
-      SECHDR *hdr = tc.get_sector(sec+1);
+      const SECHDR *hdr = tc.get_sector(sec+1);
       if (!hdr || !hdr->data) { sprintf(ln, "track #%02X, sector #%02X not found", trk, sec); rw_err(ln); break; }
       if (hdr->l != 1) { sprintf(ln, "track #%02X, sector #%02X is not 256 bytes", trk, sec); rw_err(ln); break; }
 

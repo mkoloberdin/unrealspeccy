@@ -1,3 +1,9 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "memory.h"
+#include "util.h"
 
 // input: ports 7FFD,1FFD,DFFD,FFF7,FF77,EFF7, flags CF_TRDOS,CF_CACHEON
 void set_banks()
@@ -5,24 +11,40 @@ void set_banks()
    bankw[1] = bankr[1] = RAM_BASE_M + 5*PAGE;
    bankw[2] = bankr[2] = RAM_BASE_M + 2*PAGE;
    temp.base = memory + ((comp.p7FFD & 8) ? 7*PAGE : 5*PAGE);
-   if (temp.base_2) temp.base_2 = temp.base;
+   if (temp.base_2)
+       temp.base_2 = temp.base;
 
    // these flags will be re-calculated
    comp.flags &= ~(CF_DOSPORTS | CF_Z80FBUS | CF_LEAVEDOSRAM | CF_LEAVEDOSADR | CF_SETDOSROM);
 
    unsigned char *bank0, *bank3;
 
-   if (comp.flags & CF_TRDOS) bank0 = (comp.p7FFD & 0x10)? base_dos_rom : base_sys_rom;
-   else bank0 = (comp.p7FFD & 0x10)? base_sos_rom : base_128_rom;
+   if (comp.flags & CF_TRDOS)
+   {
+       if(comp.p7FFD & 0x10)
+       {
+           bank0 = base_dos_rom;
+       }
+       else
+       {
+           bank0 = base_sys_rom;
+       }
+   }
+   else
+       bank0 = (comp.p7FFD & 0x10)? base_sos_rom : base_128_rom;
 
    unsigned bank = (comp.p7FFD & 7);
 
    switch (conf.mem_model)
    {
       case MM_PENTAGON:
-         bank += ((comp.p7FFD & 0xC0) >> 3) + (comp.p7FFD & 0x20);
+         if(!(comp.pEFF7 & EFF7_LOCKMEM))
+             bank |= (comp.p7FFD & 0xE0) >> 2; // 7FFD bits 765210
+
          bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
-         if (comp.pEFF7 & EFF7_ROCACHE) bank0 = RAM_BASE_M + 0*PAGE; //Alone Coder 0.36.4
+
+         if (comp.pEFF7 & EFF7_ROCACHE)
+             bank0 = RAM_BASE_M + 0*PAGE; //Alone Coder 0.36.4
          break;
 
       case MM_PROFSCORP:
@@ -32,10 +54,32 @@ void set_banks()
          membits[0x010C] &= ~MEMBITS_R;
       case MM_SCORP:
          bank += ((comp.p1FFD & 0x10) >> 1) + ((comp.p1FFD & 0xC0) >> 2);
-         bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
-         if (comp.p1FFD & 2) bank0 = base_sys_rom;
-         if (comp.p1FFD & 1) bank0 = RAM_BASE_M + 0*PAGE;
-         if (conf.mem_model == MM_PROFSCORP) { if (bank0==base_sys_rom) comp.flags |= CF_PROFROM; else comp.flags &= ~CF_PROFROM; }
+         bank3 = RAM_BASE_M + (bank & temp.ram_mask) * PAGE;
+
+/*
+         comp.profrom_bank = ((comp.p7EFD >> 4) & 3) & temp.profrom_mask;
+         {
+             unsigned char *base = ROM_BASE_M + (comp.profrom_bank * 64*1024);
+             base_128_rom = base + 0*PAGE;
+             base_sos_rom = base + 1*PAGE;
+             base_sys_rom = base + 2*PAGE;
+             base_dos_rom = base + 3*PAGE;
+         }
+*/
+         // Доработка из книжки gmx (включение портов dos из ОЗУ, сделано немного не так как в реальной схеме)
+         if(comp.p1FFD & 4)
+             comp.flags |= CF_TRDOS;
+         if(comp.p1FFD & 2)
+            bank0 = base_sys_rom;
+         if(comp.p1FFD & 1)
+            bank0 = RAM_BASE_M + 0 * PAGE;
+         if(conf.mem_model == MM_PROFSCORP)
+         {
+             if (bank0 == base_sys_rom)
+                 comp.flags |= CF_PROFROM;
+             else
+                 comp.flags &= ~CF_PROFROM;
+         }
          break;
 
       case MM_KAY:
@@ -44,7 +88,8 @@ void set_banks()
          bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
          unsigned char rom1 = (comp.p1FFD >> 2) & 2;
          if (comp.flags & CF_TRDOS) rom1 ^= 2;
-         switch (rom1+((comp.p7FFD & 0x10) >> 4)) {
+         switch (rom1+((comp.p7FFD & 0x10) >> 4))
+         {
             case 0: bank0 = base_128_rom; break;
             case 1: bank0 = base_sos_rom; break;
             case 2: bank0 = base_sys_rom; break;
@@ -66,20 +111,30 @@ void set_banks()
       case MM_ATM450:
       {
          // RAM
-         bank += ((comp.pFDFD & 0x07) << 3); // original ATM uses D2 as ROM address extension, not RAM
+         // original ATM uses D2 as ROM address extension, not RAM
+         bank += ((comp.pFDFD & 0x07) << 3);
          bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
-         if (!(comp.aFE & 0x80)) {
+         if (!(comp.aFE & 0x80))
+         {
             bankw[1] = bankr[1] = RAM_BASE_M + 4*PAGE;
             bank0 = RAM_BASE_M;
             break;
          }
 
          // ROM
-         if (comp.p7FFD & 0x20) comp.aFB &= ~0x80;
-         if ((comp.flags & CF_TRDOS) && (comp.pFDFD & 8)) comp.aFB |= 0x80; // more priority, then 7FFD
-         if (comp.aFB & 0x80) { bank0 = base_sys_rom; break; } // CPSYS signal
+         if (comp.p7FFD & 0x20)
+             comp.aFB &= ~0x80;
+         if ((comp.flags & CF_TRDOS) && (comp.pFDFD & 8))
+             comp.aFB |= 0x80; // more priority, then 7FFD
+
+         if (comp.aFB & 0x80) // CPSYS signal
+         {
+             bank0 = base_sys_rom;
+             break;
+         }
          // system rom not used on 7FFD.4=0 and DOS=1
-         if (comp.flags & CF_TRDOS) bank0 = base_dos_rom;
+         if (comp.flags & CF_TRDOS)
+             bank0 = base_dos_rom;
          break;
       }
 
@@ -87,15 +142,20 @@ void set_banks()
       {
          if (!(comp.aFF77 & 0x200)) // ~cpm=0
             comp.flags |= CF_TRDOS;
-         if (!(comp.aFF77 & 0x100)) { // pen=0
+
+         if (!(comp.aFF77 & 0x100))
+         { // pen=0
             bankr[1] = bankr[2] = bank3 = bank0 = ROM_BASE_M + PAGE * temp.rom_mask;
             break;
          }
+
          unsigned i = ((comp.p7FFD & 0x10) >> 2);
-         for (unsigned bank = 0; bank < 4; bank++) {
-            switch (comp.pFFF7[i+bank] & 0xC0) {
+         for (unsigned bank = 0; bank < 4; bank++)
+         {
+            switch (comp.pFFF7[i+bank] & 0xC0)
+            {
                case 0x00: // RAM from 7FFD
-                  bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE*( (comp.p7FFD & 7) + (comp.pFFF7[i+bank] & 0x38 & temp.ram_mask) );
+                  bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE * ((comp.p7FFD & 7) + (comp.pFFF7[i+bank] & 0x38 & temp.ram_mask));
                   break;
                case 0x40: // ROM from 7FFD
                   bankr[bank] = ROM_BASE_M + PAGE*((comp.pFFF7[i+bank] & temp.rom_mask & 0xFE) + ((comp.flags & CF_TRDOS)?1:0));
@@ -111,6 +171,40 @@ void set_banks()
          bank0 = bankr[0]; bank3 = bankr[3];
          break;
       }
+
+      case MM_PLUS3:
+      {
+          if(comp.p7FFD & 0x20) // paging disabled (48k mode)
+          {
+              bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
+              break;
+          }
+
+          if(!(comp.p1FFD & 1))
+          {
+              unsigned RomBank = ((comp.p1FFD & 4) >> 1) | ((comp.p7FFD & 0x10) >> 4);
+              switch(RomBank)
+              {
+                 case 0: bank0 = base_128_rom; break;
+                 case 1: bank0 = base_sys_rom; break;
+                 case 2: bank0 = base_dos_rom; break;
+                 case 3: bank0 = base_sos_rom; break;
+              }
+              bank3 = RAM_BASE_M + (bank & temp.ram_mask)*PAGE;
+          }
+          else
+          {
+              unsigned RamPage = (comp.p1FFD >> 1) & 3; // d2,d1
+              static const unsigned RamDecoder[4][4] =
+              { {0, 1, 2, 3}, {4, 5, 6, 7}, {4, 5, 6, 3}, {4, 7, 6, 3} };
+              for(unsigned i = 0; i < 4; i++)
+                  bankw[i] = bankr[i] = RAM_BASE_M + PAGE * RamDecoder[RamPage][i];
+              bank0 = bankr[0];
+              bank3 = bankr[3];
+          }
+          break;
+      }
+
       default: bank3 = RAM_BASE_M + 0*PAGE;
    }
 
@@ -124,33 +218,33 @@ void set_banks()
 
 
    unsigned char dosflags = CF_LEAVEDOSRAM;
-   if (conf.mem_model == MM_PENTAGON || conf.mem_model == MM_PROFI) dosflags = CF_LEAVEDOSADR;
+   if (conf.mem_model == MM_PENTAGON || conf.mem_model == MM_PROFI)
+       dosflags = CF_LEAVEDOSADR;
 
-   if (comp.flags & CF_TRDOS) comp.flags |= dosflags | CF_DOSPORTS;
-   else if ((comp.p7FFD & 0x10) && conf.trdos_present) { // B-48, inactive DOS, DOS present
+   if (comp.flags & CF_TRDOS)
+   {
+       comp.flags |= dosflags | CF_DOSPORTS;
+   }
+   else if ((comp.p7FFD & 0x10) && conf.trdos_present)
+   { // B-48, inactive DOS, DOS present
       // for Scorp, ATM-1/2 and KAY, TR-DOS not started on executing RAM 3Dxx
       if (!((dosflags & CF_LEAVEDOSRAM) && bankr[0] < RAM_BASE_M+PAGE*MAX_RAM_PAGES))
          comp.flags |= CF_SETDOSROM;
    }
 
-   if (comp.flags & CF_CACHEON) {
+   if (comp.flags & CF_CACHEON)
+   {
       unsigned char *cpage = CACHE_M;
       if (conf.cache == 32 && !(comp.p7FFD & 0x10)) cpage += PAGE;
       bankr[0] = bankw[0] = cpage;
       // if (comp.pEFF7 & EFF7_ROCACHE) bankw[0] = TRASH_M; //Alone Coder 0.36.4
    }
 
-   if (comp.pEFF7 & EFF7_LOCKMEM)
-      for (unsigned i = 0; i < 4; i++)
-         if ((unsigned)(bankr[i] - (RAM_BASE_M+8*PAGE)) < PAGE*(MAX_RAM_PAGES-8)) { // hi-ram bank
-            unsigned char *newram = ((bankr[i] - RAM_BASE_M) & (8*PAGE-1)) + RAM_BASE_M;
-            if (bankr[i] == bankw[i]) bankw[i] = newram;
-            bankr[i] = newram;
-         }
+   if ((comp.flags & CF_DOSPORTS)? conf.floatdos : conf.floatbus)
+       comp.flags |= CF_Z80FBUS;
 
-   if ((comp.flags & CF_DOSPORTS)? conf.floatdos : conf.floatbus) comp.flags |= CF_Z80FBUS;
-
-   if (temp.led.osw && (trace_rom | trace_ram)) {
+   if (temp.led.osw && (trace_rom | trace_ram))
+   {
       for (unsigned i = 0; i < 4; i++) {
          unsigned bank = (bankr[i] - RAM_BASE_M) / PAGE;
          if (bank < MAX_PAGES) used_banks[bank] = 1;
@@ -187,20 +281,13 @@ void set_scorp_profrom(unsigned read_address)
    set_banks();
 }
 
-Z80INLINE u8 *am_r(unsigned addr)
-{
-#ifdef MOD_VID_VD
-   if (comp.vdbase && (unsigned)((addr & 0xFFFF) - 0x4000) < 0x1800) return comp.vdbase + (addr & 0x1FFF);
-#endif
-   return bankr[(addr >> 14) & 3] + (addr & (PAGE-1));
-}
-
+/*
 u8 *__fastcall MemDbg(u32 addr)
 {
     return am_r(addr);
 }
 
-void wmdbg(unsigned addr, u8 val)
+void __fastcall wmdbg(u32 addr, u8 val)
 {
    *am_r(addr) = val;
 }
@@ -209,17 +296,29 @@ u8 __fastcall rmdbg(u32 addr)
 {
    return *am_r(addr);
 }
+*/
 
 void set_mode(ROM_MODE mode)
 {
-   if (mode == RM_NOCHANGE) return;
-   if (mode == RM_CACHE) { comp.flags |= CF_CACHEON; set_banks(); return; }
+   if (mode == RM_NOCHANGE)
+       return;
+
+   if (mode == RM_CACHE)
+   {
+       comp.flags |= CF_CACHEON;
+       set_banks();
+       return;
+   }
+
    // no RAM/cache/SERVICE
    comp.p1FFD &= ~7;
    comp.pDFFD &= ~0x10;
    comp.flags &= ~CF_CACHEON;
+
    // comp.aFF77 |= 0x100; // enable ATM memory
-   switch (mode) {
+
+   switch (mode)
+   {
       case RM_128:
          comp.flags &= ~CF_TRDOS;
          comp.p7FFD &= ~0x10;
@@ -227,6 +326,9 @@ void set_mode(ROM_MODE mode)
       case RM_SOS:
          comp.flags &= ~CF_TRDOS;
          comp.p7FFD |= 0x10;
+
+         if(conf.mem_model == MM_PLUS3) // disable paging
+            comp.p7FFD |= 0x20;
          break;
       case RM_SYS:
          comp.flags |= CF_TRDOS;
@@ -235,6 +337,8 @@ void set_mode(ROM_MODE mode)
       case RM_DOS:
          comp.flags |= CF_TRDOS;
          comp.p7FFD |=  0x10;
+         if(conf.mem_model == MM_ATM710)
+             comp.p7FFD &=  ~0x10;
          break;
    }
    set_banks();
@@ -248,11 +352,30 @@ unsigned char cmosBCD(unsigned char binary)
 
 unsigned char cmos_read()
 {
-   unsigned char reg = comp.cmos_addr; SYSTEMTIME st;
-   if (conf.cmos == 2) reg &= 0x3F;
+   static SYSTEMTIME st;
+   static bool UF = false;
+   static unsigned Seconds = 0;
+   static unsigned long long last_tsc = 0ULL;
+   unsigned char reg = comp.cmos_addr;
+   unsigned char rv;
+   if (conf.cmos == 2) 
+       reg &= 0x3F;
 
-   if ((1 << reg) & ((1<<0)|(1<<2)|(1<<4)|(1<<6)|(1<<7)|(1<<8)|(1<<9)))
-      GetLocalTime(&st);
+   if ((1 << reg) & ((1<<0)|(1<<2)|(1<<4)|(1<<6)|(1<<7)|(1<<8)|(1<<9)|(1<<12)))
+   {
+      unsigned long long tsc = rdtsc();
+      // [vv] Часы читаются не чаще двух раз в секунду
+      if ((tsc-last_tsc) >= 25 * temp.ticks_frame)
+      {
+          GetLocalTime(&st);
+          if(st.wSecond != Seconds)
+          {
+              UF = true;
+              Seconds = st.wSecond;
+          }
+      }
+   }
+
    switch (reg)
    {
       case 0:     return cmosBCD((BYTE)st.wSecond);
@@ -264,13 +387,16 @@ unsigned char cmos_read()
       case 9:     return cmosBCD(st.wYear % 100);
       case 10:    return 0x20 | (cmos [10] & 0xF); // molodcov_alex
       case 11:    return (cmos[11] & 4) | 2;
-      case 12:    return 0;
+      case 12:  // [vv] UF
+          rv = UF ? 0x10 : 0;
+          UF = false;
+          return rv;
       case 13:    return 0x80;
    }
    return cmos[reg];
 }
 
-__inline void cmos_write(unsigned char val)
+void cmos_write(unsigned char val)
 {
    if (conf.cmos == 2) comp.cmos_addr &= 0x3F;
    cmos[comp.cmos_addr] = val;

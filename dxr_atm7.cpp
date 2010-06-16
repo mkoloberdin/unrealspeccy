@@ -1,3 +1,12 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dxrframe.h"
+#include "dxr_atmf.h"
+#include "dxr_atm7.h"
+#include "fontatm2.h"
 
 const int text_ofs = 0x1840;
 

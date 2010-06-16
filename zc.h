@@ -14,4 +14,6 @@ public:
     void Wr(u32 Port, u8 Val);
     u8 Rd(u32 Port);
 };
+
+extern TZc Zc;
 #endif

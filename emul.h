@@ -1,6 +1,7 @@
-
+#pragma once
 #include "sysdefs.h"
 #include "z80/defs.h"
+#include "sndrender/sndrender.h"
 
 
 
@@ -52,7 +53,7 @@ enum MEM_MODEL
    MM_PROFI,
    MM_ATM450, MM_ATM710,
    MM_KAY,
-
+   MM_PLUS3,
    N_MM_MODELS
 };
 
@@ -60,20 +61,11 @@ enum ROM_MODE { RM_NOCHANGE=0, RM_SOS, RM_DOS, RM_SYS, RM_128, RM_CACHE };
 
 const int RAM_128 = 128, RAM_256 = 256, RAM_512 = 512, RAM_1024 = 1024;
 
-struct
+struct TMemModel
 {
    char *fullname, *shortname;
    unsigned defaultRAM;
    unsigned availRAMs;
-} mem_model[N_MM_MODELS] =
-{
-        { "PENTAGON", "PENTAGON",                       128,  RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
-        { "ZS SCORPION", "SCORPION",                    256,  RAM_256 | RAM_1024 },
-        { "ZS SCORPION + PROF ROM", "PROFSCORP",        256,  RAM_256 | RAM_1024 },
-        { "PROFI", "PROFI",                             1024, RAM_1024 },
-        { "ATM-TURBO v4.50", "ATM450",                  512,  RAM_512 | RAM_1024 },
-        { "ATM-TURBO 2+ v7.10", "ATM710",               1024, RAM_128 | RAM_256 | RAM_512 | RAM_1024 },
-        { "Nemo's KAY", "KAY",                          256,  RAM_256 | RAM_1024 },
 };
 
 typedef void (__fastcall *VOID_FUNC)(void);
@@ -92,6 +84,7 @@ struct IDE_CONFIG
    char image[512];
    unsigned c,h,s,lba;
    unsigned char readonly;
+   u8 cd;
 };
 
 enum RSM_MODE { RSM_SIMPLE, RSM_FIR0, RSM_FIR1, RSM_FIR2 };
@@ -117,8 +110,9 @@ struct CONFIG
 
    unsigned char lockmouse;
    unsigned char detect_video;
+   unsigned char tape_traps;
    unsigned char tape_autostart;
-   unsigned char bmpshot;
+   int scrshot;
 
    unsigned char ch_size;
    unsigned char EFF7_mask;
@@ -129,7 +123,7 @@ struct CONFIG
    unsigned char even_M1, border_4T;
 
    unsigned char floatbus, floatdos;
-   unsigned char modem_port; //, modem_scheme;
+   int modem_port; //, modem_scheme;
    unsigned char fdd_noise;
 
    unsigned char trdos_present, trdos_interleave;
@@ -177,6 +171,7 @@ struct CONFIG
       unsigned char altlock, fire, firedelay;
       unsigned char paste_hold, paste_release, paste_newline;
       unsigned char mouse, mouseswap, kjoy, keymatrix, joymouse;
+      unsigned char keybpcmode;
       signed char mousescale;
       unsigned char mousewheel; // enum MOUSE_WHEEL_MODE //0.36.6 from 0.35b2
       zxkeymap *active_zxk;
@@ -200,11 +195,11 @@ struct CONFIG
 
    struct {
       unsigned char mem_swap;
-      unsigned char use_pal;
       unsigned char xt_kbd;
       unsigned char reserved1;
    } atm;
 
+   unsigned char use_comp_pal;
    unsigned pal, num_pals;      // selected palette and total number of pals
    unsigned minres;             // min. screen x-resolution
    unsigned scanbright;         // scanlines intensity
@@ -223,7 +218,8 @@ struct CONFIG
    char scorp_rom_path[FILENAME_MAX];
    char prof_rom_path[FILENAME_MAX];
    char profi_rom_path[FILENAME_MAX];
-   char kay_rom_path[FILENAME_MAX];
+//[vv]   char kay_rom_path[FILENAME_MAX];
+   char plus3_rom_path[FILENAME_MAX];
 
    #ifdef MOD_GSZ80
    char gs_rom_path[FILENAME_MAX];
@@ -243,6 +239,7 @@ struct CONFIG
    char keyset[64]; // short name of keyboard layout
    char appendboot[FILENAME_MAX];
    char workdir[FILENAME_MAX];
+   u8 profi_monochrome;
 };
 
 struct TEMP
@@ -260,6 +257,7 @@ struct TEMP
 
    unsigned gx, gy, gdx, gdy; // updating rectangle (used by GDI renderer)
    RECT client;               // updating rectangle (used by DD_blt renderer)
+   bool Minimized;            // window is minimized
    HDC gdidc;
    unsigned ox, oy, obpp, ofq; // destination video format
    unsigned scx, scy; // multicolor area (320x240 or 384x300), used in MCR renderer
@@ -283,7 +281,7 @@ struct TEMP
       __int64 tape_started;
    } led;
    unsigned char profrom_mask;
-   unsigned char atm_pal_changed;
+   unsigned char comp_pal_changed;
 
    // CPU features
    unsigned char mmx, sse, sse2;
@@ -291,6 +289,18 @@ struct TEMP
    unsigned ticks_frame; // x86 t-states in frame
 
    unsigned char vidblock, sndblock, inputblock, frameskip;
+   bool PngSupport;
+   unsigned gsdmaaddr;
+   u8 gsdmaon;
+
+   u8 offset_vscroll;
+   u8 offset_vscroll_prev;
+   u8 offset_hscroll;
+   u8 offset_hscroll_prev;
+
+   char RomDir[FILENAME_MAX];
+   char SnapDir[FILENAME_MAX];
+   char HddDir[FILENAME_MAX];
 };
 
 extern TEMP temp;
@@ -337,7 +347,7 @@ enum SNAP
    snNOFILE, snUNKNOWN, snTOOLARGE,
    snSP, snZ80, snSNA_48, snSNA_128,
    snTAP, snTZX, snCSW,
-   snHOB, snSCL, snTRD, snFDI, snTD0, snUDI
+   snHOB, snSCL, snTRD, snFDI, snTD0, snUDI, snISD, snPRO
 };
 
 struct NVRAM
@@ -357,6 +367,7 @@ struct COMPUTER
 {
    unsigned char p7FFD, pFE, pEFF7, pXXXX;
    unsigned char pDFFD, pFDFD, p1FFD, pFF77;
+   u8 p7EFD; // gmx
    __int64 t_states; // inc with conf.frame by each frame
    unsigned frame_counter; // inc each frame
    unsigned char aFE, aFB; // ATM 4.50 system ports
@@ -388,7 +399,7 @@ struct COMPUTER
 //      SNDRENDER sound; //Alone Coder
    } tape;
    SNDRENDER tape_sound; //Alone Coder
-   unsigned char atm_pal[0x10];
+   unsigned char comp_pal[0x10];
    unsigned char ide_read, ide_write; // high byte in IDE i/o
    unsigned char profrom_bank;
 };
@@ -462,7 +473,13 @@ struct action {
    unsigned short k1, k2, k3, k4;
 };
 
-
+typedef void (*TColorConverter)(u8 *dst, u8 *scrbuf, int dx);
+void ConvBgr32ToBgr24(u8 *dst, u8 *scrbuf, int dx);
+void ConvYuy2ToBgr24(u8 *dst, u8 *scrbuf, int dx);
+void ConvRgb16ToBgr24(u8 *dst, u8 *scrbuf, int dx);
+void ConvRgb15ToBgr24(u8 *dst, u8 *scrbuf, int dx);
+void ConvPal8ToBgr24(u8 *dst, u8 *scrbuf, int dx);
+extern TColorConverter ConvBgr24;
 // flags for video filters
                                 // misc options
 #define RF_BORDER   0x00000002   // no multicolor painter, read directly from spectrum memory
@@ -491,7 +508,14 @@ struct action {
 #define RF_USE32AS16 0x0020000  // c32tab contain hi-color WORDS
 #define RF_USEFONT  0x00040000  // use font_tables
 #define RF_PALB     0x00080000  // palette for bilinear filter
-#define RF_ATMPAL   0x00100000  // use palette from ATM palette registers
+#define RF_COMPPAL  0x00100000  // use palette from ATM palette registers
 #define RF_GRAY     0x00200000  // grayscale palette
 
 #define RF_MONITOR (RF_MON | RF_GDI | RF_2X)
+
+extern unsigned frametime;
+extern int nmi_pending;
+
+bool ConfirmExit();
+void showhelp(char *anchor = 0);
+BOOL WINAPI ConsoleHandler(DWORD CtrlType);

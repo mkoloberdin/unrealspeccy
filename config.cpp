@@ -1,3 +1,23 @@
+#include "std.h"
+
+#include <io.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#include "emul.h"
+#include "vars.h"
+#include "memory.h"
+#include "debug.h"
+#include "dbglabls.h"
+#include "draw.h"
+#include "dx.h"
+#include "fontatm2.h"
+#include "snapshot.h"
+#include "sound.h"
+#include "sdcard.h"
+#include "zc.h"
+#include "util.h"
+
 char load_errors;
 
 void loadkeys(action*);
@@ -55,19 +75,28 @@ void load_atm_font()
 void load_atariset()
 {
    memset(temp.ataricolors, 0, sizeof temp.ataricolors);
-   if (!conf.atariset[0]) return;
+   if (!conf.atariset[0])
+       return;
    char defs[4000]; *defs = 0; // =12*256, strlen("07:aabbccdd,")=12
-   char keyname[80]; sprintf(keyname, "atari.%s", conf.atariset);
+   char keyname[80];
+   sprintf(keyname, "atari.%s", conf.atariset);
    GetPrivateProfileString("COLORS", keyname, nil, defs, sizeof defs, ininame);
-   if (!*defs) conf.atariset[0] = 0;
-   for (char *ptr = defs; *ptr; ) {
-      if (ptr[2] != ':') return;
+   if (!*defs)
+       conf.atariset[0] = 0;
+   for (char *ptr = defs; *ptr; )
+   {
+      if (ptr[2] != ':')
+          return;
       for (int i = 0; i < 11; i++)
-         if (i != 2 && !ishex(ptr[i])) return;
-      unsigned index, val; sscanf(ptr, "%02X:%08X", &index, &val);
+         if (i != 2 && !ishex(ptr[i]))
+             return;
+      unsigned index, val;
+      sscanf(ptr, "%02X:%08X", &index, &val);
       temp.ataricolors[index] = val;
       // temp.ataricolors[(index*16 + index/16) & 0xFF] = val; // swap ink-paper
-      ptr += 12; if (ptr [-1] != ',') return;
+      ptr += 12;
+      if (ptr [-1] != ',')
+          return;
    }
 }
 
@@ -79,7 +108,9 @@ void addpath(char *dst, const char *fname = 0)
        strcpy(dst, fname);
    if (!*fname)
        return; // empty filenames have special meaning
-   if (fname[1] == ':') return; // already full name
+   if (fname[1] == ':' || (fname[0] == '\\' || fname[1] == '\\'))
+       return; // already full name
+
    char tmp[FILENAME_MAX];
    GetModuleFileName(0, tmp, sizeof tmp);
    char *xx = strrchr(tmp, '\\');
@@ -116,21 +147,35 @@ void load_romset(CONFIG *conf, const char *romset)
 
 void add_presets(const char *section, const char *prefix0, unsigned *num, char **tab, unsigned char *curr)
 {
-   *num = 0; char buf[0x7F00], defval[64];
+   *num = 0;
+   char buf[0x7F00], defval[64];
    GetPrivateProfileSection(section, buf, sizeof buf, ininame);
    GetPrivateProfileString(section, prefix0, "none", defval, sizeof defval, ininame);
-   char *p = strchr(defval, ';'); if (p) *p = 0;
+   char *p = strchr(defval, ';');
+   if (p) *p = 0;
+
    for (p = defval+strlen(defval)-1; p>=defval && *p == ' '; *p-- = 0);
-   char prefix[0x200]; strcpy(prefix, prefix0);
-   strcat(prefix, "."); unsigned plen = strlen(prefix);
-   for (char *ptr = buf; *ptr; ) {
-      if (!strnicmp(ptr, prefix, plen)) {
-         ptr += plen; tab[*num] = setptr;
-         while (*ptr && *ptr != '=') *setptr++ = *ptr++; *setptr++ = 0;
-         if (!stricmp(tab[*num], defval)) *curr = (unsigned char)*num;
+
+   char prefix[0x200];
+   strcpy(prefix, prefix0);
+   strcat(prefix, ".");
+   unsigned plen = strlen(prefix);
+   for (char *ptr = buf; *ptr; )
+   {
+      if (!strnicmp(ptr, prefix, plen))
+      {
+         ptr += plen;
+         tab[*num] = setptr;
+         while (*ptr && *ptr != '=')
+             *setptr++ = *ptr++;
+         *setptr++ = 0;
+
+         if (!stricmp(tab[*num], defval))
+             *curr = (unsigned char)*num;
          (*num)++;
       }
-      while (*ptr) ptr++; ptr++;
+      while (*ptr) ptr++;
+      ptr++;
    }
 }
 
@@ -227,6 +272,7 @@ void load_config(const char *fname)
 
    conf.sleepidle = GetPrivateProfileInt(misc, "ShareCPU", 0, ininame);
    conf.highpriority = GetPrivateProfileInt(misc, "HighPriority", 0, ininame);
+   conf.tape_traps = GetPrivateProfileInt(misc, "TapeTraps", 1, ininame);
    conf.tape_autostart = GetPrivateProfileInt(misc, "TapeAutoStart", 1, ininame);
    conf.EFF7_mask = GetPrivateProfileInt(misc, "EFF7mask", 0, ininame);
 
@@ -235,7 +281,8 @@ void load_config(const char *fname)
    GetPrivateProfileString(rom, "SCORP", nil, conf.scorp_rom_path, sizeof conf.scorp_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFROM", nil, conf.prof_rom_path, sizeof conf.prof_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFI", nil, conf.profi_rom_path, sizeof conf.profi_rom_path, ininame);
-   GetPrivateProfileString(rom, "KAY", nil, conf.kay_rom_path, sizeof conf.kay_rom_path, ininame);
+//[vv]   GetPrivateProfileString(rom, "KAY", nil, conf.kay_rom_path, sizeof conf.kay_rom_path, ininame);
+   GetPrivateProfileString(rom, "PLUS3", nil, conf.plus3_rom_path, sizeof conf.plus3_rom_path, ininame);
    #ifdef MOD_GSZ80
    GetPrivateProfileString(rom, "GS", nil, conf.gs_rom_path, sizeof conf.gs_rom_path, ininame);
    addpath(conf.gs_rom_path);
@@ -245,7 +292,8 @@ void load_config(const char *fname)
    addpath(conf.scorp_rom_path);
    addpath(conf.prof_rom_path);
    addpath(conf.profi_rom_path);
-   addpath(conf.kay_rom_path);
+   addpath(conf.plus3_rom_path);
+//[vv]   addpath(conf.kay_rom_path);
 
    GetPrivateProfileString(rom, "ROMSET", "default", line, sizeof line, ininame);
    if (*line) load_romset(&conf, line), conf.use_romset = 1; else conf.use_romset = 0;
@@ -267,6 +315,13 @@ void load_config(const char *fname)
 
    GetPrivateProfileString(misc, "DIR", nil, conf.workdir, sizeof conf.workdir, ininame);
 
+   GetCurrentDirectory(_countof(line), line);
+   SetCurrentDirectory(conf.workdir);
+   GetCurrentDirectory(_countof(temp.SnapDir), temp.SnapDir);
+   SetCurrentDirectory(line);
+   strcpy(temp.RomDir, temp.SnapDir);
+   strcpy(temp.HddDir, temp.SnapDir);
+
    conf.reset_rom = RM_SOS;
    GetPrivateProfileString(misc, "RESET", nil, line, sizeof line, ininame);
    if (!strnicmp(line, "DOS", 3)) conf.reset_rom = RM_DOS;
@@ -275,7 +330,8 @@ void load_config(const char *fname)
 
    GetPrivateProfileString(misc, "Modem", nil, line, sizeof line, ininame);
    conf.modem_port = 0;
-   if (!strnicmp(line, "COM", 3) && ((unsigned char)line[3])-'1' < 9) conf.modem_port = line[3] - '0';
+
+   sscanf(line, "COM%d", &conf.modem_port);
 
    conf.paper = GetPrivateProfileInt(ula, "Paper", 17989, ininame);
    conf.t_line = GetPrivateProfileInt(ula, "Line", 224, ininame);
@@ -291,7 +347,8 @@ void load_config(const char *fname)
    add_presets(ula, "preset", &num_ula, ulapreset, &conf.ula_preset);
 
    conf.atm.mem_swap = GetPrivateProfileInt(ula, "AtmMemSwap", 0, ininame);
-   conf.atm.use_pal = GetPrivateProfileInt(ula, "UseAtmPalette", 1, ininame);
+   conf.use_comp_pal = GetPrivateProfileInt(ula, "UsePalette", 1, ininame);
+   conf.profi_monochrome = GetPrivateProfileInt(ula, "ProfiMonochrome", 0, ininame);
 
    conf.flashcolor = GetPrivateProfileInt(video, "FlashColor", 0, ininame);
    conf.frameskip = GetPrivateProfileInt(video, "SkipFrame", 0, ininame);
@@ -336,28 +393,41 @@ void load_config(const char *fname)
 
    GetPrivateProfileString(video, "Border", nil, line, sizeof line, ininame);
    conf.bordersize = 1;
-   if (!strnicmp(line, "none", 4)) conf.bordersize = 0;
-   if (!strnicmp(line, "small", 5)) conf.bordersize = 1;
-   if (!strnicmp(line, "wide", 4)) conf.bordersize = 2;
+   if (!strnicmp(line, "none", 4))
+       conf.bordersize = 0;
+   else if (!strnicmp(line, "small", 5))
+       conf.bordersize = 1;
+   else if (!strnicmp(line, "wide", 4))
+       conf.bordersize = 2;
    conf.minres = GetPrivateProfileInt(video, "MinRes", 0, ininame);
 
    GetPrivateProfileString(video, "Hide", nil, line, sizeof line, ininame);
    char *ptr = strchr(line, ';'); if (ptr) *ptr = 0;
-   for (ptr = line;;) {
-      unsigned max = (sizeof renders/sizeof *renders)-1;
-      for (i = 0; renders[i].func; i++) {
+   for (ptr = line;;)
+   {
+      unsigned max = renders_count - 1;
+      for (i = 0; renders[i].func; i++)
+      {
          unsigned sl = strlen(renders[i].nick);
-         if (!strnicmp(ptr, renders[i].nick, sl) && !isalnum(ptr[sl])) {
+         if (!strnicmp(ptr, renders[i].nick, sl) && !isalnum(ptr[sl]))
+         {
             ptr += sl;
-            memcpy(&renders[i], &renders[i+1], (sizeof *renders)*(max-i));
+            memcpy(&renders[i], &renders[i+1], (sizeof *renders) * (max-i));
             break;
          }
       }
-      if (!*ptr++) break;
+      if (!*ptr++)
+          break;
    }
 
    GetPrivateProfileString(video, "ScrShot", nil, line, sizeof line, ininame);
-   conf.bmpshot = strnicmp(line, "bmp", 3) ? 0 : 1;
+   conf.scrshot = 0;
+   if(!strnicmp(line, "scr", 3))
+       conf.scrshot = 0;
+   else if(!strnicmp(line, "bmp", 3))
+       conf.scrshot = 1;
+   else if(!strnicmp(line, "png", 3))
+       conf.scrshot = 2;
 
    conf.trdos_present = GetPrivateProfileInt(beta128, "beta128", 1, ininame);
    conf.trdos_traps = GetPrivateProfileInt(beta128, "Traps", 1, ininame);
@@ -459,11 +529,13 @@ void load_config(const char *fname)
    if (!strnicmp(line, "CHRV", 4)) conf.sound.ay_scheme = AY_SCHEME_CHRV;
 
    GetPrivateProfileString(input, "ZXKeyMap", "default", conf.zxkeymap, sizeof conf.zxkeymap, ininame);
-   for (i = 0; i < sizeof zxk_maps / sizeof *zxk_maps; i++)
+   for (i = 0; i < zxk_maps_count; i++)
       if (!strnicmp(conf.zxkeymap, zxk_maps[i].name, strlen(zxk_maps[i].name)))
          { conf.input.active_zxk = &zxk_maps[i] ; break; }
 
-   GetPrivateProfileString(input, "KeybLayout", "default", conf.keyset, sizeof conf.keyset, ininame);
+   GetPrivateProfileString(input, "KeybLayout", "default", line, sizeof(line), ininame);
+   ptr = strtok(line, " ;");
+   strcpy(conf.keyset, ptr ? ptr : line);
 
    GetPrivateProfileString(input, "Mouse", nil, line, sizeof line, ininame);
    conf.input.mouse = 0;
@@ -485,6 +557,7 @@ void load_config(const char *fname)
    conf.input.paste_hold = GetPrivateProfileInt(input, "HoldDelay", 2, ininame);
    conf.input.paste_release = GetPrivateProfileInt(input, "ReleaseDelay", 5, ininame);
    conf.input.paste_newline = GetPrivateProfileInt(input, "NewlineDelay", 20, ininame);
+   conf.input.keybpcmode = GetPrivateProfileInt(input, "KeybPCMode", 0, ininame);
    conf.atm.xt_kbd = GetPrivateProfileInt(input, "ATMKBD", 0, ininame);
    GetPrivateProfileString(input, "Fire", "0", line, sizeof line, ininame);
    conf.input.firenum = 0; conf.input.fire = 0;
@@ -498,18 +571,37 @@ void load_config(const char *fname)
    GetPrivateProfileString(colors, "color", "default", line, sizeof line, ininame);
    conf.pal = 0;
 
-   for (i = 1, ptr = buff; i < sizeof pals / sizeof *pals; ptr += strlen(ptr)+1) {
-      if (!*ptr) break;
-      if (!isalnum(*ptr) || !strnicmp(ptr, "color=", 6)) continue;
-      char *ptr1 = strchr(ptr, '='); if (!ptr1) continue;
+   for (i = 1, ptr = buff; i < _countof(pals); ptr += strlen(ptr)+1)
+   {
+      if (!*ptr)
+          break;
+      if (!isalnum(*ptr) || !strnicmp(ptr, "color=", 6))
+          continue;
+      char *ptr1 = strchr(ptr, '=');
+      if (!ptr1)
+          continue;
       *ptr1 = 0; strcpy(pals[i].name, ptr); ptr = ptr1+1;
-      sscanf(ptr, "%02X,%02X,%02X,%02X,%02X,%02X:%02X,%02X,%02X;%02X,%02X,%02X;%02X,%02X,%02X",
+      sscanf(ptr, "%02X,%02X,%02X,%02X,%02X,%02X:%X,%X,%X;%X,%X,%X;%X,%X,%X",
          &pals[i].ZZ,  &pals[i].ZN,  &pals[i].NN,
          &pals[i].NB,  &pals[i].BB,  &pals[i].ZB,
          &pals[i].r11, &pals[i].r12, &pals[i].r13,
          &pals[i].r21, &pals[i].r22, &pals[i].r23,
          &pals[i].r31, &pals[i].r32, &pals[i].r33);
-      if (!strnicmp(line, pals[i].name, strlen(pals[i].name))) conf.pal = i;
+
+      pals[i].r11 = min(pals[i].r11, 256U);
+      pals[i].r12 = min(pals[i].r12, 256U);
+      pals[i].r13 = min(pals[i].r13, 256U);
+
+      pals[i].r21 = min(pals[i].r21, 256U);
+      pals[i].r22 = min(pals[i].r22, 256U);
+      pals[i].r23 = min(pals[i].r23, 256U);
+
+      pals[i].r31 = min(pals[i].r31, 256U);
+      pals[i].r32 = min(pals[i].r32, 256U);
+      pals[i].r33 = min(pals[i].r33, 256U);
+
+      if (!strnicmp(line, pals[i].name, strlen(pals[i].name)))
+          conf.pal = i;
       i++;
    }
    conf.num_pals = i;
@@ -518,10 +610,10 @@ void load_config(const char *fname)
    conf.ide_scheme = IDE_NONE;
    if(!strnicmp(line, "ATM", 3))
        conf.ide_scheme = IDE_ATM;
-   else if(!strnicmp(line, "NEMO", 4))
-       conf.ide_scheme = IDE_NEMO;
    else if(!strnicmp(line, "NEMO-A8", 7))
        conf.ide_scheme = IDE_NEMO_A8;
+   else if(!strnicmp(line, "NEMO", 4))
+       conf.ide_scheme = IDE_NEMO;
    else if(!strnicmp(line, "SMUC", 4))
        conf.ide_scheme = IDE_SMUC;
    else if(!strnicmp(line, "PROFI", 5))
@@ -541,8 +633,25 @@ void load_config(const char *fname)
       sscanf(line, "%d/%d/%d", &conf.ide[ide_device].c, &conf.ide[ide_device].h, &conf.ide[ide_device].s);
       sprintf(param, "Image%d", ide_device);
       GetPrivateProfileString(hdd, param, nil, conf.ide[ide_device].image, sizeof conf.ide[ide_device].image, ininame);
+      addpath(conf.ide[ide_device].image);
       sprintf(param, "HD%dRO", ide_device);
       conf.ide[ide_device].readonly = (BYTE)GetPrivateProfileInt(hdd, param, 0, ininame);
+      sprintf(param, "CD%d", ide_device);
+      conf.ide[ide_device].cd = (BYTE)GetPrivateProfileInt(hdd, param, 0, ininame);
+
+      if(!conf.ide[ide_device].cd &&
+         conf.ide[ide_device].lba == 0 &&
+         conf.ide[ide_device].image[0] &&
+         conf.ide[ide_device].image[0] != '<')
+      {
+          int file = open(conf.ide[ide_device].image, O_RDONLY | O_BINARY, S_IREAD);
+          if(file >= 0)
+          {
+              __int64 sz = _filelengthi64(file);
+              close(file);
+              conf.ide[ide_device].lba = sz / 512;
+          }
+      }
    }
 
    addpath(line, "CMOS");
@@ -616,7 +725,10 @@ void apply_memory()
    if (conf.gs_type == 1)
    {
        if(load_rom(conf.gs_rom_path, ROM_GS_M, 32) != 512) // 512k rom
+       {
+           errmsg("invalid ROM size for NGS (need 512kb), NGS disabled\n");
            conf.gs_type = 0;
+       }
    }
    #endif
 
@@ -644,6 +756,20 @@ void apply_memory()
       base_dos_rom = ROM_BASE_M + 1*PAGE;
       base_128_rom = ROM_BASE_M + 2*PAGE;
       base_sos_rom = ROM_BASE_M + 3*PAGE;
+   break;
+
+   case MM_PLUS3:
+      base_128_rom = ROM_BASE_M + 0*PAGE;
+      base_sys_rom = ROM_BASE_M + 1*PAGE;
+      base_dos_rom = ROM_BASE_M + 2*PAGE;
+      base_sos_rom = ROM_BASE_M + 3*PAGE;
+   break;
+
+   case MM_KAY:
+      base_128_rom = ROM_BASE_M + 0*PAGE;
+      base_sos_rom = ROM_BASE_M + 1*PAGE;
+      base_dos_rom = ROM_BASE_M + 2*PAGE;
+      base_sys_rom = ROM_BASE_M + 3*PAGE;
    break;
 
    default:
@@ -692,8 +818,9 @@ void apply_memory()
          {
          case MM_PROFI: romname = conf.profi_rom_path; break;
          case MM_SCORP: romname = conf.scorp_rom_path; break;
-         case MM_KAY: romname = conf.kay_rom_path; break;
+//[vv]         case MM_KAY: romname = conf.kay_rom_path; break;
          case MM_ATM450: romname = conf.atm1_rom_path; break;
+         case MM_PLUS3: romname = conf.plus3_rom_path; break;
 
          default:
              errexit("ROMSET should be defined for this memory model");
@@ -723,7 +850,12 @@ void apply_memory()
    temp.ram_mask = (conf.ramsize-1) >> 4;
    temp.rom_mask = (romsize-1) >> 4;
    set_banks();
-   dbgchk = isbrk();
+
+   for(unsigned i = 0; i < CpuMgr.GetCount(); i++)
+   {
+       Z80 &cpu = CpuMgr.Cpu(i);
+       cpu.dbgchk = isbrk(cpu);
+   }
 }
 
 
@@ -734,7 +866,11 @@ void applyconfig()
 
 //Alone Coder 0.36.4
    conf.frame = frametime;
-   if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
+   cpu.SetTpi(conf.frame);
+/*
+   if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))
+       conf.frame = 71680;
+*/
 //~Alone Coder
    temp.ticks_frame = (unsigned)(temp.cpufq / conf.intfq);
    loadzxkeys(&conf);
@@ -801,24 +937,38 @@ void loadkeys(action *table)
 {
    unsigned num[0x300], i = 0;
    unsigned j; //Alone Coder 0.36.7
-   if (!table->name) return; // empty table (can't sort)
-   for (action *p = table; p->name; p++, i++) {
+   if (!table->name)
+       return; // empty table (can't sort)
+   for (action *p = table; p->name; p++, i++)
+   {
       char line[0x400];
       GetPrivateProfileString("SYSTEM.KEYS", p->name, "`", line, sizeof line, ininame);
-      if (*line == '`') {
-         errmsg("keydef for %s not found", p->name); load_errors = 1;
-bad_key: p->k1 = 0xFE, p->k2 = 0xFF, p->k3 = 0xFD;
+      if (*line == '`')
+      {
+         errmsg("keydef for %s not found", p->name);
+         load_errors = 1;
+bad_key:
+         p->k1 = 0xFE, p->k2 = 0xFF, p->k3 = 0xFD;
          continue;
       }
-      char *s = strchr(line, ';'); if (s) *s = 0;
+      char *s = strchr(line, ';');
+      if(s)
+          *s = 0;
       p->k1 = p->k2 = p->k3 = p->k4 = 0; num[i] = 0;
-      for (s = line;;) {
+      for (s = line;;)
+      {
          while (*s == ' ') s++;
-         if (!*s) break;
-         char *s1 = s; while (isalnum(*s)) s++;
-         for (/*unsigned*/ j = 0; j < sizeof pckeys / sizeof *pckeys; j++)
-            if ((int)strlen(pckeys[j].name)==s-s1 && !strnicmp(s1, pckeys[j].name, s-s1)) {
-               switch (num[i]) {
+         if (!*s)
+             break;
+         char *s1 = s;
+         while (isalnum(*s))
+             s++;
+         for (j = 0; j < pckeys_count; j++)
+         {
+            if ((int)strlen(pckeys[j].name)==s-s1 && !strnicmp(s1, pckeys[j].name, s-s1))
+            {
+               switch (num[i])
+               {
                   case 0: p->k1 = pckeys[j].virtkey; break;
                   case 1: p->k2 = pckeys[j].virtkey; break;
                   case 2: p->k3 = pckeys[j].virtkey; break;
@@ -831,22 +981,34 @@ bad_key: p->k1 = 0xFE, p->k2 = 0xFF, p->k3 = 0xFD;
                num[i]++;
                break;
             }
-         if (j == sizeof pckeys / sizeof *pckeys) {
+         }
+         if (j == pckeys_count)
+         {
             color(CONSCLR_ERROR);
             char x = *s; *s = 0;
             printf("bad key: %s\n", s1); *s = x;
             load_errors = 1;
          }
       }
-      if (!num[i]) goto bad_key;
+      if (!num[i])
+          goto bad_key;
    }
+
    // sort keys
-   for (unsigned k = 0; k < i-1; k++) {
+   for (unsigned k = 0; k < i-1; k++)
+   {
       unsigned max = k;
       for (unsigned l = k+1; l < i; l++)
-         if (num[l] > num[max]) max = l;
-      action tmp = table[k]; table[k] = table[max]; table[max] = tmp;
-      unsigned tm = num[k]; num[k] = num[max]; num[max] = tm;
+         if (num[l] > num[max])
+             max = l;
+
+      action tmp = table[k];
+      table[k] = table[max];
+      table[max] = tmp;
+
+      unsigned tm = num[k];
+      num[k] = num[max];
+      num[max] = tm;
    }
 }
 
@@ -858,33 +1020,91 @@ void loadzxkeys(CONFIG *conf)
    char *s; //Alone Coder 0.36.7
    unsigned k; //Alone Coder 0.36.7
    zxkeymap *active_zxk = conf->input.active_zxk;
-   for (unsigned i = 0; i < VK_MAX; i++) {
+
+   for (unsigned i = 0; i < VK_MAX; i++)
+   {
       inports[i].port1 = inports[i].port2 = &input.kjoy;
       inports[i].mask1 = inports[i].mask2 = 0xFF;
-      for (unsigned j = 0; j < sizeof pckeys / sizeof *pckeys; j++)
-         if (pckeys[j].virtkey == i) {
+      for (unsigned j = 0; j < pckeys_count; j++)
+      {
+         if (pckeys[j].virtkey == i)
+         {
             GetPrivateProfileString(section, pckeys[j].name, "", line, sizeof line, ininame);
             s = strtok(line, " ;");
-            if(s) {
-               for (/*unsigned*/ k = 0; k < active_zxk->zxk_size; k++) {
-                  if (!stricmp(s, active_zxk->zxk[k].name)) {
+            if(s)
+            {
+               for(k = 0; k < active_zxk->zxk_size; k++)
+               {
+                  if (!stricmp(s, active_zxk->zxk[k].name))
+                  {
                      inports[i].port1 = active_zxk->zxk[k].port;
                      inports[i].mask1 = active_zxk->zxk[k].mask;
+                     switch(i)
+                     {
+                     case DIK_CONTROL:
+                         inports[DIK_LCONTROL].port1 = active_zxk->zxk[k].port;
+                         inports[DIK_LCONTROL].mask1 = active_zxk->zxk[k].mask;
+                         inports[DIK_RCONTROL].port1 = active_zxk->zxk[k].port;
+                         inports[DIK_RCONTROL].mask1 = active_zxk->zxk[k].mask;
+                     break;
+
+                     case DIK_SHIFT:
+                         inports[DIK_LSHIFT].port1 = active_zxk->zxk[k].port;
+                         inports[DIK_LSHIFT].mask1 = active_zxk->zxk[k].mask;
+                         inports[DIK_RSHIFT].port1 = active_zxk->zxk[k].port;
+                         inports[DIK_RSHIFT].mask1 = active_zxk->zxk[k].mask;
+                     break;
+
+                     case DIK_MENU:
+                         inports[DIK_LMENU].port1 = active_zxk->zxk[k].port;
+                         inports[DIK_LMENU].mask1 = active_zxk->zxk[k].mask;
+                         inports[DIK_RMENU].port1 = active_zxk->zxk[k].port;
+                         inports[DIK_RMENU].mask1 = active_zxk->zxk[k].mask;
+                     break;
+                     }
                      break;
                   }
                }
             }
             s = strtok(NULL, " ;");
-            if(s) {
-               for (k = 0; k < active_zxk->zxk_size; k++) {
-                  if (!stricmp(s, active_zxk->zxk[k].name)) {
+            if(s)
+            {
+               for (k = 0; k < active_zxk->zxk_size; k++)
+               {
+                  if (!stricmp(s, active_zxk->zxk[k].name))
+                  {
                      inports[i].port2 = active_zxk->zxk[k].port;
                      inports[i].mask2 = active_zxk->zxk[k].mask;
+
+                     switch(i)
+                     {
+                     case DIK_CONTROL:
+                         inports[DIK_LCONTROL].port2 = active_zxk->zxk[k].port;
+                         inports[DIK_LCONTROL].mask2 = active_zxk->zxk[k].mask;
+                         inports[DIK_RCONTROL].port2 = active_zxk->zxk[k].port;
+                         inports[DIK_RCONTROL].mask2 = active_zxk->zxk[k].mask;
+                     break;
+
+                     case DIK_SHIFT:
+                         inports[DIK_LSHIFT].port2 = active_zxk->zxk[k].port;
+                         inports[DIK_LSHIFT].mask2 = active_zxk->zxk[k].mask;
+                         inports[DIK_RSHIFT].port2 = active_zxk->zxk[k].port;
+                         inports[DIK_RSHIFT].mask2 = active_zxk->zxk[k].mask;
+                     break;
+
+                     case DIK_MENU:
+                         inports[DIK_LMENU].port2 = active_zxk->zxk[k].port;
+                         inports[DIK_LMENU].mask2 = active_zxk->zxk[k].mask;
+                         inports[DIK_RMENU].port2 = active_zxk->zxk[k].port;
+                         inports[DIK_RMENU].mask2 = active_zxk->zxk[k].mask;
+                     break;
+                     }
                      break;
                   }
                }
             }
             break;
          }
+      }
    }
 }

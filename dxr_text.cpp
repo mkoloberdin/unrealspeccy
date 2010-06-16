@@ -1,3 +1,15 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dxrframe.h"
+#include "fontdata.h"
+#include "font8.h"
+#include "font14.h"
+#include "font16.h"
+#include "init.h"
+#include "util.h"
 
 unsigned *root_tab;
 unsigned char *fontdata = fontdata1;

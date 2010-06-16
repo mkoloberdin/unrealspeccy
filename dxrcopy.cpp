@@ -1,3 +1,9 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dxrcopy.h"
 
 // #define QUAD_BUFFER  // tests show that this variant is slower, even in noflic mode
 
@@ -135,7 +141,8 @@ void line32q_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
 
 void line32(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
-   for (unsigned x = 0; x < temp.scx*4; x += 32) {
+   for (unsigned x = 0; x < temp.scx*4; x += 32)
+   {
       unsigned char byte = *src++;
       unsigned *t = tab + *src++;
       *(unsigned*)(dst+x)    = t[(byte << 1) & 0x100];
@@ -151,33 +158,36 @@ void line32(unsigned char *dst, unsigned char *src, unsigned *tab)
 
 void line32d(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
-   for (unsigned x = 0; x < temp.scx*8; x += 64) {
+   unsigned *d = (unsigned *)dst;
+   for (unsigned x = 0; x < temp.scx * 2; x += 16)
+   {
       unsigned char byte = *src++;
       unsigned *t = tab + *src++;
-      *(unsigned*)(dst+x)    =
-      *(unsigned*)(dst+x+4)  =
-                               t[(byte << 1) & 0x100];
-      *(unsigned*)(dst+x+8)  =
-      *(unsigned*)(dst+x+12) =
-                               t[(byte << 2) & 0x100];
-      *(unsigned*)(dst+x+16) =
-      *(unsigned*)(dst+x+20) =
-                               t[(byte << 3) & 0x100];
-      *(unsigned*)(dst+x+24) =
-      *(unsigned*)(dst+x+28) =
-                               t[(byte << 4) & 0x100];
-      *(unsigned*)(dst+x+32) =
-      *(unsigned*)(dst+x+36) =
-                               t[(byte << 5) & 0x100];
-      *(unsigned*)(dst+x+40) =
-      *(unsigned*)(dst+x+44) =
-                               t[(byte << 6) & 0x100];
-      *(unsigned*)(dst+x+48) =
-      *(unsigned*)(dst+x+52) =
-                               t[(byte << 7) & 0x100];
-      *(unsigned*)(dst+x+56) =
-      *(unsigned*)(dst+x+60) =
-                               t[(byte << 8) & 0x100];
+      unsigned b7 = (byte & 0x80) ? 0x100 : 0;
+      unsigned b6 = (byte & 0x40) ? 0x100 : 0;
+      unsigned b5 = (byte & 0x20) ? 0x100 : 0;
+      unsigned b4 = (byte & 0x10) ? 0x100 : 0;
+      unsigned b3 = (byte & 0x08) ? 0x100 : 0;
+      unsigned b2 = (byte & 0x04) ? 0x100 : 0;
+      unsigned b1 = (byte & 0x02) ? 0x100 : 0;
+      unsigned b0 = (byte & 0x01) ? 0x100 : 0;
+
+      d[x]    = d[x+1] = t[b7];
+                               // [vv] t[(byte << 1) & 0x100]; // 7
+      d[x+2]  = d[x+3] = t[b6];
+                               // [vv] t[(byte << 2) & 0x100]; // 6
+      d[x+4] = d[x+5] = t[b5];
+                               // [vv] t[(byte << 3) & 0x100]; // 5
+      d[x+6] = d[x+7] = t[b4];
+                               // [vv] t[(byte << 4) & 0x100]; // 4
+      d[x+8] = d[x+9] = t[b3];
+                               // [vv] t[(byte << 5) & 0x100]; // 3
+      d[x+10] = d[x+11] = t[b2];
+                               // [vv] t[(byte << 6) & 0x100]; // 2
+      d[x+12] = d[x+13] = t[b1];
+                               // [vv] t[(byte << 7) & 0x100]; // 1
+      d[x+14] = d[x+15] = t[b0];
+                               // [vv] t[(byte << 8) & 0x100]; // 0
    }
 }
 
@@ -229,8 +239,6 @@ void line32q(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
-#define line16 line8d
-
 void line16_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
    for (unsigned x = 0; x < temp.scx*2; x += 32) {
@@ -257,7 +265,6 @@ void line16_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
-#define line16d line32
 #define line16d_nf line32_nf
 
 #define line16q line32d
@@ -400,10 +407,13 @@ void rend_copy32_nf(unsigned char *dst, unsigned pitch)
 
 void rend_copy32(unsigned char *dst, unsigned pitch)
 {
-   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
-   for (unsigned y = 0; y < temp.scy; y++) {
+   unsigned char *src = rbuf;
+   unsigned delta = temp.scx / 4;
+   for (unsigned y = 0; y < temp.scy; y++)
+   {
       line32(dst, src, t.sctab32[0]);
-      dst += pitch; src += delta;
+      dst += pitch;
+      src += delta;
    }
 }
 
@@ -459,8 +469,10 @@ void rend_copy32q_nf(unsigned char *dst, unsigned pitch)
 
 void rend_copy32d1(unsigned char *dst, unsigned pitch)
 {
-   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
-   for (unsigned y = 0; y < temp.scy; y++) {
+   unsigned char *src = rbuf;
+   unsigned delta = temp.scx/4;
+   for (unsigned y = 0; y < temp.scy; y++)
+   {
       line32d(dst, src, t.sctab32[0]); dst += pitch;
       src += delta;
    }
@@ -468,10 +480,12 @@ void rend_copy32d1(unsigned char *dst, unsigned pitch)
 
 void rend_copy32d(unsigned char *dst, unsigned pitch)
 {
-   unsigned char *src = rbuf; unsigned delta = temp.scx/4;
-   for (unsigned y = 0; y < temp.scy; y++) {
-      line32d(dst, src, t.sctab32[0]); dst += pitch;
-      line32d(dst, src, t.sctab32[1]); dst += pitch;
+   unsigned char *src = rbuf;
+   unsigned delta = temp.scx / 4;
+   for (unsigned y = 0; y < temp.scy; y++)
+   {
+      line32d(dst, src, t.sctab32[0]); dst += pitch; // Четные строки
+      line32d(dst, src, t.sctab32[1]); dst += pitch; // Нечетные строки
       src += delta;
    }
 }

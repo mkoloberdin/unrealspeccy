@@ -1,21 +1,26 @@
-
+#pragma once
 struct ATA_DEVICE
 {
    unsigned c,h,s,lba;
-   union {
+   union
+   {
       unsigned char regs[12];
-      struct {
+      struct
+      {
          unsigned char data;
          unsigned char err;             // for write, features
-         union {
+         union
+         {
             unsigned char count;
             unsigned char intreason;
          };
          unsigned char sec;
-         union {
+         union
+         {
             unsigned short cyl;
             unsigned short atapi_count;
-            struct {
+            struct
+            {
                unsigned char cyl_l;
                unsigned char cyl_h;
             };
@@ -48,12 +53,15 @@ struct ATA_DEVICE
 
    void reset(RESET_TYPE mode);
    char seek();
+   void recalibrate();
    void configure(IDE_CONFIG *cfg);
    void prepare_id();
    void command_ok();
    void next_sector();
    void read_sectors();
+   void verify_sectors();
    void write_sectors();
+   void format_track();
 
    enum ATAPI_INT_REASON
    {
@@ -66,7 +74,7 @@ struct ATA_DEVICE
    {
       STATUS_BSY   = 0x80,
       STATUS_DRDY  = 0x40,
-      STATUS_DWF   = 0x20,
+      STATUS_DF    = 0x20,
       STATUS_DSC   = 0x10,
       STATUS_DRQ   = 0x08,
       STATUS_CORR  = 0x04,
@@ -95,7 +103,7 @@ struct ATA_DEVICE
    enum HD_STATE
    {
       S_IDLE = 0, S_READ_ID,
-      S_READ_SECTORS, S_WRITE_SECTORS,
+      S_READ_SECTORS, S_VERIFY_SECTORS, S_WRITE_SECTORS, S_FORMAT_TRACK,
       S_RECV_PACKET, S_READ_ATAPI,
       S_MODE_SELECT
    };
@@ -106,6 +114,7 @@ struct ATA_DEVICE
    unsigned char transbf[0xFFFF]; // ATAPI is able to tranfer 0xFFFF bytes. passing more leads to error
 
    void handle_atapi_packet();
+   void handle_atapi_packet_emulate();
    void exec_mode_select();
 
    ATA_PASSER ata_p;
@@ -128,3 +137,9 @@ struct ATA_PORT
 
    void reset();
 };
+
+extern PHYS_DEVICE phys[];
+extern int n_phys;
+
+unsigned find_hdd_device(char *name);
+void init_hdd_cd();

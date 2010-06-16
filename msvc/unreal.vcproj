@@ -506,6 +506,78 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="z80"
+				>
+				<File
+					RelativePath="..\Z80\daa_tabs.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\Z80\op_cb.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\Z80\op_dd.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\Z80\op_ddcb.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\Z80\op_ed.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\Z80\op_fd.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\Z80\op_noprefix.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\Z80\tables.cpp"
+					>
+				</File>
+				<Filter
+					Name="h"
+					>
+					<File
+						RelativePath="..\Z80\daa_tabs.h"
+						>
+					</File>
+					<File
+						RelativePath="..\Z80\defs.h"
+						>
+					</File>
+					<File
+						RelativePath="..\Z80\op_dd.h"
+						>
+					</File>
+					<File
+						RelativePath="..\Z80\op_ed.h"
+						>
+					</File>
+					<File
+						RelativePath="..\Z80\op_fd.h"
+						>
+					</File>
+					<File
+						RelativePath="..\Z80\op_noprefix.h"
+						>
+					</File>
+					<File
+						RelativePath="..\Z80\op_system.h"
+						>
+					</File>
+					<File
+						RelativePath="..\Z80\tables.h"
+						>
+					</File>
+				</Filter>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -513,11 +585,155 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath="..\atm.h"
+				>
+			</File>
+			<File
 				RelativePath="..\bass.h"
 				>
 			</File>
 			<File
+				RelativePath="..\cheat.h"
+				>
+			</File>
+			<File
+				RelativePath="..\config.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgbpx.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgcmd.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbglabls.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgmem.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgoth.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgpaint.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgreg.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgrwdlg.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dbgtrace.h"
+				>
+			</File>
+			<File
+				RelativePath="..\ddk.h"
+				>
+			</File>
+			<File
+				RelativePath="..\ddraw.h"
+				>
+			</File>
+			<File
 				RelativePath="..\debug.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dinput.h"
+				>
+			</File>
+			<File
+				RelativePath="..\draw.h"
+				>
+			</File>
+			<File
+				RelativePath="..\drawnomc.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dx.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxerr.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxovr.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_4bpp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_512.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_advm.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_atm.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_atm0.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_atm2.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_atm6.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_atm7.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_atmf.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_prof.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_rsm.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxr_text.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxrcopy.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxrend.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxrendch.h"
+				>
+			</File>
+			<File
+				RelativePath="..\dxrframe.h"
 				>
 			</File>
 			<File
@@ -529,11 +745,79 @@
 				>
 			</File>
 			<File
+				RelativePath="..\emulkeys.h"
+				>
+			</File>
+			<File
+				RelativePath="..\fntsrch.h"
+				>
+			</File>
+			<File
+				RelativePath="..\font.h"
+				>
+			</File>
+			<File
+				RelativePath="..\font14.h"
+				>
+			</File>
+			<File
+				RelativePath="..\font16.h"
+				>
+			</File>
+			<File
+				RelativePath="..\font8.h"
+				>
+			</File>
+			<File
+				RelativePath="..\fontatm2.h"
+				>
+			</File>
+			<File
+				RelativePath="..\fontdata.h"
+				>
+			</File>
+			<File
 				RelativePath="..\Funcs.h"
 				>
 			</File>
 			<File
+				RelativePath="..\gs.h"
+				>
+			</File>
+			<File
+				RelativePath="..\gsz80.h"
+				>
+			</File>
+			<File
+				RelativePath="..\gui.h"
+				>
+			</File>
+			<File
+				RelativePath="..\iehelp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\init.h"
+				>
+			</File>
+			<File
 				RelativePath="..\input.h"
+				>
+			</File>
+			<File
+				RelativePath="..\inputpc.h"
+				>
+			</File>
+			<File
+				RelativePath="..\leds.h"
+				>
+			</File>
+			<File
+				RelativePath="..\mainloop.h"
+				>
+			</File>
+			<File
+				RelativePath="..\memory.h"
 				>
 			</File>
 			<File
@@ -545,7 +829,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\opendlg.h"
+				>
+			</File>
+			<File
 				RelativePath="..\resource.h"
+				>
+			</File>
+			<File
+				RelativePath="..\savesnd.h"
 				>
 			</File>
 			<File
@@ -557,6 +849,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\snd_bass.h"
+				>
+			</File>
+			<File
+				RelativePath="..\sound.h"
+				>
+			</File>
+			<File
+				RelativePath="..\sshot_png.h"
+				>
+			</File>
+			<File
 				RelativePath="..\std.h"
 				>
 			</File>
@@ -565,11 +869,43 @@
 				>
 			</File>
 			<File
+				RelativePath="..\tape.h"
+				>
+			</File>
+			<File
+				RelativePath="..\util.h"
+				>
+			</File>
+			<File
+				RelativePath="..\vars.h"
+				>
+			</File>
+			<File
 				RelativePath="..\vs1001.h"
 				>
 			</File>
 			<File
 				RelativePath="..\wd93.h"
+				>
+			</File>
+			<File
+				RelativePath="..\wd93crc.h"
+				>
+			</File>
+			<File
+				RelativePath="..\wd93dat.h"
+				>
+			</File>
+			<File
+				RelativePath="..\z80.h"
+				>
+			</File>
+			<File
+				RelativePath="..\z80_main.h"
+				>
+			</File>
+			<File
+				RelativePath="..\z80asm.h"
 				>
 			</File>
 			<File

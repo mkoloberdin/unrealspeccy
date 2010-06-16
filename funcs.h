@@ -53,7 +53,7 @@ void create_font_tables();
 
 void reset(ROM_MODE mode);
 
-void debug_events();
+void debug_events(Z80 *cpu);
 
 void __fastcall render_rsm(unsigned char*, unsigned); //Alone Coder
 void __fastcall render_advmame(unsigned char *dst, unsigned pitch); //Alone Coder

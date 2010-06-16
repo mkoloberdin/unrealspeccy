@@ -103,14 +103,8 @@
 /************************************************************************/
 
 //fnum= fq*2.3575
-#define WIN32_LEAN_AND_MEAN
 /* globals */
-#include <windows.h>
-#include <stdio.h>
-#include <math.h>
-#include <malloc.h>
-#include <memory.h>
-
+#include "std.h"
 #include "emul_2203.h"
 
 #define TYPE_SSG    0x01    /* SSG support          */

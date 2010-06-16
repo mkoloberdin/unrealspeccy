@@ -1,3 +1,4 @@
+#pragma once
 
 const int Z80FQ = 3500000; // todo: #define as (conf.frame*conf.intfq)
 const int FDD_RPS = 5; // rotation speed
@@ -53,16 +54,22 @@ struct TRKCACHE
    void seek(FDD *d, unsigned cyl, unsigned side, SEEK_MODE fs);
    void format(); // before use, call seek(d,c,s,JUST_SEEK), set s and hdr[]
    int write_sector(unsigned sec, unsigned char *data); // call seek(d,c,s,LOAD_SECTORS)
-   SECHDR *get_sector(unsigned sec); // before use, call fill(d,c,s,LOAD_SECTORS)
+   const SECHDR *get_sector(unsigned sec) const; // before use, call fill(d,c,s,LOAD_SECTORS)
 
    void dump();
-   void clear() { drive = 0; trkd = 0; }
+   void clear()
+   {
+       drive = 0;
+       trkd = 0;
+       ts_byte = Z80FQ/(MAX_TRACK_LEN * FDD_RPS);
+   }
    TRKCACHE() { clear(); }
 };
 
 
 struct FDD
 {
+   u8 Id;
    // drive data
 
    __int64 motor;       // 0 - not spinning, >0 - time when it'll stop
@@ -105,6 +112,14 @@ struct FDD
    int write_td0(FILE *ff);
    int read_udi();
    int write_udi(FILE *ff);
+
+   void format_isd();
+   int read_isd();
+   int write_isd(FILE *ff);
+
+   void format_pro();
+   int read_pro();
+   int write_pro(FILE *ff);
 
    ~FDD() { free(); }
 };
@@ -207,8 +222,13 @@ struct WD1793
    void getindex();
    void trdos_traps();
 
-   TRKCACHE trkcache;
+//   TRKCACHE trkcache;
    FDD fdd[4];
 
-   WD1793() { seldrive = &fdd[0]; }
+   WD1793()
+   {
+       for(unsigned i = 0; i < 4; i++) // [vv] Для удобства отладки
+           fdd[i].Id = i;
+       seldrive = &fdd[0];
+   }
 };

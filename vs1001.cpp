@@ -1,3 +1,7 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
 #include "vs1001.h"
 #include "bass.h"
 #include "snd_bass.h"

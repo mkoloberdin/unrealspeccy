@@ -3,11 +3,9 @@
 
 #define SND_TEST_FAILURES
 //#define SND_TEST_SHOWSTAT
-#define USE_SND_EXTERNAL_BUFFER
 #include "mods.h"
 
 //#include "9x.h"
-#include "ddk.h"
 #include "resource.h"
 
 //------- Alone Coder ---------
@@ -17,17 +15,12 @@
 #define INVALID_SET_FILE_POINTER (DWORD)-1
 #endif
 
-__inline unsigned short _byteswap_ushort (unsigned short i){return (i>>8)|(i<<8);}
-__inline unsigned long _byteswap_ulong(unsigned long i){return _byteswap_ushort((unsigned short)(i>>16))|(_byteswap_ushort((unsigned short)i)<<16);};
 typedef unsigned int UINT32;
 typedef signed int INT32;
 typedef unsigned short UINT16;
 typedef signed short INT16;
 typedef unsigned char UINT8;
 typedef signed char INT8;
-int fmsoundon0=4; //Alone Coder
-int tfmstatuson0=2; //Alone Coder
-char pressedit = 0; //Alone Coder
 unsigned frametime = 111111; //Alone Coder (GUI value for conf.frame)
 //~------- Alone Coder ---------
 
@@ -41,23 +34,34 @@ BOOL WINAPI ConsoleHandler(DWORD CtrlType);
 #include "emul.h"
 #include "sndrender/sndchip.h"
 #include "sndrender/sndcounter.h"
+#include "init.h"
 #include "funcs.h"
 #include "debug.h"
+#include "vars.h"
+#include "dx.h"
+#include "draw.h"
+#include "mainloop.h"
+#include "iehelp.h"
+#include "util.h"
+
+/*
 #include "vars.cpp"
 #include "util.cpp"
 #include "iehelp.cpp"
 #include "draw.cpp"
 #include "atm.cpp"
 #include "dx.cpp"
+*/
 
 void m_nmi(ROM_MODE page);
-void showhelp(char *anchor = 0)
+void showhelp(char *anchor)
 {
    sound_stop(); //Alone Coder 0.36.6
    showhelppp(anchor); //Alone Coder 0.36.6
    sound_play(); //Alone Coder 0.36.6
 }
 
+/*
 #include "emul_2203.cpp" //Dexus
 #include "sound.cpp"
 #include "memory.cpp"
@@ -82,6 +86,7 @@ void showhelp(char *anchor = 0)
 #include "io.cpp"
 #include "config.cpp"
 #include "opendlg.cpp"
+#include "sshot_png.cpp"
 #include "snapshot.cpp"
 #include "debug.cpp"
 #include "leds.cpp"
@@ -93,6 +98,7 @@ void showhelp(char *anchor = 0)
 #include "keydefs.cpp"
 #include "mainloop.cpp"
 #include "init.cpp"
+*/
 
 LONG __stdcall filter(EXCEPTION_POINTERS *pp)
 {
@@ -146,6 +152,12 @@ BOOL WINAPI ConsoleHandler(DWORD CtrlType)
 __declspec(noreturn)
 int __cdecl main(int argc, char **argv)
 {
+
+   DWORD Ver = GetVersion();
+
+   WinVerMajor = (DWORD)(LOBYTE(LOWORD(Ver)));
+   WinVerMinor = (DWORD)(HIBYTE(LOWORD(Ver)));
+
    CONSOLE_SCREEN_BUFFER_INFO csbi;
    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
    nowait = *(unsigned*)&csbi.dwCursorPosition;
@@ -155,23 +167,28 @@ int __cdecl main(int argc, char **argv)
    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 
    color(CONSCLR_TITLE);
-   printf("UnrealSpeccy " VERS_STRING_ " by SMT\n");
+   printf("UnrealSpeccy %s.fix5 by SMT, %s\n", VERS_STRING_, __DATE__);
    printf("Integrated YM2203 version 1.4A by Tatsuyuki Satoh, Jarek Burczynski, Alone Coder\n"); //Dexus
+#ifdef __ICL
    printf("Intel C++ Compiler: %d.%02d\n", __ICL/100, __ICL % 100);
+#endif
    color();
-//   printf(" *** source code available at http://sourceforge.net/projects/unrealspeccy/ ***\n");
-//   printf(" *** source code is available at http://alonecoder.narod.ru/ ***\n");
-   printf(" *** new versions & sources -> http://dlcorp.ucoz.ru/forum/17-255-1 ***\n");
+   // http://sourceforge.net/projects/unrealspeccy/
+   // http://alonecoder.narod.ru/
+   // http://dlcorp.ucoz.ru/forum/22
+   printf(" *** new versions & sources -> http://dlcorp.nedopc.com/viewforum.php?f=8 ***\n");
 
 #ifndef DEBUG
    SetUnhandledExceptionFilter(filter);
 #endif
 
    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+   load_spec_colors();
    init_all(argc-1, argv+1);
 //   applyconfig();
    sound_play();
    color();
+
    mainloop(Exit);
    return 0;
 }

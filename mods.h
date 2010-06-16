@@ -1,4 +1,4 @@
-
+#pragma once
 /* edit this file to make optimized versions without unnecessary parts */
 
 #define VERS_STRING  "0.37.3"   // version for monitor (exact 6 chars)

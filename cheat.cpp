@@ -1,3 +1,12 @@
+#include "std.h"
+
+#include "resource.h"
+#include "emul.h"
+#include "vars.h"
+
+#include "gui.h"
+#include "dx.h"
+#include "util.h"
 
 struct CHEATDLG
 {

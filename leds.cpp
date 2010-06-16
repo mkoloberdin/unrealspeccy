@@ -1,4 +1,18 @@
-#include "font.cpp"
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "font.h"
+#include "font16.h"
+#include "gs.h"
+#include "tape.h"
+#include "draw.h"
+#include "debug.h"
+#include "dbgbpx.h"
+#include "memory.h"
+
+#include "util.h"
+
 unsigned led_updtime, pitch;
 
 void text_i(unsigned char *dst, char *text, unsigned char ink, unsigned off = 0)
@@ -321,8 +335,9 @@ void debug_led()
       }
       for (unsigned j = 0; j < MAX_PAGES; j++) used_banks[j] = 0;
    }
-   for (unsigned w = 0; w < 4; w++) if (watch_enabled[w]) {
-      char bf[12]; sprintf(bf, "%8X", calc(watch_script[w]));
+   for (unsigned w = 0; w < 4; w++) if (watch_enabled[w])
+   {
+      char bf[12]; sprintf(bf, "%8X", calc(&cpu, watch_script[w]));
       text_i(ptr,bf,0x0F); ptr += pitch*8;
    }
 }
@@ -334,12 +349,13 @@ void show_mband(unsigned char *dst, unsigned start)
    char xx[8]; sprintf(xx, "%02X", start >> 8);
    text_i(dst, xx, 0x0B); dst += 4;
 
+   Z80 &cpu = CpuMgr.Cpu();
    unsigned char band[128];
    unsigned i; //Alone Coder 0.36.7
    for (/*unsigned*/ i = 0; i < 128; i++) {
       unsigned char res = 0;
       for (unsigned q = 0; q < conf.led.bandBpp; q++)
-         res |= membits[start++];
+         res |= cpu.membits[start++];
       band[i] = res;
    }
 
@@ -382,8 +398,9 @@ void memband_led()
       dst += 10*pitch;
    }
 
+   Z80 &cpu = CpuMgr.Cpu();
    for (unsigned i = 0; i < 0x10000; i++)
-      membits[i] &= ripper | ~(MEMBITS_R | MEMBITS_W | MEMBITS_X);
+      cpu.membits[i] &= ripper | ~(MEMBITS_R | MEMBITS_W | MEMBITS_X);
 }
 #endif
 
@@ -457,7 +474,7 @@ void time_led()
    text_i(temp.led.time, bf, 0x0D);
 }
 
-__inline void showleds()
+void showleds()
 {
    led_updtime = GetTickCount();
    update_perf_led();

@@ -1,3 +1,15 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "memory.h"
+#include "atm.h"
+#include "sound.h"
+#include "gs.h"
+#include "sdcard.h"
+#include "zc.h"
+#include "tape.h"
 
 void out(unsigned port, unsigned char val)
 {
@@ -47,7 +59,14 @@ void out(unsigned port, unsigned char val)
             }
          }
          if ((port & 0x8044) == (0xFFBE & 0x8044) && conf.ide_scheme == IDE_SMUC)
-         {
+         { // FFBE, FEBE
+            if(comp.pFFBA & 0x80)
+            {
+                if(!(port & 0x100))
+                    hdd.write(8, val); // control register
+                return;
+            }
+
             if (!(port & 0x2000))
             {
                 comp.ide_write = val;
@@ -105,7 +124,7 @@ void out(unsigned port, unsigned char val)
                 return;
               }
 
-              // IDE
+              // IDE (AB=10101011, CB=11001011, EB=11101011)
               if ((p1 & 0x9F) == 0x8B && (conf.ide_scheme == IDE_PROFI))
               {
                   if(p1 & 0x40)
@@ -154,11 +173,11 @@ void out(unsigned port, unsigned char val)
    }
    else
    {
-     if ((unsigned char)port == 0x1F && conf.sound.ay_scheme == AY_SCHEME_POS)
-     {
-         comp.active_ay = val & 1;
-         return;
-     }
+         if ((unsigned char)port == 0x1F && conf.sound.ay_scheme == AY_SCHEME_POS)
+         {
+             comp.active_ay = val & 1;
+             return;
+         }
          if (!(port & 6) && (conf.ide_scheme == IDE_NEMO || conf.ide_scheme == IDE_NEMO_A8))
          {
              unsigned hi_byte = (conf.ide_scheme == IDE_NEMO)? (port & 1) : (port & 0x100);
@@ -217,6 +236,15 @@ void out(unsigned port, unsigned char val)
       if (conf.mem_model == MM_ATM450)
           set_atm_aFE((unsigned char)port);
 
+      if (conf.mem_model == MM_PROFI)
+      {
+        if(!(port & 0x80) && (comp.pDFFD & 0x80))
+        {
+          comp.comp_pal[(~comp.pFE) & 0xF] = ~(port>>8);
+          temp.comp_pal_changed = 1;
+        }
+      }
+
       comp.pFE = val;
       // do not return! intro to navy seals (by rst7) uses out #FC for to both FE and 7FFD
    }
@@ -235,6 +263,10 @@ void out(unsigned port, unsigned char val)
 
       if (!(port & 0x8000)) // zx128 port
       {
+         // 0001xxxxxxxxxx0x (bcig4)
+         if ((port & 0xF002) == (0x1FFD & 0xF002) && conf.mem_model == MM_PLUS3)
+             goto set1FFD;
+
          if ((port & 0xC003) == (0x1FFD & 0xC003) && conf.mem_model == MM_KAY)
              goto set1FFD;
                        
@@ -243,6 +275,14 @@ void out(unsigned port, unsigned char val)
          {
 set1FFD:
             comp.p1FFD = val;
+            set_banks();
+            return;
+         }
+
+         // gmx
+         if(port == 0x7EFD && conf.mem_model == MM_PROFSCORP)
+         {
+            comp.p7EFD = val;
             set_banks();
             return;
          }
@@ -262,10 +302,12 @@ set1FFD:
          if (comp.p7FFD & 0x20)
          { // 48k lock
             // #EFF7.2 forces lock
-            if ((comp.pEFF7 & EFF7_LOCKMEM) && conf.mem_model == MM_PENTAGON)
+            if ((comp.pEFF7 & EFF7_LOCKMEM) && conf.mem_model == MM_PENTAGON && conf.ramsize == 1024)
                 return;
-            // if not pentagon-1024, apply lock
-            if (!(conf.ramsize == 1024 && conf.mem_model == MM_PENTAGON))
+
+            // if not pentagon-1024 or profi with #DFFD.4 set, apply lock
+            if (!((conf.ramsize == 1024 && conf.mem_model == MM_PENTAGON) ||
+                  (conf.mem_model == MM_PROFI && (comp.pDFFD & 0x10)))) // molodcov_alex
                 return;
          }
 
@@ -332,7 +374,7 @@ set1FFD:
    }
    #endif
 
-   if (conf.zc && (port & 0x57) == 0x57)
+   if (conf.zc && (port & 0xFF) == 0x57)
    {
        Zc.Wr(port, val);
        return;
@@ -367,7 +409,16 @@ set1FFD:
 //      if ((conf.mem_model == MM_PENTAGON)&&(comp.pEFF7 & EFF7_GIGASCREEN))conf.frame = 71680;
 //      apply_sound();
 //    } //Alone Coder removed 0.37.1
-      if ((comp.pEFF7 ^ oldpEFF7) & EFF7_ROCACHE)
+
+      if (!(comp.pEFF7 & EFF7_4BPP))
+      {
+          temp.offset_vscroll = 0;
+          temp.offset_vscroll_prev = 0;
+          temp.offset_hscroll = 0;
+          temp.offset_hscroll_prev = 0;
+      }
+
+      if ((comp.pEFF7 ^ oldpEFF7) & (EFF7_ROCACHE | EFF7_LOCKMEM))
           set_banks(); //Alone Coder 0.36.4
       return;
    }
@@ -402,16 +453,19 @@ __inline unsigned char in1(unsigned port)
    {
       if (conf.ide_scheme == IDE_ATM && (port & 0x1F) == 0x0F)
       {
-         if (port & 0x100) return comp.ide_read;
+         if (port & 0x100)
+             return comp.ide_read;
       read_hdd_5:
          port >>= 5;
       read_hdd:
          port &= 7;
-         if (port) return hdd.read(port);
+         if (port)
+             return hdd.read(port);
          unsigned v = hdd.read_data();
          comp.ide_read = (unsigned char)(v >> 8);
          return (unsigned char)v;
       }
+
       if ((port & 0x18A3) == (0xFFFE & 0x18A3))
       { // SMUC
          if (conf.smuc)
@@ -424,9 +478,18 @@ __inline unsigned char in1(unsigned port)
             if ((port & 0xA044) == (0x7FBE & 0xA044)) return 0x57;
          }
          if ((port & 0x8044) == (0xFFBE & 0x8044) && conf.ide_scheme == IDE_SMUC)
-         {
-            if (!(port & 0x2000)) return comp.ide_read;
-            port >>= 8; goto read_hdd;
+         { // FFBE, FEBE
+            if(comp.pFFBA & 0x80)
+            {
+                if(!(port & 0x100))
+                    return hdd.read(8); // alternate status
+                return 0xFF; // obsolete register
+            }
+
+            if (!(port & 0x2000))
+                return comp.ide_read;
+            port >>= 8;
+            goto read_hdd;
          }
       }
 
@@ -480,10 +543,13 @@ __inline unsigned char in1(unsigned port)
       if (!(port & 6) && (conf.ide_scheme == IDE_NEMO || conf.ide_scheme == IDE_NEMO_A8))
       {
          unsigned hi_byte = (conf.ide_scheme == IDE_NEMO)? (port & 1) : (port & 0x100);
-         if (hi_byte) return comp.ide_read;
+         if(hi_byte)
+             return comp.ide_read;
          comp.ide_read = 0xFF;
-         if ((port & 0x18) == 0x08) return ((port & 0xE0) == 0xC0)? hdd.read(8) : 0xFF; // CS1=0,CS0=1,reg=6
-         if ((port & 0x18) != 0x10) return 0xFF; // invalid CS0,CS1
+         if((port & 0x18) == 0x08)
+             return ((port & 0xE0) == 0xC0)? hdd.read(8) : 0xFF; // CS1=0,CS0=1,reg=6
+         if((port & 0x18) != 0x10)
+             return 0xFF; // invalid CS0,CS1
          goto read_hdd_5;
       }
    }
@@ -493,16 +559,19 @@ __inline unsigned char in1(unsigned port)
        return in_gs(port);
    #endif
 
-   if (conf.zc && (port & 0x57) == 0x57)
+   if (conf.zc && (port & 0xFF) == 0x57)
        return Zc.Rd(port);
 
    if (!(port & 0x20))
    { // kempstons
       port = (port & 0xFFFF) | 0xFA00; // A13,A15 not used in decoding
-      if ((port == 0xFADF || port == 0xFBDF || port == 0xFFDF) && conf.input.mouse == 1) { // mouse
+      if ((port == 0xFADF || port == 0xFBDF || port == 0xFFDF) && conf.input.mouse == 1)
+      { // mouse
          input.mouse_joy_led |= 1;
-         if (port == 0xFBDF) return input.kempston_mx();
-         if (port == 0xFFDF) return input.kempston_my();
+         if (port == 0xFBDF)
+             return input.kempston_mx();
+         if (port == 0xFFDF)
+             return input.kempston_my();
          return input.mbuttons;
       }
       input.mouse_joy_led |= 2;
@@ -563,6 +632,7 @@ __inline unsigned char in1(unsigned port)
 
    if (port == 0xBFF7 && conf.cmos && (comp.pEFF7 & EFF7_CMOS))
        return cmos_read();
+
    if ((port & 0xF8FF) == 0xF8EF && modem.open_port)
        return modem.read((port >> 8) & 7);
 

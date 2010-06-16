@@ -16,6 +16,10 @@ class TSdCard
         CMD_SEND_OP_COND = CMD1,
         CMD8 = 8,
         CMD_SEND_IF_COND = CMD8,
+        CMD9 = 9,
+        CMD_SEND_CSD = CMD9,
+        CMD10 = 10,
+        CMD_SEND_CID = CMD10,
         CMD12 = 12,
         CMD_STOP_TRANSMISSION = CMD12,
         CMD16 = 16,
@@ -24,6 +28,10 @@ class TSdCard
         CMD_READ_SINGLE_BLOCK = CMD17,
         CMD18 = 18,
         CMD_READ_MULTIPLE_BLOCK = CMD18,
+        CMD24 = 24,
+        CMD_WRITE_BLOCK = CMD24,
+        CMD25 = 25,
+        CMD_WRITE_MULTIPLE_BLOCK = CMD25,
         CMD55 = 55,
         CMD_APP_CMD = CMD55,
         CMD58 = 58,
@@ -36,22 +44,41 @@ class TSdCard
     enum TState
     {
         ST_IDLE, ST_RD_ARG, ST_RD_CRC, ST_R1, ST_R1b, ST_R2, ST_R3, ST_R7,
-        ST_WR_DATA_SIG, ST_WR_DATA, ST_WR_CRC16_1, ST_WR_CRC16_2
+        ST_WR_DATA_SIG, ST_WR_DATA, ST_WR_CRC16_1, ST_WR_CRC16_2,
+        ST_RD_DATA_SIG, ST_RD_DATA, ST_RD_DATA_MUL, ST_RD_CRC16_1, ST_RD_CRC16_2,
+        ST_WR_DATA_RESP, ST_RD_DATA_SIG_MUL
+    };
+    enum TDataStatus
+    {
+    	STAT_DATA_ACCEPTED = 2, STAT_DATA_CRC_ERR = 5, STAT_DATA_WR_ERR = 6
     };
     TState CurrState;
+
+#pragma pack(push, 1)
     union
     {
     	u8 ArgArr[4];
     	u32 Arg;
     };
+#pragma pack(pop)
+
     u32 ArgCnt;
 
+#pragma pack(push, 1)
     union
     {
     	u8 OcrArr[4];
     	u32 Ocr;
     };
+#pragma pack(pop)
+
     u32 OcrCnt;
+
+    u8 Cid[16];
+    u8 Csd[16];
+
+    u32 CidCnt;
+    u32 CsdCnt;
 
     bool AppCmd;
     TCmd Cmd;

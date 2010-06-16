@@ -1,5 +1,10 @@
 // Z-Controller by KOE
 // Only SD-card
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "sdcard.h"
 #include "zc.h"
 
 void TZc::Reset()

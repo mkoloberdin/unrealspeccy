@@ -1,3 +1,11 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "memory.h"
+#include "dbglabls.h"
+
+#include "util.h"
 
 char asmbuf[0x40];
 
@@ -415,7 +423,9 @@ int scanhex(unsigned char **ptr) {
       r = 16*r + hexdigit(**ptr), (*ptr)++;
    return r*s;
 }
-unsigned char cmdb[16], asmresult[24], z80p;
+unsigned char cmdb[16];
+unsigned char asmresult[24];
+unsigned char z80p;
 unsigned char a_command[0x40];
 
 int z80scanr8(unsigned char **ptr, unsigned char **cm) {

@@ -1,8 +1,9 @@
+#pragma once
 const int MAX_PHYS_HD_DRIVES = 8;
 const int MAX_PHYS_CD_DRIVES = 8;
 const int MAX_SENSE_LEN = 0x40;
 
-enum DEVTYPE { ATA_NONE, ATA_FILEHDD, ATA_NTHDD, ATA_SPTI_CD, ATA_ASPI_CD };
+enum DEVTYPE { ATA_NONE, ATA_FILEHDD, ATA_NTHDD, ATA_SPTI_CD, ATA_ASPI_CD, ATA_FILECD };
 
 struct PHYS_DEVICE
 {
@@ -55,6 +56,9 @@ struct ATAPI_PASSER
 
    int SEND_ASPI_CMD(void *buf, int buf_sz);
    int SEND_SPTI_CMD(void *buf, int buf_sz);
+
+   bool seek(unsigned nsector);
+   bool read_sector(unsigned char *dst);
 
    ATAPI_PASSER() { hDevice = INVALID_HANDLE_VALUE; dev = 0; }
    ~ATAPI_PASSER() { close(); }

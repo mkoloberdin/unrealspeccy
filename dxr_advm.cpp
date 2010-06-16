@@ -1,3 +1,12 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dxrend.h"
+#include "dxrcopy.h"
+#include "dxrframe.h"
+#include "dxr_advm.h"
 
 __inline void line_8_any(unsigned char *dst, unsigned char *src)
 {

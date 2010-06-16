@@ -1,3 +1,14 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "debug.h"
+#include "dbgpaint.h"
+#include "dbgcmd.h"
+#include "dbgmem.h"
+#include "wd93crc.h"
+#include "util.h"
+
 TRKCACHE edited_track;
 
 unsigned sector_offset, sector;
@@ -13,17 +24,11 @@ void findsector(unsigned addr)
 unsigned char *editam(unsigned addr)
 {
    Z80 &cpu = CpuMgr.Cpu();
-   if (editor == ED_MEM) return cpu.MemDbg(addr);
+   if (editor == ED_MEM) return cpu.DirectMem(addr);
    if (!edited_track.trkd) return 0;
    if (editor == ED_PHYS) return edited_track.trkd + addr;
    // editor == ED_LOG
    findsector(addr); return edited_track.hdr[sector].data + addr - sector_offset;
-}
-
-__inline unsigned char editrm(unsigned addr)
-{
-   unsigned char *ptr = editam(addr);
-   return ptr? *ptr : 0;
 }
 
 void editwm(unsigned addr, unsigned char byte)
@@ -110,13 +115,18 @@ redraw:
    }
    if (!cursor_found) { cursor_found=1; cpu.mem_top=cpu.mem_curs & ~(mem_sz-1); goto redraw; }
 title:
-   if (editor == ED_MEM) sprintf(line, "memory: %04X", cpu.mem_curs & 0xFFFF);
-   else if (editor == ED_PHYS) sprintf(line, "disk %c, trk %02X, offs %04X", mem_disk+'A', mem_track, cpu.mem_curs);
-   else { // ED_LOG
-      if (mem_max) findsector(cpu.mem_curs);
+   if (editor == ED_MEM)
+   {
+       sprintf(line, "memory: %04X gsdma: %06X", cpu.mem_curs & 0xFFFF, temp.gsdmaaddr);
+   }
+   else if (editor == ED_PHYS)
+       sprintf(line, "disk %c, trk %02X, offs %04X", mem_disk+'A', mem_track, cpu.mem_curs);
+   else
+   { // ED_LOG
+      if (mem_max)
+          findsector(cpu.mem_curs);
       sprintf(line, "disk %c, trk %02X, sec %02X[%02X], offs %04X",
-        mem_disk+'A', mem_track,
-        sector, edited_track.hdr[sector].n,
+        mem_disk+'A', mem_track, sector, edited_track.hdr[sector].n,
         cpu.mem_curs-sector_offset);
    }
    tprint(mem_x, mem_y-1, line, W_TITLE);
@@ -180,16 +190,26 @@ void mright()
 char dispatch_mem()
 {
    Z80 &cpu = CpuMgr.Cpu();
-   if (!mem_max) return 0;
-   if (mem_ascii) {
+   if (!mem_max)
+       return 0;
+   if (mem_ascii)
+   {
+      u8 Kbd[256];
+      GetKeyboardState(Kbd);
       unsigned short k;
-      if (ToAscii(input.lastkey,0,kbdpc,&k,0) != 1) return 0;
-      k &= 0xFF; if (k < 0x20 || k >= 0x80) return 0;
+      if (ToAscii(input.lastkey,0,Kbd,&k,0) != 1)
+          return 0;
+      k &= 0xFF;
+      if (k < 0x20 || k >= 0x80)
+          return 0;
       editwm(cpu.mem_curs, (unsigned char)k);
       mright();
       return 1;
-   } else {
-      if ((input.lastkey >= '0' && input.lastkey <= '9') || (input.lastkey >= 'A' && input.lastkey <= 'F')) {
+   }
+   else
+   {
+      if ((input.lastkey >= '0' && input.lastkey <= '9') || (input.lastkey >= 'A' && input.lastkey <= 'F'))
+      {
          unsigned char k = (input.lastkey >= 'A') ? input.lastkey-'A'+10 : input.lastkey-'0';
          unsigned char c = editrm(cpu.mem_curs);
          if (cpu.mem_second) editwm(cpu.mem_curs, (c & 0xF0) | k);

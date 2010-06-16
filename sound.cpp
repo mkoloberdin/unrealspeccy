@@ -1,11 +1,28 @@
+#include "std.h"
 
+#include "emul.h"
+#include "vars.h"
+#include "gs.h"
+#include "tape.h"
+#include "config.h"
+
+//#include "sndrender/sndrender.h"
+//#include "sndrender/sndchip.h"
+#include "sndrender/sndcounter.h"
+
+extern SNDRENDER sound;
+extern SNDCHIP ay[2];
+extern SNDCOUNTER sndcounter;
+
+/*
 #include "sndrender/sndrender.cpp"
 #include "sndrender/sndchip.cpp"
 #include "sndrender/sndcounter.cpp"
+*/
 
 int spkr_dig = 0, mic_dig = 0, covFB_vol = 0, covDD_vol = 0, sd_l = 0, sd_r = 0;
 
-inline void flush_dig_snd()
+void flush_dig_snd()
 {
 //   __debugbreak();
    if (temp.sndblock)
@@ -16,7 +33,7 @@ inline void flush_dig_snd()
 sound.update(cpu.t - temp.cpu_t_at_frame_start, mono + sd_l, mono + sd_r);
 }
 
-inline void init_snd_frame()
+void init_snd_frame()
 {
    temp.cpu_t_at_frame_start = cpu.t;
 //[vv]   
@@ -37,9 +54,9 @@ sound.start_frame();
 }
 
 float y_1[2] = { 0.0 };
-unsigned short x_1[2] = { 0 };
+i16 x_1[2] = { 0 };
 
-inline void flush_snd_frame()
+void flush_snd_frame()
 {
    tape_bit();
    #ifdef MOD_GS
@@ -132,7 +149,7 @@ inline void flush_snd_frame()
       u32 Y;
       if(conf.RejectDC) // DC rejection filter
       {
-          u16 x[2];
+          i16 x[2];
           float y[2];
           x[0] = v & 0xFFFF;
           x[1] = v >> 16U;

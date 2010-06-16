@@ -1,3 +1,11 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+
+#include "util.h"
+
+#if defined(MOD_GSZ80) || defined(MOD_GSBASS)
 namespace BASS
 {
 /* BASS-specific functions and variables */
@@ -25,6 +33,8 @@ TErrorGetCode        ErrorGetCode;
 TChannelFlags        ChannelFlags;
 
 TChannelBytes2Seconds ChannelBytes2Seconds;
+
+TChannelIsActive ChannelIsActive;
 
 TStreamCreate        StreamCreate;
 TStreamCreateFileUser StreamCreateFileUser;
@@ -67,6 +77,7 @@ void Load()
    ChannelFlags = (TChannelFlags)GetProcAddress(Bass, "BASS_ChannelFlags");
    ChannelGetLevel = (TChannelGetLevel)GetProcAddress(Bass, "BASS_ChannelGetLevel");
    ChannelBytes2Seconds = (TChannelBytes2Seconds)GetProcAddress(Bass, "BASS_ChannelBytes2Seconds");
+   ChannelIsActive = (TChannelIsActive)GetProcAddress(Bass, "BASS_ChannelIsActive");
 
    StreamCreate = (TStreamCreate)GetProcAddress(Bass, "BASS_StreamCreate");
    StreamCreateFileUser = (TStreamCreateFileUser)GetProcAddress(Bass, "BASS_StreamCreateFileUser");
@@ -104,6 +115,8 @@ void Load()
        errexit("can't import BASS API: BASS_ChannelGetLevel");
    if (!ChannelBytes2Seconds)
        errexit("can't import BASS API: BASS_ChannelBytes2Seconds");
+   if (!ChannelIsActive)
+       errexit("can't import BASS API: BASS_ChannelIsActive");
    if (!ChannelPlay)
        errexit("can't import BASS API: BASS_ChannelPlay");
    if (!ChannelPause)
@@ -131,3 +144,4 @@ void Unload()
 }
 
 }
+#endif

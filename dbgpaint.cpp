@@ -1,8 +1,21 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "debug.h"
+#include "dbgpaint.h"
+#include "dx.h"
+#include "draw.h"
+#include "dxrframe.h"
+#include "font16.h"
+#include "util.h"
 
 unsigned char txtscr[80*30*2];
+
 struct {
    unsigned char x,y,dx,dy,c;
-} frames[20]; unsigned nfr;
+} frames[20];
+unsigned nfr;
 
 void debugflip()
 {
@@ -92,7 +105,7 @@ void tprint_fg(unsigned x, unsigned y, const char *str, unsigned char attr)
    }
 }
 
-void filledframe(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char color = FFRAME_INSIDE)
+void filledframe(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char color)
 {
    for (unsigned yy = y; yy < (y+dy); yy++)
       for (unsigned xx = x; xx < (x+dx); xx++)
@@ -102,7 +115,7 @@ void filledframe(unsigned x, unsigned y, unsigned dx, unsigned dy, unsigned char
    frame(x,y,dx,dy,FFRAME_FRAME);
 }
 
-void fillattr(unsigned x, unsigned y, unsigned dx, unsigned char color = FFRAME_INSIDE)
+void fillattr(unsigned x, unsigned y, unsigned dx, unsigned char color)
 {
    for (unsigned xx = x; xx < (x+dx); xx++)
       txtscr[y*80+xx+30*80] = color;
@@ -190,10 +203,15 @@ unsigned inputhex(unsigned x, unsigned y, unsigned sz, bool hex)
       }
       else
       {
-         GetKeyboardState(kbdpc);
+         u8 Kbd[256];
+         GetKeyboardState(Kbd);
          unsigned short k;
-         if (ToAscii(key,0,kbdpc,&k,0) == 1)
-             str[cr++] = (char)k;
+         if (ToAscii(key, 0, Kbd, &k, 0) == 1)
+         {
+             char m;
+             if(CharToOemBuff((char *)&k, &m, 1))
+                 str[cr++] = m;
+         }
       }
       if (cr == sz)
           cr--;
@@ -222,17 +240,6 @@ unsigned input2(unsigned x, unsigned y, unsigned val)
    return -1;
 }
 
-struct MENUITEM {
-   const char *text;
-   enum FLAGS { DISABLED = 1, LEFT = 2, RIGHT = 4, CENTER = 8 } flags;
-};
-
-struct MENUDEF {
-   MENUITEM *items;
-   unsigned n_items;
-   const char *title;
-   unsigned pos;
-};
 
 void format_item(char *dst, unsigned width, const char *text, MENUITEM::FLAGS flags)
 {

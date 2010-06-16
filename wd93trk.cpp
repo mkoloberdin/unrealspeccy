@@ -1,3 +1,10 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "wd93crc.h"
+
+#include "util.h"
 
 void TRKCACHE::seek(FDD *d, unsigned cyl, unsigned side, SEEK_MODE fs)
 {
@@ -6,35 +13,58 @@ void TRKCACHE::seek(FDD *d, unsigned cyl, unsigned side, SEEK_MODE fs)
 
    drive = d; sf = fs; s = 0;
    TRKCACHE::cyl = cyl; TRKCACHE::side = side;
-   if (cyl >= d->cyls || !d->rawdata) { trkd = 0; return; }
+   if (cyl >= d->cyls || !d->rawdata)
+   {
+       trkd = 0;
+       return;
+   }
 
    assert(cyl < MAX_CYLS);
    trkd = d->trkd[cyl][side];
    trki = d->trki[cyl][side];
    trklen = d->trklen[cyl][side];
-   if (!trklen) { trkd = 0; return; }
+   if (!trklen)
+   {
+       trkd = 0;
+       return;
+   }
 
-   ts_byte = Z80FQ/(trklen*FDD_RPS);
-   if (fs == JUST_SEEK) return; // else find sectors
+   ts_byte = Z80FQ / (trklen * FDD_RPS);
+   if (fs == JUST_SEEK)
+       return; // else find sectors
 
-   for (unsigned i = 0; i < trklen - 8; i++) {
-      if (trkd[i] != 0xA1 || trkd[i+1] != 0xFE || !test_i(i)) continue;
+   for (unsigned i = 0; i < trklen - 8; i++)
+   {
+      if (trkd[i] != 0xA1 || trkd[i+1] != 0xFE || !test_i(i)) // Поиск idam
+          continue;
 
-      if (s == MAX_SEC) errexit("too many sectors");
-      SECHDR *h = &hdr[s++];
-      h->id = trkd+i+2; *(unsigned*)h = *(unsigned*)h->id;
+      if (s == MAX_SEC)
+          errexit("too many sectors");
+
+      SECHDR *h = &hdr[s++]; // Заполнение заголовка
+      h->id = trkd + i + 2; // Указатель на заголовок сектора
+      h->c = h->id[0];
+      h->s = h->id[1];
+      h->n = h->id[2];
+      h->l = h->id[3];
       h->crc = *(unsigned short*)(trkd+i+6);
       h->c1 = (wd93_crc(trkd+i+1, 5) == h->crc);
-      h->data = 0; h->datlen = 0;
+      h->data = 0;
+      h->datlen = 0;
 //      if (h->l > 5) continue; [vv]
 
-      unsigned end = min(trklen-8, i+8+43); // 43-DD, 30-SD
-      for (unsigned j = i+8; j < end; j++) {
-         if (trkd[j] != 0xA1 || !test_i(j) || test_i(j+1)) continue;
+      unsigned end = min(trklen - 8, i + 8 + 43); // 43-DD, 30-SD
 
-         if (trkd[j+1] == 0xF8 || trkd[j+1] == 0xFB) {
+      // Формирование указателя на зону данных сектора
+      for (unsigned j = i + 8; j < end; j++)
+      {
+         if (trkd[j] != 0xA1 || !test_i(j) || test_i(j+1))
+             continue;
+
+         if (trkd[j+1] == 0xF8 || trkd[j+1] == 0xFB) // Найден data am
+         {
             h->datlen = 128 << (h->l & 3); // [vv] FD1793 use only 2 lsb of sector size code
-            h->data = trkd+j+2;
+            h->data = trkd + j + 2;
             h->c2 = (wd93_crc(h->data-1, h->datlen+1) == *(unsigned short*)(h->data+h->datlen));
          }
          break;
@@ -50,10 +80,8 @@ void TRKCACHE::format()
    unsigned char *dst = trkd;
 
    unsigned i;
-   for (i = 0; i < 80; i++) // gap4a
-       *dst++ = 0x4E;
-   for (i = 0; i < 12; i++) //sync
-       *dst++ = 0;
+   memset(dst, 0x4E, 80); dst += 80; // gap4a
+   memset(dst, 0, 12); dst += 12; //sync
 
    for (i = 0; i < 3; i++) // iam
        write(dst++ - trkd, 0xC2, 1);
@@ -61,17 +89,17 @@ void TRKCACHE::format()
 
    for (unsigned is = 0; is < s; is++)
    {
-      for (i = 0; i < 40; i++) // gap1 // 50 [vv] // fixme: recalculate gap1 only for non standard formats
-          *dst++ = 0x4E;
-      for (i = 0; i < 12; i++) // sync
-          *dst++ = 0;
+      memset(dst, 0x4E, 40); dst += 40; // gap1 // 50 [vv] // fixme: recalculate gap1 only for non standard formats
+      memset(dst, 0, 12); dst += 12; //sync
       for (i = 0; i < 3; i++) // idam
           write(dst++ - trkd, 0xA1, 1);
       *dst++ = 0xFE;
 
       SECHDR *sechdr = hdr + is;
-      *(unsigned*)dst = *(unsigned*)sechdr; // c, h, s, n
-      dst += 4;
+      *dst++ = sechdr->c; // c
+      *dst++ = sechdr->s; // h
+      *dst++ = sechdr->n; // s
+      *dst++ = sechdr->l; // n
 
       unsigned crc = wd93_crc(dst-5, 5); // crc
       if (sechdr->c1 == 1)
@@ -83,10 +111,8 @@ void TRKCACHE::format()
 
       if (sechdr->data)
       {
-         for (i = 0; i < 22; i++) // gap2
-             *dst++ = 0x4E;
-         for (i = 0; i < 12; i++) // sync
-             *dst++ = 0;
+         memset(dst, 0x4E, 22); dst += 22; // gap2
+         memset(dst, 0, 12); dst += 12; //sync
          for (i = 0; i < 3; i++) // data am
              write(dst++ - trkd, 0xA1, 1);
          *dst++ = 0xFB;
@@ -127,26 +153,29 @@ void TRKCACHE::dump()
 
 int TRKCACHE::write_sector(unsigned sec, unsigned char *data)
 {
-   SECHDR *h = get_sector(sec);
-   if (!h || !h->data) return 0;
+   const SECHDR *h = get_sector(sec);
+   if (!h || !h->data)
+       return 0;
    unsigned sz = h->datlen;
    memcpy(h->data, data, sz);
    *(unsigned short*)(h->data+sz) = (unsigned short)wd93_crc(h->data-1, sz+1);
    return sz;
 }
 
-SECHDR *TRKCACHE::get_sector(unsigned sec)
+const SECHDR *TRKCACHE::get_sector(unsigned sec) const
 {
-   unsigned i; //Alone Coder 0.36.7
-   for (/*unsigned*/ i = 0; i < s; i++)
+   unsigned i;
+   for (i = 0; i < s; i++)
+   {
       if (hdr[i].n == sec)
           break;
+   }
    if (i == s)
        return 0;
 
 //   dump();
 
-   if ((hdr[i].l & 3) != 1 || hdr[i].c != cyl) // [vv]
+   if (/*(hdr[i].l & 3) != 1 ||*/ hdr[i].c != cyl) // [vv]
        return 0;
    return &hdr[i];
 }

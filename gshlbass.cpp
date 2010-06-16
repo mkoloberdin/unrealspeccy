@@ -1,4 +1,15 @@
+#include "std.h"
 
+#include "emul.h"
+#include "vars.h"
+#include "bass.h"
+#include "snd_bass.h"
+#include "gshle.h"
+#include "gs.h"
+#include "init.h"
+#include "util.h"
+
+#ifdef MOD_GSBASS
 void GSHLE::reportError(char *err)
 {
    color(CONSCLR_ERROR);
@@ -130,6 +141,8 @@ void GSHLE::stop_mod()
    runBASS();
    if (!hmod)
        return;
+   if(BASS::ChannelIsActive(hmod) != BASS_ACTIVE_PLAYING)
+       return;
    if (!BASS::ChannelPause(hmod))
        reportError("BASS_ChannelPause() [music]");
 }
@@ -203,3 +216,4 @@ void GSHLE::debug_note(unsigned i)
    }
    BASS::StreamFree(ch.bass_ch);
 }
+#endif

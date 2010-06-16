@@ -1,3 +1,12 @@
+#include "std.h"
+
+#include "resource.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "gui.h"
+
+#include "util.h"
 
 struct FILEPREVIEWINFO
 {
@@ -178,7 +187,7 @@ UINT_PTR CALLBACK PreviewDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 int GetSnapshotFileName(OPENFILENAME *ofn, int save)
 {
    ofn->Flags |= save? OFN_PATHMUSTEXIST : OFN_FILEMUSTEXIST;
-   ofn->Flags |= OFN_HIDEREADONLY | OFN_EXPLORER | OFN_ENABLESIZING;
+   ofn->Flags |= OFN_HIDEREADONLY | OFN_EXPLORER | OFN_NOCHANGEDIR | OFN_ENABLESIZING;
    ofn->Flags |= OFN_ENABLEHOOK | OFN_ENABLETEMPLATE;
 
    ofn->hwndOwner = GetForegroundWindow();
@@ -187,10 +196,18 @@ int GetSnapshotFileName(OPENFILENAME *ofn, int save)
 
    ofn->lpfnHook          = PreviewDlgProc;
    ofn->lpTemplateName    = MAKEINTRESOURCE(IDD_FILEPREVIEW);
+   ofn->lpstrInitialDir   = temp.SnapDir;
 
    BOOL res = save? GetSaveFileName(ofn) : GetOpenFileName(ofn);
 
-   if (res) return res;
+   if (res)
+   {
+       strcpy(temp.SnapDir, ofn->lpstrFile);
+       char *Ptr = strrchr(temp.SnapDir, '\\');
+       if(Ptr)
+        *Ptr = 0;
+       return res;
+   }
    DWORD errcode = CommDlgExtendedError();
    if (!errcode) return 0;
 

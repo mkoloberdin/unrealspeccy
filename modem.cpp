@@ -1,15 +1,25 @@
+#include "std.h"
 
-void ISA_MODEM::open(unsigned char port)
+#include "emul.h"
+#include "vars.h"
+
+#include "util.h"
+
+void ISA_MODEM::open(int port)
 {
    if (open_port == port) return;
    whead = wtail = rhead = rtail = 0;
-   if (hPort && hPort != INVALID_HANDLE_VALUE) CloseHandle(hPort);
+   if (hPort && hPort != INVALID_HANDLE_VALUE)
+       CloseHandle(hPort);
    open_port = port;
    if (!port) return;
 
-   char portName[6] = "COM*"; portName[3] = port + '0';
+   char portName[11];
+   _snprintf(portName, _countof(portName), "\\\\.\\COM%d", port);
+
    hPort = CreateFile(portName, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
-   if (hPort == INVALID_HANDLE_VALUE) {
+   if (hPort == INVALID_HANDLE_VALUE)
+   {
       errmsg("can't open modem on %s", portName); err_win32();
       conf.modem_port = open_port = 0; return;
    }
@@ -45,37 +55,56 @@ void ISA_MODEM::open(unsigned char port)
 
 void ISA_MODEM::close()
 {
-   if (!hPort || hPort == INVALID_HANDLE_VALUE) return;
-   CloseHandle(hPort); hPort = INVALID_HANDLE_VALUE;
+   if (!hPort || hPort == INVALID_HANDLE_VALUE)
+       return;
+   CloseHandle(hPort);
+   hPort = INVALID_HANDLE_VALUE;
    open_port = 0;
 }
 
 void ISA_MODEM::io()
 {
-   if (!hPort || hPort == INVALID_HANDLE_VALUE) return;
+   if (!hPort || hPort == INVALID_HANDLE_VALUE)
+       return;
    unsigned char temp[BSIZE];
 
-   int needwrite = whead - wtail; if (needwrite < 0) needwrite += BSIZE;
-   if (needwrite) {
-      if (whead > wtail) memcpy(temp, wbuf+wtail, needwrite);
-      else memcpy(temp, wbuf+wtail, BSIZE-wtail), memcpy(temp+BSIZE-wtail, wbuf, whead);
+   int needwrite = whead - wtail;
+   if (needwrite < 0)
+       needwrite += BSIZE;
+   if (needwrite)
+   {
+      if (whead > wtail)
+          memcpy(temp, wbuf+wtail, needwrite);
+      else
+      {
+          memcpy(temp, wbuf+wtail, BSIZE-wtail);
+          memcpy(temp+BSIZE-wtail, wbuf, whead);
+      }
+
       DWORD written = 0;
-      if (WriteFile(hPort, temp, needwrite, &written, 0)) {
+      if (WriteFile(hPort, temp, needwrite, &written, 0))
+      {
 //printf("\nsend: "); dump1(temp, written);
          wtail = (wtail+written) & (BSIZE-1);
       }
    }
    if (((whead+1) & (BSIZE-1)) != wtail) reg[5] |= 0x60;
 
-   int canread = rtail - rhead - 1; if (canread < 0) canread += BSIZE;
-   if (canread) {
+   int canread = rtail - rhead - 1;
+   if (canread < 0)
+       canread += BSIZE;
+   if (canread)
+   {
       DWORD read = 0;
-      if (ReadFile(hPort, temp, canread, &read, 0) && read) {
-         for (unsigned i = 0; i < read; i++) rcbuf[rhead++] = temp[i], rhead &= (BSIZE-1);
+      if (ReadFile(hPort, temp, canread, &read, 0) && read)
+      {
+         for (unsigned i = 0; i < read; i++)
+             rcbuf[rhead++] = temp[i], rhead &= (BSIZE-1);
 //printf("\nrecv: "); dump1(temp, read);
       }
    }
-   if (rhead != rtail) reg[5] |= 1;
+   if (rhead != rtail)
+       reg[5] |= 1;
 
    setup_int();
 }
@@ -102,9 +131,11 @@ void ISA_MODEM::write(unsigned nreg, unsigned char value)
 
    if ((1<<nreg) & ((1<<2)|(1<<5)|(1<<6))) return; // R/O registers
 
-   if (nreg < 2 && (reg[3] & 0x80)) {
+   if (nreg < 2 && (reg[3] & 0x80))
+   {
      div[nreg] = value;
-     if (GetCommState(hPort, &dcb)) {
+     if (GetCommState(hPort, &dcb))
+     {
        if (!divfq) divfq = 1;
        dcb.BaudRate = 115200 / divfq;
        SetCommState(hPort, &dcb);
@@ -112,11 +143,15 @@ void ISA_MODEM::write(unsigned nreg, unsigned char value)
      return;
    }
 
-   if (nreg == 0) { // write char to output buffer
+   if (nreg == 0)
+   { // write char to output buffer
       reg[5] &= ~0x60;
-      if (((whead+1) & (BSIZE-1)) == wtail) {
+      if (((whead+1) & (BSIZE-1)) == wtail)
+      {
          reg[5] |= 2;
-      } else {
+      }
+      else
+      {
          wbuf[whead++] = value, whead &= (BSIZE-1);
          if (((whead+1) & (BSIZE-1)) != wtail) reg[5] |= 0x60;
       }
@@ -128,7 +163,8 @@ void ISA_MODEM::write(unsigned nreg, unsigned char value)
 
    // Thu 28 Jul 2005. transfer mode control (code by Alex/AT)
 
-   if (nreg == 3) {
+   if (nreg == 3)
+   {
       // LCR set, renew modem config
       if (!GetCommState(hPort, &dcb)) return;
 
@@ -160,7 +196,8 @@ void ISA_MODEM::write(unsigned nreg, unsigned char value)
       return;
    }
 
-   if (nreg == 4) {
+   if (nreg == 4)
+   {
       // MCR set, renew DTR/CTS
       EscapeCommFunction(hPort, (reg[4] & 1)? SETDTR : CLRDTR);
       EscapeCommFunction(hPort, (reg[4] & 2)? SETRTS : CLRRTS);
@@ -173,13 +210,27 @@ unsigned char ISA_MODEM::read(unsigned nreg)
 
    unsigned char result = reg[nreg];
 
-   if (nreg == 0) { // read char from buffer
-      if (rhead != rtail) result = reg[0] = rcbuf[rtail++], rtail &= (BSIZE-1);
-      if (rhead != rtail) reg[5] |= 1; else reg[5] &= ~1;
+   if (nreg == 0)
+   { // read char from buffer
+      if (rhead != rtail)
+      {
+           result = reg[0] = rcbuf[rtail++];
+           rtail &= (BSIZE-1);
+      }
+
+      if (rhead != rtail)
+          reg[5] |= 1;
+      else
+          reg[5] &= ~1;
+
       setup_int();
    }
 
-   if (nreg == 5) reg[5] &= ~0x0E, setup_int();
+   if (nreg == 5)
+   {
+       reg[5] &= ~0x0E;
+       setup_int();
+   }
 
    return result;
 }

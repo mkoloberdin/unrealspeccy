@@ -1,3 +1,14 @@
+#include "std.h"
+
+#include "resource.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "dx.h"
+#include "memory.h"
+
+#include "util.h"
+
 unsigned char wavhdr[]= {
    0x52,0x49,0x46,0x46,0xcc,0xf6,0x3e,0x00,
    0x57,0x41,0x56,0x45,0x66,0x6d,0x74,0x20,
@@ -91,8 +102,10 @@ void savesnddialog()
       fclose(savesnd);
       savesndtype = 0;
    } else {
-      OPENFILENAME ofn = { /*OPENFILENAME_SIZE_VERSION_400*/sizeof OPENFILENAME }; //Alone Coder
+      OPENFILENAME ofn = { 0 };
       char sndsavename[0x200]; *sndsavename = 0;
+
+      ofn.lStructSize = (WinVerMajor < 5) ? OPENFILENAME_SIZE_VERSION_400 : sizeof(OPENFILENAME);
       ofn.lpstrFilter = "All sound (WAV)\0*.wav\0AY sound (VTX)\0*.vtx\0";
       ofn.lpstrFile = sndsavename; ofn.nMaxFile = sizeof sndsavename;
       ofn.lpstrTitle = "Save Sound";
@@ -161,7 +174,8 @@ int dopoke(int really)
       while (isdigit(*ptr)) val = val*10 + (*ptr++ - '0');
       if (val > 0xFF) return ptr-snbuf+1;
       while (*ptr == ' ' || *ptr == ':' || *ptr == ';' || *ptr == ',') ptr++;
-      if (really) wmdbg(num, val);
+      if (really)
+          cpu.DirectWm(num, val);
    }
    return 0;
 }

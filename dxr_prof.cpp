@@ -1,3 +1,11 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dxrframe.h"
+#include "dxrcopy.h"
+#include "dxr_prof.h"
 
 void line8_prof(unsigned char *dst, unsigned char *src, unsigned *tab0)
 {
@@ -167,17 +175,48 @@ void r_profi_32d(unsigned char *dst, unsigned pitch, unsigned char *base)
 void rend_profi(unsigned char *dst, unsigned pitch)
 {
    static unsigned char dffd = -1;
-   if ((comp.pDFFD ^ dffd) & 0x80) {
+   if ((comp.pDFFD ^ dffd) & 0x80)
+   {
       video_color_tables();
-      dffd = comp.pDFFD; needclr = 2;
+      dffd = comp.pDFFD;
+      needclr = 2;
+   }
+
+   if (temp.comp_pal_changed)
+   {
+      pixel_tables();
+      temp.comp_pal_changed = 0;
    }
 
    unsigned char *dst2 = dst + (temp.ox-512)*temp.obpp/16;
-   if (temp.scy > 240) dst2 += (temp.scy-240)/2*pitch * ((temp.oy > temp.scy)?2:1);
-   if (temp.oy > temp.scy && conf.fast_sl) pitch *= 2;
+   if (temp.scy > 240)
+       dst2 += (temp.scy-240)/2*pitch * ((temp.oy > temp.scy)?2:1);
+   if (temp.oy > temp.scy && conf.fast_sl)
+       pitch *= 2;
 
-   unsigned char *base = memory + (comp.p7FFD & 0x08)? 6*PAGE+memory : 4*PAGE+memory;
-   if (temp.obpp == 8)  { if (conf.fast_sl) r_profi_8 (dst2, pitch, base); else r_profi_8d (dst2, pitch, base); return; }
-   if (temp.obpp == 16) { if (conf.fast_sl) r_profi_16(dst2, pitch, base); else r_profi_16d(dst2, pitch, base); return; }
-   if (temp.obpp == 32) { if (conf.fast_sl) r_profi_32(dst2, pitch, base); else r_profi_32d(dst2, pitch, base); return; }
+   unsigned char *base = memory + ((comp.p7FFD & 0x08) ? 6 * PAGE : 4 * PAGE);
+   if (temp.obpp == 8)
+   {
+       if (conf.fast_sl)
+           r_profi_8 (dst2, pitch, base);
+       else
+           r_profi_8d (dst2, pitch, base);
+       return;
+   }
+   if (temp.obpp == 16)
+   {
+       if (conf.fast_sl)
+           r_profi_16(dst2, pitch, base);
+       else
+           r_profi_16d(dst2, pitch, base);
+       return;
+   }
+   if (temp.obpp == 32)
+   {
+       if (conf.fast_sl)
+           r_profi_32(dst2, pitch, base);
+       else
+           r_profi_32d(dst2, pitch, base);
+       return;
+   }
 }

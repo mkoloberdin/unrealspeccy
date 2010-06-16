@@ -1,10 +1,22 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "debug.h"
+#include "dbgtrace.h"
+#include "dbglabls.h"
+#include "dbgpaint.h"
+#include "dbgcmd.h"
+#include "memory.h"
+#include "z80asm.h"
+#include "util.h"
 
 int disasm_line(unsigned addr, char *line)
 {
    Z80 &cpu = CpuMgr.Cpu();
    unsigned char dbuf[16+129/*Alone Code 0.36.7*/];
    int i; //Alone Coder 0.36.7
-   for (/*int*/ i = 0; i < 16; i++) dbuf[i] = cpu.RmDbg(addr+i);
+   for (/*int*/ i = 0; i < 16; i++) dbuf[i] = cpu.DirectRm(addr+i);
    sprintf(line, "%04X ", addr); int ptr = 5;
    int len = disasm(dbuf, addr, trace_labels) - dbuf;
    //8000 ..DDCB0106 rr (ix+1)
@@ -31,7 +43,7 @@ int disasm_line(unsigned addr, char *line)
 #define TWF_BRADDR  0x020000
 #define TWF_LOOPCMD 0x040000
 #define TWF_CALLCMD 0x080000
-
+#define TWF_BLKCMD  0x100000
 unsigned tracewndflags()
 {
    Z80 &cpu = CpuMgr.Cpu();
@@ -39,7 +51,7 @@ unsigned tracewndflags()
    unsigned char opcode = 0; unsigned char ed = 0;
    for (;;)
    {
-      opcode = cpu.RmDbg(readptr++);
+      opcode = cpu.DirectRm(readptr++);
       if (opcode == 0xDD)
           base = cpu.ix;
       else if (opcode == 0xFD)
@@ -54,19 +66,23 @@ unsigned tracewndflags()
 
    if (ed)
    {
+      if((opcode & 0xF4) == 0xB0) // ldir/lddr | cpir/cpdr | inir/indr | otir/otdr
+          return TWF_BLKCMD;
+
       if ((opcode & 0xC7) != 0x45)
           return 0; // reti/retn
+
  ret:
-      return (cpu.RmDbg(cpu.sp) | (cpu.RmDbg(cpu.sp+1) << 8U)) | TWF_BRANCH | TWF_BRADDR;
+      return (cpu.DirectRm(cpu.sp) | (cpu.DirectRm(cpu.sp+1) << 8U)) | TWF_BRANCH | TWF_BRADDR;
    }
 
-   if (opcode == 0xC9)
+   if (opcode == 0xC9) // ret
        goto ret;
-   if (opcode == 0xC3)
+   if (opcode == 0xC3) // jp
    {
-       jp: return (cpu.RmDbg(readptr) | (cpu.RmDbg(readptr+1) << 8U)) | TWF_BRANCH | fl;
+       jp: return (cpu.DirectRm(readptr) | (cpu.DirectRm(readptr+1) << 8U)) | TWF_BRANCH | fl;
    }
-   if (opcode == 0xCD)
+   if (opcode == 0xCD) // call
    {
        fl = TWF_CALLCMD;
        goto jp;
@@ -106,7 +122,7 @@ unsigned tracewndflags()
    {
       if (!opcode || opcode == 0x08)
           return 0;
-      int offs = (signed char)cpu.RmDbg(readptr++);
+      int offs = (signed char)cpu.DirectRm(readptr++);
       unsigned addr = (offs + readptr) | TWF_BRANCH;
       if (opcode == 0x18)
           return addr; // jr
@@ -122,9 +138,10 @@ unsigned tracewndflags()
    return 0;
 }
 
-unsigned trcurs_y; unsigned asmii;
+unsigned trcurs_y;
+unsigned asmii;
 char asmpc[64], dumppc[12];
-static const unsigned cs[3][2] = { {0,4}, {5,10}, {16,16} };
+const unsigned cs[3][2] = { {0,4}, {5,10}, {16,16} };
 
 void showtrace()
 {
@@ -151,7 +168,7 @@ void showtrace()
       while (ptr < line+32) *ptr++ = ' '; line[32] = 0;
 
       unsigned char atr = (pc == cpu.pc)? W_TRACEPOS : atr0;
-      if (membits[pc] & MEMBITS_BPX) atr = (atr&~7)|2;
+      if (cpu.membits[pc] & MEMBITS_BPX) atr = (atr&~7)|2;
       tprint(trace_x, trace_y+ii, line, atr);
 
       if (pc == cpu.trace_curs)
@@ -186,10 +203,10 @@ void showtrace()
 
    unsigned char dbuf[16];
    int i; //Alone Coder
-   for (/*int*/ i = 0; i < 16; i++) dbuf[i] = cpu.RmDbg(cpu.trace_curs+i);
+   for (/*int*/ i = 0; i < 16; i++) dbuf[i] = cpu.DirectRm(cpu.trace_curs+i);
    int len = disasm(dbuf, cpu.trace_curs, 0) - dbuf; strcpy(asmpc, asmbuf);
    for (/*int*/ i = 0; i < len && i < 5; i++)
-      sprintf(dumppc + i*2, "%02X", cpu.RmDbg(cpu.trace_curs+i));
+      sprintf(dumppc + i*2, "%02X", cpu.DirectRm(cpu.trace_curs+i));
 
    char cpu_num[10];
    _snprintf(cpu_num, sizeof(cpu_num), "Z80(%d)", CpuMgr.GetCurrentCpu());
@@ -224,7 +241,7 @@ unsigned cpu_up(unsigned ip)
    Z80 &cpu = CpuMgr.Cpu();
    unsigned char buf1[0x10];
    unsigned p1 = (ip > sizeof buf1) ? ip - sizeof buf1 : 0;
-   for (unsigned i = 0; i < sizeof buf1; i++) buf1[i] = cpu.RmDbg(p1+i);
+   for (unsigned i = 0; i < sizeof buf1; i++) buf1[i] = cpu.DirectRm(p1+i);
    unsigned char *dispos = buf1, *prev;
    do {
       prev = dispos;
@@ -285,7 +302,7 @@ void center()
             dump[i++] = hex(p);
          if (*p) continue;
          for (unsigned j = 0; j < i; j++)
-            wmdbg(cpu.trace_curs+j, dump[j]);
+            cpu.DirectWm(cpu.trace_curs+j, dump[j]);
          break;
       }
       else
@@ -294,7 +311,7 @@ void center()
          if (sz = assemble_cmd((unsigned char*)str, cpu.trace_curs))
          {
             for (unsigned i = 0; i < sz; i++)
-                wmdbg(cpu.trace_curs+i, asmresult[i]);
+                cpu.DirectWm(cpu.trace_curs+i, asmresult[i]);
             showtrace();
             void cdown();
             cdown();
@@ -335,7 +352,8 @@ void cfindcode()
 
 void cbpx()
 {
-   membits[CpuMgr.Cpu().trace_curs] ^= MEMBITS_BPX;
+   Z80 &cpu = CpuMgr.Cpu();
+   cpu.membits[cpu.trace_curs] ^= MEMBITS_BPX;
 }
 
 void cfindpc()
@@ -373,10 +391,11 @@ void cleft()  { CpuMgr.Cpu().trace_mode--; }
 void cright() { CpuMgr.Cpu().trace_mode++; }
 void chere()
 {
-    dbgbreak = 0;
-    dbgchk = 1;
- 
     Z80 &cpu = CpuMgr.Cpu();
+    cpu.dbgbreak = 0;
+    dbgbreak = 0;
+    cpu.dbgchk = 1;
+ 
     cpu.dbg_stophere = cpu.trace_curs;
 }
 
@@ -476,12 +495,20 @@ void crest6() { crest(5); }
 void crest7() { crest(6); }
 void crest8() { crest(7); }
 
+namespace z80dbg
+{
+void __cdecl SetLastT()
+{
+   cpu.debug_last_t = comp.t_states + cpu.t;
+}
+}
+
 void mon_step()
 {
    Z80 &cpu = CpuMgr.Cpu();
-   Z80 &prevcpu = CpuMgr.PrevCpu();
+   TZ80State &prevcpu = CpuMgr.PrevCpu();
    
-   debug_last_t = comp.t_states + cpu.t;
+   cpu.SetLastT();
    prevcpu = cpu;
 //   CpuMgr.CopyToPrev();
    cpu.halted = 0;
@@ -492,14 +519,21 @@ void mon_step()
 void mon_stepover()
 {
    Z80 &cpu = CpuMgr.Cpu();
-   unsigned char trace = 0;
+   unsigned char trace = 1;
 
    // call,rst
    if (cpu.pc_trflags & TWF_CALLCMD)
    {
        cpu.dbg_stopsp = cpu.sp & 0xFFFF;
        cpu.dbg_stophere = cpu.nextpc;
+       trace = 0;
    }
+   else if (cpu.pc_trflags & TWF_BLKCMD) // ldir/lddr|cpir/cpdr|otir/otdr|inir/indr
+   {
+       trace = 0;
+       cpu.dbg_stophere = cpu.nextpc;
+   }
+
 /* [vv]
    // jr cc,$-xx, jp cc,$-xx
    else if ((cpu.pc_trflags & TWF_LOOPCMD) && (cpu.pc_trflags & 0xFFFF) < (cpu.pc & 0xFFFF))
@@ -508,18 +542,28 @@ void mon_stepover()
       cpu.dbg_stophere = cpu.nextpc,
       cpu.dbg_loop_r1 = cpu.pc_trflags & 0xFFFF;
       cpu.dbg_loop_r2 = cpu.pc & 0xFFFF;
+      trace = 0;
    }
 */
+
+/* [vv]
    else if (cpu.pc_trflags & TWF_BRANCH)
        trace = 1;
    else
+   {
+       trace = 1;
        cpu.dbg_stophere = cpu.nextpc;
+   }
+*/
 
    if (trace)
+   {
        mon_step();
+   }
    else
    {
+       cpu.dbgbreak = 0;
        dbgbreak = 0;
-       dbgchk = 1;
+       cpu.dbgchk = 1;
    }
 }

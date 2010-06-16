@@ -1,3 +1,23 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "config.h"
+#include "dx.h"
+#include "draw.h"
+#include "iehelp.h"
+#include "gs.h"
+#include "leds.h"
+#include "tape.h"
+#include "emulkeys.h"
+#include "sshot_png.h"
+#include "init.h"
+#include "snapshot.h"
+#include "savesnd.h"
+#include "wd93dat.h"
+#include "z80/tables.h"
+
+#include "util.h"
 
 void cpu_info()
 {
@@ -83,6 +103,8 @@ void init_all(int argc, char **argv)
       if (argv[i][1] == '9') legacy = 1;
       #endif
    }
+
+   temp.Minimized = false;
    temp.win9x=0; //Dexus
    if (GetVersion() >> 31) restrict_version(legacy);
 
@@ -101,6 +123,12 @@ void init_all(int argc, char **argv)
    applyconfig();
    main_reset();
    autoload();
+   temp.PngSupport = PngInit();
+   if(!temp.PngSupport)
+   {
+       color(CONSCLR_WARNING);
+       printf("warning: libpng12.dll not found or wrong version -> png support disabled\n");
+   }
 
    load_errors = 0;
    trd_toload = 0;
@@ -125,7 +153,7 @@ void init_all(int argc, char **argv)
    }
 
    SetCurrentDirectory(conf.workdir);
-   timeBeginPeriod(1);
+//   timeBeginPeriod(1);
 }
 
 void __declspec(noreturn) exit()
@@ -133,7 +161,10 @@ void __declspec(noreturn) exit()
 //   EnableMenuItem(GetSystemMenu(GetConsoleWindow(), FALSE), SC_CLOSE, MF_ENABLED);
    exitflag = 1;
    if (savesndtype)
-   savesnddialog();
+       savesnddialog();
+
+   if(!normal_exit)
+       done_fdd(false);
    done_tape();
    done_dx();
    done_gs();
@@ -141,14 +172,17 @@ void __declspec(noreturn) exit()
    save_nv();
    modem.close();
    done_ie_help();
-   timeEndPeriod(1);
+   PngDone();
+
+//   timeEndPeriod(1);
    if (ay[1].Chip2203) YM2203Shutdown(ay[1].Chip2203); //Dexus
    if (ay[0].Chip2203) YM2203Shutdown(ay[0].Chip2203); //Dexus
    color();
-   printf("\nsee you later!");
+   printf("\nsee you later!\n");
    if (!nowait)
    {
        SetConsoleTitle("press a key...");
+       FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
        getch();
    }
    fflush(stdout);

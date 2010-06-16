@@ -1,3 +1,10 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dxrframe.h"
+#include "dxr_512.h"
 
 void line8_512(unsigned char *dst, unsigned char *src, unsigned *tab)
 {

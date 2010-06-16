@@ -1,6 +1,16 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "dx.h"
+#include "dxovr.h"
+#include "dxerr.h"
+#include "init.h"
+
 DWORD colorkey=-1;
 
-void update_overlay() {
+void update_overlay()
+{
 
    RECT rc_src, rc_dst;
 
@@ -13,14 +23,16 @@ void update_overlay() {
    rc_src.left = rc_src.top = 0;
    rc_src.right = temp.ox, rc_src.bottom = temp.oy;
 
-   if (wnd == GetForegroundWindow() && rc_dst.left >= 0 && rc_dst.top >= 0) {
-      DDSURFACEDESC desc; desc.dwSize = sizeof desc;
-      if (sprim->IsLost() == DDERR_SURFACELOST) sprim->Restore();
+   if (wnd == GetForegroundWindow() && rc_dst.left >= 0 && rc_dst.top >= 0)
+   {
+      DDSURFACEDESC2 desc; desc.dwSize = sizeof desc;
+      if (sprim->IsLost() == DDERR_SURFACELOST)
+          sprim->Restore();
       HRESULT r = sprim->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_READONLY, 0);
       if (r != DD_OK) { printrdd("IDirectDrawSurface2::Lock() [test]", r); exit(); }
       char *ptr = (char*)desc.lpSurface + rc_dst.top*desc.lPitch + rc_dst.left*desc.ddpfPixelFormat.dwRGBBitCount/8;
       colorkey = *(unsigned*)ptr;
-      sprim->Unlock(desc.lpSurface);
+      sprim->Unlock(0);
       if (desc.ddpfPixelFormat.dwRGBBitCount < 32)
          colorkey &= (1<<desc.ddpfPixelFormat.dwRGBBitCount)-1;
    }

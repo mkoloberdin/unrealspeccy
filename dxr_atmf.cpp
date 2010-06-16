@@ -1,3 +1,11 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dxrframe.h"
+#include "dxrcopy.h"
+#include "dxr_atmf.h"
 
 void rend_atmframe_x2_8s(unsigned char *dst, unsigned pitch)
 {

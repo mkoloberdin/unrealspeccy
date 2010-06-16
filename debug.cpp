@@ -1,102 +1,46 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "draw.h"
+#include "dx.h"
+#include "debug.h"
+#include "dbgpaint.h"
+#include "dbgreg.h"
+#include "dbgtrace.h"
+#include "dbgmem.h"
+#include "dbgoth.h"
+#include "dbglabls.h"
+#include "dbgbpx.h"
+
+#include "util.h"
 
 #ifdef MOD_MONITOR
 
-#define trace_size 21
-#define trace_x 1
-#define trace_y 6
-
 unsigned char trace_labels;
 
-#define wat_x 34
-#define wat_y 1
-#define wat_sz 13
 unsigned show_scrshot;
 unsigned user_watches[3] = { 0x4000, 0x8000, 0xC000 };
 
-#define mem_size 12
-#define mem_x 34
-#define mem_y 15
 unsigned mem_sz = 8;
 unsigned mem_disk, mem_track, mem_max;
-enum { ED_MEM, ED_PHYS, ED_LOG };
-unsigned char mem_ascii, mem_dump, editor = ED_MEM;
+unsigned char mem_ascii;
+unsigned char mem_dump;
+unsigned char editor = ED_MEM;
 
-#define regs_x 1
-#define regs_y 1
 unsigned regs_curs;
-
-#define stack_x 72
-#define stack_y 12
-#define stack_size 10
-
-#define ay_x  31
-#define ay_y  28
-
-#define time_x 1
-#define time_y 28
-
-#define copy_x 1
-#define copy_y 28
-
-#define banks_x 72
-#define banks_y 22
-
-#define ports_x 72
-#define ports_y 1
-unsigned dbg_extport; unsigned char dgb_extval; // extended memory port like 1FFD or DFFD
-
-#define dos_x 72
-#define dos_y 6
-
-#define W_SEL      0x17
-#define W_NORM     0x07
-#define W_CURS     0x30
-#define BACKGR     0x50
-#define FRAME_CURS 0x02
-#define W_TITLE    0x59
-#define W_OTHER    0x40
-#define W_OTHEROFF 0x47
-#define BACKGR_CH  0xB1
-#define W_AYNUM    0x4F
-#define W_AYON     0x41
-#define W_AYOFF    0x40
-#define W_BANK     0x40
-#define W_BANKRO   0x41
-#define W_DIHALT1  0x1A
-#define W_DIHALT2  0x0A
-#define W_TRACEPOS 0x70
-#define W_INPUTCUR 0x60
-#define W_INPUTBG  0x40
-
-#define W_TRACE_JINFO_CURS_FG   0x0D
-#define W_TRACE_JINFO_NOCURS_FG 0x02
-#define W_TRACE_JARROW_FOREGR   0x0D
-
-#define FRAME         0x01
-#define FFRAME_FRAME  0x04
-
-#define FFRAME_INSIDE 0x50
-#define FFRAME_ERROR  0x52
-#define FRM_HEADER    0xD0
-
-#define MENU_INSIDE   0x70
-#define MENU_HEADER   0xF0
-
-#define MENU_CURSOR   0xE0
-#define MENU_ITEM     MENU_INSIDE
-#define MENU_ITEM_DIS 0x7A
+unsigned dbg_extport;
+unsigned char dgb_extval; // extended memory port like 1FFD or DFFD
 
 unsigned ripper; // ripper mode (none/read/write)
-__int64 debug_last_t; // used to find time delta
 
-enum DBGWND {
-   WNDNO, WNDMEM, WNDTRACE, WNDREGS
-} activedbg = WNDTRACE;
+DBGWND activedbg = WNDTRACE;
 
 void debugscr();
 unsigned find1dlg(unsigned start);
 unsigned find2dlg(unsigned start);
 
+/*
 #include "dbgpaint.cpp"
 #include "dbglabls.cpp"
 #include "z80asm.cpp"
@@ -107,6 +51,7 @@ unsigned find2dlg(unsigned start);
 #include "dbgcmd.cpp"
 #include "dbgbpx.cpp"
 #include "dbgoth.cpp"
+*/
 
 void debugscr()
 {
@@ -168,7 +113,7 @@ void handle_mouse()
    }
    if (mx >= regs_x && my >= regs_y && mx < regs_x+32 && my < regs_y+4) {
       needclr++; activedbg = WNDREGS;
-      for (unsigned i = 0; i < sizeof regs_layout / sizeof *regs_layout; i++) {
+      for (unsigned i = 0; i < regs_layout_count; i++) {
          unsigned delta = 1;
          if (regs_layout[i].width == 16) delta = 4;
          if (regs_layout[i].width == 8) delta = 2;
@@ -202,28 +147,30 @@ void TCpuMgr::CopyToPrev()
     for(int i = 0; i < Count; i++)
         PrevCpus[i] = *Cpus[i];
 }
-      /* ------------------------------------------------------------- */
-void debug()
+
+/* ------------------------------------------------------------- */
+void debug(Z80 *cpu)
 {
    sound_stop();
    temp.rflags = RF_MONITOR;
-   needclr = dbgbreak = 1;
+   needclr = 1;
+   dbgbreak = 1;
    set_video();
 
-   Z80 *cpu = &CpuMgr.Cpu();
-   Z80 *prevcpu = &CpuMgr.PrevCpu();
+   CpuMgr.SetCurrentCpu(cpu->GetIdx());
+   TZ80State *prevcpu = &CpuMgr.PrevCpu(cpu->GetIdx());
    cpu->trace_curs = cpu->pc;
    cpu->dbg_stopsp = cpu->dbg_stophere = -1;
    cpu->dbg_loop_r1 = 0, cpu->dbg_loop_r2 = 0xFFFF;
    mousepos = 0;
 
-   while (dbgbreak) // debugger event loop
+   while(dbgbreak) // debugger event loop
    {
       if (trace_labels)
          mon_labels.notify_user_labels();
 
       cpu = &CpuMgr.Cpu();
-      prevcpu = &CpuMgr.PrevCpu();
+      prevcpu = &CpuMgr.PrevCpu(cpu->GetIdx());
 repaint_dbg:
       cpu->trace_top &= 0xFFFF;
       cpu->trace_curs &= 0xFFFF;
@@ -250,17 +197,29 @@ sleep:
          Sleep(20);
       }
       if (activedbg == WNDREGS && dispatch_more(ac_regs) > 0)
+      {
           continue;
+      }
       if (activedbg == WNDTRACE && dispatch_more(ac_trace) > 0)
+      {
           continue;
+      }
       if (activedbg == WNDMEM && dispatch_more(ac_mem) > 0)
+      {
           continue;
+      }
       if (activedbg == WNDREGS && dispatch_regs())
+      {
           continue;
+      }
       if (activedbg == WNDTRACE && dispatch_trace())
+      {
           continue;
+      }
       if (activedbg == WNDMEM && dispatch_mem())
+      {
           continue;
+      }
       if (needclr)
       {
           needclr--;
@@ -271,65 +230,80 @@ sleep:
 
    *prevcpu = *cpu;
 //   CpuMgr.CopyToPrev();
-   debug_last_t = comp.t_states + cpu->t;
+   cpu->SetLastT();
    apply_video();
    sound_play();
 }
 
-void debug_events()
+void debug_events(Z80 *cpu)
 {
-   Z80 &cpu = CpuMgr.Cpu();
-
-   unsigned pc = cpu.pc & 0xFFFF;
-   unsigned char *membit = membits + pc;
+   unsigned pc = cpu->pc & 0xFFFF;
+   unsigned char *membit = cpu->membits + pc;
    *membit |= MEMBITS_X;
+   cpu->dbgbreak |= (*membit & MEMBITS_BPX);
    dbgbreak |= (*membit & MEMBITS_BPX);
 
-   if (pc == cpu.dbg_stophere)
-       dbgbreak = 1;
-
-   if ((cpu.sp & 0xFFFF) == cpu.dbg_stopsp)
+   if (pc == cpu->dbg_stophere)
    {
-      if (pc > cpu.dbg_stophere && pc < cpu.dbg_stophere + 0x100)
-          dbgbreak = 1;
-      if (pc < cpu.dbg_loop_r1 || pc > cpu.dbg_loop_r2)
-          dbgbreak = 1;
+       cpu->dbgbreak = 1;
+       dbgbreak = 1;
    }
 
-   if (cbpn)
+   if ((cpu->sp & 0xFFFF) == cpu->dbg_stopsp)
    {
-      cpu.r_low = (cpu.r_low & 0x7F) + cpu.r_hi;
-      for (unsigned i = 0; i < cbpn; i++)
+      if (pc > cpu->dbg_stophere && pc < cpu->dbg_stophere + 0x100)
       {
-         if (calc(cbp[i]))
+          cpu->dbgbreak = 1;
+          dbgbreak = 1;
+      }
+      if (pc < cpu->dbg_loop_r1 || pc > cpu->dbg_loop_r2)
+      {
+          cpu->dbgbreak = 1;
+          dbgbreak = 1;
+      }
+   }
+
+   if (cpu->cbpn)
+   {
+      cpu->r_low = (cpu->r_low & 0x7F) + cpu->r_hi;
+      for (unsigned i = 0; i < cpu->cbpn; i++)
+      {
+         if (calc(cpu, cpu->cbp[i]))
+         {
+             cpu->dbgbreak = 1;
              dbgbreak = 1;
+         }
       }
    }
 
    brk_port_in = brk_port_out = -1; // reset only when breakpoints active
 
-   if (dbgbreak)
-       debug();
+   if (cpu->dbgbreak)
+       debug(cpu);
 }
 
 #endif // MOD_MONITOR
 
-unsigned char isbrk() // is there breakpoints active or any other reason to use debug z80 loop?
+unsigned char isbrk(const Z80 &cpu) // is there breakpoints active or any other reason to use debug z80 loop?
 {
 #ifndef MOD_DEBUGCORE
    return 0;
 #else
 
    #ifdef MOD_MEMBAND_LED
-   if (conf.led.memband & 0x80000000) return 1;
+   if (conf.led.memband & 0x80000000)
+       return 1;
    #endif
 
-   if (conf.mem_model == MM_PROFSCORP) return 1; // breakpoint on read ROM switches ROM bank
+   if (conf.mem_model == MM_PROFSCORP)
+       return 1; // breakpoint on read ROM switches ROM bank
 
    #ifdef MOD_MONITOR
-   if (cbpn) return 1;
+   if (cpu.cbpn)
+       return 1;
    unsigned char res = 0;
-   for (int i = 0; i < 0x10000; i++) res |= membits[i];
+   for (int i = 0; i < 0x10000; i++)
+       res |= cpu.membits[i];
    return (res & (MEMBITS_BPR | MEMBITS_BPW | MEMBITS_BPX));
    #endif
 

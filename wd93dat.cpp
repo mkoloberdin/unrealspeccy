@@ -1,3 +1,10 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "snapshot.h"
+
+#include "util.h"
 
 int FDD::index()
 {
@@ -26,9 +33,26 @@ char FDD::test()
 
 void FDD::free()
 {
-   if (rawdata) VirtualFree(rawdata, rawsize, MEM_RELEASE);
-   memset(this, 0, sizeof(FDD)); conf.trdos_wp[index()] = 0;
-   comp.wd.trkcache.clear(); t.clear();
+   if (rawdata)
+       VirtualFree(rawdata, 0, MEM_RELEASE);
+
+   motor = 0;
+   track = 0;
+
+   rawdata = 0;
+   unsigned rawsize = 0;
+   cyls = 0;
+   sides = 0;
+   name[0] = 0;
+   dsc[0] = 0;
+   memset(trklen, 0,  sizeof(trklen));
+   memset(trkd, 0,  sizeof(trkd));
+   memset(trki, 0,  sizeof(trki));
+   optype = 0;
+   snaptype = 0;
+   conf.trdos_wp[index()] = 0;
+   /*comp.wd.trkcache.clear(); [vv]*/
+   t.clear();
 }
 
 void FDD::newdisk(unsigned cyls, unsigned sides)
@@ -54,16 +78,24 @@ void FDD::newdisk(unsigned cyls, unsigned sides)
 int FDD::read(unsigned char type)
 {
    int ok = 0;
-   if (type == snTRD) ok = read_trd();
-   if (type == snUDI) ok = read_udi();
-   if (type == snHOB) ok = read_hob();
-   if (type == snSCL) ok = read_scl();
-   if (type == snFDI) ok = read_fdi();
-   if (type == snTD0) ok = read_td0();
+   switch(type)
+   {
+   case snTRD: ok = read_trd(); break;
+   case snUDI: ok = read_udi(); break;
+   case snHOB: ok = read_hob(); break;
+   case snSCL: ok = read_scl(); break;
+   case snFDI: ok = read_fdi(); break;
+   case snTD0: ok = read_td0(); break;
+   case snISD: ok = read_isd(); break;
+   case snPRO: ok = read_pro(); break;
+   }
    return ok;
 }
 
-#include "wldr_trd.cpp"
-#include "wldr_udi.cpp"
-#include "wldr_fdi.cpp"
-#include "wldr_td0.cpp"
+bool done_fdd(bool Cancelable)
+{
+   for(int i = 0; i < 4; i++)
+      if(!comp.wd.fdd[i].test() && Cancelable)
+          return false;
+   return true;
+}

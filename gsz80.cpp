@@ -1,8 +1,95 @@
+#include "std.h"
+
+#include "emul.h"
+#include "vars.h"
+#include "gs.h"
+#include "gsz80.h"
+#include "vs1001.h"
+#include "sdcard.h"
+#include "debug.h"
+
+#include "z80/op_noprefix.h"
+
+#ifdef MOD_GSZ80
+unsigned __int64 gs_t_states; // inc'ed with GSCPUINT every gs int
+unsigned __int64 gscpu_t_at_frame_start; // gs_t_states+gscpu.t when spectrum frame begins
+
 namespace z80gs
 {
+Z80INLINE unsigned char rm(unsigned addr);
+u8 __fastcall dbgrm(u32 addr);
+Z80INLINE void wm(unsigned addr, unsigned char val);
+void __fastcall dbgwm(u32 addr, u8 val);
+Z80INLINE u8 *am_r(u32 addr);
+Z80INLINE unsigned char m1_cycle(Z80 *cpu);
+unsigned char in(unsigned port);
+void out(unsigned port, unsigned char val);
+// FIXME: Сделать переключаемый интерфейс в зависимости от флага gscpu.dbgchk
+namespace z80fast
+{
+Z80INLINE unsigned char rm(unsigned addr);
+Z80INLINE void wm(unsigned addr, unsigned char val);
+}
+
+namespace z80dbg
+{
+Z80INLINE unsigned char rm(unsigned addr);
+Z80INLINE void wm(unsigned addr, unsigned char val);
+}
+
+u8 __fastcall Rm(u32 addr)
+{
+    return z80gs::z80fast::rm(addr);
+}
+
+void __fastcall Wm(u32 addr, u8 val)
+{
+    z80gs::z80fast::wm(addr, val);
+}
+
+u8 __fastcall DbgRm(u32 addr)
+{
+    return z80gs::z80dbg::rm(addr);
+}
+
+void __fastcall DbgWm(u32 addr, u8 val)
+{
+    z80gs::z80dbg::wm(addr, val);
+}
+}
+
+u8 *TGsZ80::DirectMem(unsigned addr) const
+{
+    return z80gs::am_r(addr);
+}
+
+unsigned char TGsZ80::m1_cycle()
+{
+    return z80gs::m1_cycle(this);
+}
+
+unsigned char TGsZ80::in(unsigned port)
+{
+    return z80gs::in(port);
+}
+
+void TGsZ80::out(unsigned port, unsigned char val)
+{
+    z80gs::out(port, val);
+}
+
+namespace z80gs
+{
+#include "z80/op_system.h"
 
 const u8 MPAG   = 0x00;
 const u8 MPAGEX = 0x10;
+
+const u8 DMA_MOD= 0x1b;
+const u8 DMA_HAD= 0x1c;
+const u8 DMA_MAD= 0x1d;
+const u8 DMA_LAD= 0x1e;
+const u8 DMA_CST= 0x1f;
 
 const u8 GSCFG0 = 0x0F;
 
@@ -10,8 +97,8 @@ const u8 M_NOROM = 1;
 const u8 M_RAMRO = 2;
 const u8 M_EXPAG = 8;
 
-u8 *gsbankr[4] = { ROM_GS_M, GSRAM_M + PAGE, ROM_GS_M, ROM_GS_M + PAGE }; // bank pointers for read
-u8 *gsbankw[4] = { TRASH_M, GSRAM_M + PAGE, TRASH_M, TRASH_M }; // bank pointers for write
+u8 *gsbankr[4] = { ROM_GS_M, GSRAM_M + 3 * PAGE, ROM_GS_M, ROM_GS_M + PAGE }; // bank pointers for read
+u8 *gsbankw[4] = { TRASH_M, GSRAM_M + 3 * PAGE, TRASH_M, TRASH_M }; // bank pointers for write
 
 unsigned gs_v[4];
 unsigned char gsvol[4], gsbyte[4];
@@ -19,10 +106,8 @@ unsigned led_gssum[4], led_gscnt[4];
 unsigned char gsdata_in, gsdata_out, gspage = 0;
 unsigned char gscmd, gsstat;
 
-unsigned mult_gs, mult_gs2;
+unsigned long long mult_gs, mult_gs2;
 
-unsigned __int64 gs_t_states; // inc'ed with GSCPUINT every gs int
-unsigned __int64 gscpu_t_at_frame_start; // gs_t_states+gscpu.t when spectrum frame begins
 
 // ngs
 u8 ngs_mode_pg1; // page ex number
@@ -30,31 +115,22 @@ u8 ngs_cfg0;
 u8 ngs_s_ctrl;
 u8 ngs_s_stat;
 u8 SdRdVal, SdRdValNew;
+u8 ngs_dmamod;
+
+
 bool SdDataAvail = false;
 
-const int GSCPUFQ = 12000000; // hz
 const int GSINTFQ = 37500; // hz
-const int GSCPUFQI = GSCPUFQ/50;
+static int GSCPUFQI;
 const int GSCPUINT = GSCPUFQ/GSINTFQ;
 const int MULT_GS_SHIFT = 12; // cpu tick -> gscpu tick precision
 void flush_gs_z80();
 void reset();
 void nmi();
 
-inline u8 rol8(u8 val, u8 shift)
-{
-    __asm__ volatile ("rolb %1,%0" : "=r"(val) : "cI"(shift), "0"(val));
-    return val;
-}
-
-inline u8 ror8(u8 val, u8 shift)
-{
-    __asm__ volatile ("rorb %1,%0" : "=r"(val) : "cI"(shift), "0"(val));
-    return val;
-}
-
 void apply_gs()
 {
+   GSCPUFQI = GSCPUFQ / conf.intfq;
    mult_gs = (temp.snd_frame_ticks << MULT_C)/GSCPUFQI;
    mult_gs2 = (GSCPUFQI<<MULT_GS_SHIFT)/conf.frame;
 }
@@ -94,7 +170,7 @@ static inline void flush_gs_sound()
    }
 }
 
-inline void init_gs_frame()
+void init_gs_frame()
 {
 //   printf("%s, gs_t_states = %lld, gscpu.t = %u\n", __FUNCTION__, gs_t_states, gscpu.t);
    assert(gscpu.t < LONG_MAX);
@@ -102,7 +178,7 @@ inline void init_gs_frame()
    sound.start_frame();
 }
 
-inline void flush_gs_frame()
+void flush_gs_frame()
 {
    flush_gs_z80();
 
@@ -113,33 +189,44 @@ inline void flush_gs_frame()
    sound.end_frame(unsigned((gs_t_states + gscpu.t) - gscpu_t_at_frame_start));
 }
 
-inline void out_gs(unsigned port, u8 val)
+void out_gs(unsigned port, u8 val)
 {
-   flush_gs_z80();
    port &= 0xFF;
+
    switch(port)
    {
-   case 0x33:
+   case 0x33: // GSCTR
        if(val & 0x80) // reset
        {
            reset();
+           flush_gs_z80();
            return;
        }
        if(val & 0x40) // nmi
+       {
            nmi();
+           flush_gs_z80();
+           return;
+       }
+       return;
    break;
-   case 0xB3:
+   }
+
+   flush_gs_z80();
+   switch(port)
+   {
+   case 0xB3: // GSDAT
         gsdata_out = val;
         gsstat |= 0x80;
    break;
-   case 0xBB:
+   case 0xBB: // GSCOM
        gscmd = val;
        gsstat |= 0x01;
    break;
    }
 }
 
-inline u8 in_gs(unsigned port)
+u8 in_gs(unsigned port)
 {
    flush_gs_z80();
    port &= 0xFF;
@@ -162,16 +249,22 @@ static void gs_byte_to_dac(unsigned addr, unsigned char byte)
    led_gscnt[chan]++;
 }
 
+static inline void stepi();
+
 Z80INLINE u8 *am_r(u32 addr)
 {
    return &gsbankr[(addr >> 14U) & 3][addr & (PAGE-1)];
 }
 
-Z80INLINE unsigned char rm(unsigned addr)
+namespace z80fast
 {
-   unsigned char byte = *am_r(addr);
-   if ((addr & 0xE000) == 0x6000) gs_byte_to_dac(addr, byte);
-   return byte;
+   #include "gsz80.inl"
+}
+namespace z80dbg
+{
+   #define Z80_DBG
+   #include "gsz80.inl"
+   #undef Z80_DBG
 }
 
 u8 *__fastcall MemDbg(u32 addr)
@@ -181,10 +274,15 @@ u8 *__fastcall MemDbg(u32 addr)
 
 u8 __fastcall dbgrm(u32 addr)
 {
-    return rm(addr);
+    return z80dbg::rm(addr);
 }
 
-void BankNames(int i, char *Name)
+void __fastcall dbgwm(u32 addr, u8 val)
+{
+    *am_r(addr) = val;
+}
+
+void __cdecl BankNames(int i, char *Name)
 {
     if(gsbankr[i] < GSRAM_M + MAX_GSRAM_PAGES*PAGE)
         sprintf(Name, "RAM%2X", ULONG((gsbankr[i] - GSRAM_M) / PAGE));
@@ -192,20 +290,11 @@ void BankNames(int i, char *Name)
         sprintf(Name, "ROM%2X", ULONG((gsbankr[i] - ROM_GS_M) / PAGE));
 }
 
-Z80INLINE void wm(unsigned addr, unsigned char val)
-{
-   u8 *bank = gsbankw[(addr >> 14) & 3];
-#ifndef TRASH_PAGE
-   if (!bank)
-       return;
-#endif
-   bank[addr & (PAGE-1)] = val;
-}
 
 Z80INLINE unsigned char m1_cycle(Z80 *cpu)
 {
    cpu->r_low++; cpu->t += 4;
-   return rm(cpu->pc++);
+   return cpu->MemIf->rm(cpu->pc++);
 }
 
 static inline void UpdateMemMapping()
@@ -317,6 +406,30 @@ void out(unsigned port, unsigned char val)
           SdRdValNew = SdCard.Rd();
           SdDataAvail = true;
       break;
+
+      case DMA_MOD:
+          ngs_dmamod = val;
+      break;
+
+      case DMA_HAD:
+          if (ngs_dmamod == 1)
+              temp.gsdmaaddr = (temp.gsdmaaddr&0x0000ffff)|(unsigned(val & 0x1F)<<16); // 5bit only
+      break;
+
+      case DMA_MAD:
+          if (ngs_dmamod == 1)
+              temp.gsdmaaddr = (temp.gsdmaaddr&0x001f00ff)|(unsigned(val)<<8);
+      break;
+
+      case DMA_LAD:
+          if (ngs_dmamod == 1)
+              temp.gsdmaaddr = (temp.gsdmaaddr&0x001fff00)|val;
+      break;
+
+      case DMA_CST:
+          if (ngs_dmamod == 1)
+              temp.gsdmaon = val;
+      break;
    }
 }
 
@@ -363,16 +476,38 @@ unsigned char in(unsigned port)
           }
           return SdCard.Rd();
 
+      case DMA_MOD:
+          return ngs_dmamod;
+
+      case DMA_HAD:
+          if (ngs_dmamod == 1)
+              return (temp.gsdmaaddr>>16) & 0x1F; // 5bit only
+      break;
+
+      case DMA_MAD:
+          if (ngs_dmamod == 1)
+              return (temp.gsdmaaddr>>8) & 0xFF;
+      break;
+
+      case DMA_LAD:
+          if (ngs_dmamod == 1)
+              return temp.gsdmaaddr & 0xFF;
+      break;
+
+      case DMA_CST:
+          if (ngs_dmamod == 1)
+              return temp.gsdmaon;
+      break;
    }
    return 0xFF;
 }
 
-#include "z80/cmd.cpp"
+//#include "z80/cmd.cpp"
 
 static inline void stepi()
 {
    u8 opcode = m1_cycle(&gscpu);
-   (normal_opcode[opcode])(&gscpu);
+   (::normal_opcode[opcode])(&gscpu);
 }
 
 void __cdecl step()
@@ -382,41 +517,33 @@ void __cdecl step()
 
 void flush_gs_z80()
 {
-   unsigned __int64 end = ((cpu.t * mult_gs2) >> MULT_GS_SHIFT); // t*GSCPUFQI/conf.frame;
-   end += gscpu_t_at_frame_start;
-   for (;;)
-   { // while (gs_t_states+gscpu.t < end)
-      int max_gscpu_t = min(GSCPUINT, (int)(end - gs_t_states));
-      while ((int)gscpu.t < max_gscpu_t)
-      {
-#ifdef MOD_DEBUGCORE
-         debug_events();
-#endif
-         stepi();
-         if (gscpu.halted)
-         {
-            unsigned st = (GSCPUINT - gscpu.t - 1) / 4 + 1;
-            gscpu.t += 4 * st;
-            gscpu.r_low += st;
-            break;
-         }
-      }
-      if (gscpu.t < GSCPUINT)
-          break;
-
-      if (gscpu.iff1 && gscpu.t != gscpu.eipos) // interrupt, but not after EI
-         handle_int(&gscpu, 0xFF);
-
-      gscpu.t -= GSCPUINT;
-      gs_t_states += GSCPUINT;
+   if(gscpu.dbgchk)
+   {
+       gscpu.SetDbgMemIf();
+       z80gs::z80dbg::z80loop();
    }
+   else
+   {
+       gscpu.SetFastMemIf();
+       z80gs::z80fast::z80loop();
+   }
+}
+
+__int64 __cdecl delta()
+{
+    return gs_t_states + gscpu.t - gscpu.debug_last_t;
+}
+
+void __cdecl SetLastT()
+{
+   gscpu.debug_last_t = gs_t_states + gscpu.t;
 }
 
 void nmi()
 {
    gscpu.sp -= 2;
-   wm(gscpu.sp, gscpu.pcl);
-   wm(gscpu.sp+1, gscpu.pch);
+   z80fast::wm(gscpu.sp, gscpu.pcl);
+   z80fast::wm(gscpu.sp+1, gscpu.pch);
    gscpu.pc = 0x66;
    gscpu.iff1 = gscpu.halted = 0;
 }
@@ -424,17 +551,24 @@ void nmi()
 void reset()
 {
    gscpu.reset();
-   gsbankr[0] = ROM_GS_M; gsbankr[1] = GSRAM_M + PAGE; gsbankr[2] = ROM_GS_M; gsbankr[3] = ROM_GS_M + PAGE;
-   gsbankw[0] = TRASH_M; gsbankw[1] = GSRAM_M + PAGE; gsbankw[2] = TRASH_M, gsbankw[3] = TRASH_M;
+   gsbankr[0] = ROM_GS_M; gsbankr[1] = GSRAM_M + 3 * PAGE; gsbankr[2] = ROM_GS_M; gsbankr[3] = ROM_GS_M + PAGE;
+   gsbankw[0] = TRASH_M; gsbankw[1] = GSRAM_M + 3 * PAGE; gsbankw[2] = TRASH_M, gsbankw[3] = TRASH_M;
 
    gscpu.t = 0;
    gs_t_states = 0;
+   gscpu_t_at_frame_start = 0;
    ngs_cfg0 = 0;
    ngs_s_stat = (__rdtsc() & ~7) | _SDDET | _MPDRQ;
    ngs_s_ctrl = (__rdtsc() & ~0xF) | _SDNCS;
    SdRdVal = SdRdValNew = 0xFF;
    SdDataAvail = false;
    Vs1001.Reset();
+
+   ngs_mode_pg1 = 1;
+   ngs_dmamod = 0;
+   temp.gsdmaaddr = 0;
+   temp.gsdmaon = 0;
 }
 
 } // end of z80gs namespace
+#endif

@@ -1,5 +1,5 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Developer Studio generated include file.
+// Microsoft Visual C++ generated include file.
 // Used by settings.rc
 //
 #define IDD_MEM                         101
@@ -122,6 +122,8 @@
 #define IDC_RENDER                      1098
 #define IDC_LED_TIME_Y                  1099
 #define IDE_FIRERATE                    1099
+#define IDC_RENDER2                     1099
+#define IDC_SCRSHOT                     1099
 #define IDE_VTXNAME                     1100
 #define IDE_HOLD_DELAY                  1100
 #define IDE_VTXAUTH                     1101
@@ -199,6 +201,7 @@
 #define IDC_BIT2                        1165
 #define IDC_VSCALE_TITLE3               1165
 #define IDC_BIT3                        1166
+#define IDC_REND_TITLE2                 1166
 #define IDC_BIT4                        1167
 #define IDC_BIT5                        1168
 #define IDC_BIT6                        1169
@@ -310,6 +313,10 @@
 #define IDE_VALUE                       1262
 #define IDC_HEX                         1263
 #define IDC_STATUS                      1264
+#define IDC_PC_LAYOUT                   10050
+#define IDC_WHEEL_NONE                  10252
+#define IDC_WHEEL_KEYBOARD              10254
+#define IDC_WHEEL_KEMPSTON              10256
 
 // Next default values for new objects
 // 

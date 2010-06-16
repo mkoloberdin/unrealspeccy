@@ -17,7 +17,9 @@ struct hdrSNA128 {
 //   unsigned char pages[PAGE]; // all pages, except already saved
                                 // (m.b. 5 or 6 pages)
 };
-struct hdrZ80 {
+
+struct hdrZ80
+{
    unsigned char a,f;
    unsigned short bc,hl,pc,sp;
    unsigned char i,r,flags;
@@ -31,8 +33,23 @@ struct hdrZ80 {
    unsigned char r1,r2, p7FFD_1;
    unsigned char AY[16];
    /* 3.0 extension */
+   u16 LowT;
+   u8 HighT;
+   u8 ReservedFlag;
+   u8 MgtRom;
+   u8 MultifaceRom;
+   u8 RamRom0; // 0000-1FFF ram/rom
+   u8 RamRom1; // 2000-3FFF ram/rom
+   u8 KbMap1[10];
+   u8 KbMap2[10];
+   u8 MgtType;
+   u8 Disciple1;
+   u8 Disciple2;
+   u8 p1FFD;
 };
-struct hdrSP {
+
+struct hdrSP
+{
    unsigned short sig;
    unsigned short len;
    unsigned short start;
@@ -47,3 +64,14 @@ struct hdrSP {
    unsigned short flags;
 };
 #pragma pack()
+
+typedef void (*TVideoSaver)();
+
+extern TVideoSaver VideoSaver;
+
+int loadsnap(char *filename);
+int writeSNA(FILE *ff);
+void opensnap(int index);
+void savesnap(int diskindex);
+void main_scrshot();
+void main_savevideo();
