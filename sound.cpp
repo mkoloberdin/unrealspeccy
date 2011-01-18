@@ -6,19 +6,11 @@
 #include "tape.h"
 #include "config.h"
 
-//#include "sndrender/sndrender.h"
-//#include "sndrender/sndchip.h"
 #include "sndrender/sndcounter.h"
 
 extern SNDRENDER sound;
 extern SNDCHIP ay[2];
 extern SNDCOUNTER sndcounter;
-
-/*
-#include "sndrender/sndrender.cpp"
-#include "sndrender/sndchip.cpp"
-#include "sndrender/sndcounter.cpp"
-*/
 
 int spkr_dig = 0, mic_dig = 0, covFB_vol = 0, covDD_vol = 0, sd_l = 0, sd_r = 0;
 
@@ -37,7 +29,7 @@ void init_snd_frame()
 {
    temp.cpu_t_at_frame_start = cpu.t;
 //[vv]   
-sound.start_frame();
+   sound.start_frame();
 //   comp.tape.sound.start_frame(); //Alone Coder
    comp.tape_sound.start_frame(); //Alone Coder
 
@@ -47,6 +39,8 @@ sound.start_frame();
       if (conf.sound.ay_scheme > AY_SCHEME_SINGLE)
           ay[1].start_frame();
    }
+
+   Saa1099.start_frame();
 
    #ifdef MOD_GS
    init_gs_frame();
@@ -112,6 +106,7 @@ void flush_snd_frame()
          vtxbuffilled += 14;
       }
    }
+   Saa1099.end_frame(endframe);
 
    sound.end_frame(endframe);
    // if (comp.tape.play_pointer) // play tape pulses
@@ -131,6 +126,9 @@ void flush_snd_frame()
       if (conf.sound.ay_scheme > AY_SCHEME_SINGLE)
          sndcounter.count(ay[1]);
    }
+
+   sndcounter.count(Saa1099);
+
 #ifdef MOD_GS
    #ifdef MOD_GSZ80
    if (conf.gs_type==1)
@@ -221,6 +219,8 @@ void restart_sound()
       ay[0].set_timings(cpufq, conf.sound.ayfq, conf.sound.fq);
       if (conf.sound.ay_scheme > AY_SCHEME_SINGLE) ay[1].set_timings(cpufq, conf.sound.ayfq, conf.sound.fq);
    }
+
+   Saa1099.set_timings(cpufq, conf.sound.saa1099fq, conf.sound.fq);
 
    // comp.tape.sound.clear();
    #ifdef MOD_GS

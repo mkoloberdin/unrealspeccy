@@ -14,12 +14,34 @@ void WD1793::process()
    if (seldrive->rawdata) status &= ~WDS_NOTRDY; else status |= WDS_NOTRDY;
 
    if (!(cmd & 0x80)) { // seek / step commands
-      status &= ~(WDS_TRK00 | WDS_INDEX);
-      if (seldrive->motor && (system & 0x08)) status |= WDS_HEADL;
-      if (!seldrive->track) status |= WDS_TRK00;
+      unsigned old_idx_status = idx_status;
+
+      idx_status &= ~WDS_INDEX;
+
+      status &= ~WDS_INDEX;
+
+      if(state != S_IDLE)
+      {
+          status &= ~(WDS_TRK00 | WDS_INDEX);
+          if (seldrive->motor && (system & 0x08)) status |= WDS_HEADL;
+          if (!seldrive->track) status |= WDS_TRK00;
+      }
+
       // todo: test spinning
       if (seldrive->rawdata && seldrive->motor && ((time+tshift) % (Z80FQ/FDD_RPS) < (Z80FQ*4/1000)))
-         status |= WDS_INDEX; // index every turn, len=4ms (if disk present)
+      {
+         if(state == S_IDLE)
+         {
+             if(time < idx_tmo)
+                 status |= WDS_INDEX;
+         }
+         else
+         {
+             status |= WDS_INDEX;
+         }
+
+         idx_status |= WDS_INDEX; // index every turn, len=4ms (if disk present)
+      }
    }
 
    for (;;)
@@ -32,6 +54,13 @@ void WD1793::process()
 
          case S_IDLE:
             status &= ~WDS_BUSY;
+            if(idx_cnt >= 15 || time > idx_tmo)
+            {
+                idx_cnt = 15;
+                status &= WDS_NOTRDY;
+                status |= WDS_NOTRDY;
+                seldrive->motor = 0;
+            }
             rqs = INTRQ;
             return;
 
@@ -132,9 +161,15 @@ void WD1793::process()
             }
 
             // read sector(s)
-            if (!seldrive->t.hdr[foundid].data) goto nextmk;
+            if (!seldrive->t.hdr[foundid].data) goto nextmk; // Сектор без зоны данных
+            if(!conf.wd93_nodelay)
+                next += seldrive->t.ts_byte*(seldrive->t.hdr[foundid].data - seldrive->t.hdr[foundid].id); // Задержка на пропуск заголовка сектора и пробела между заголовком и зоной данных
+            state = S_WAIT; state2 = S_RDSEC;
+            break;
+
+         case S_RDSEC:
             if (seldrive->t.hdr[foundid].data[-1] == 0xF8) status |= WDS_RECORDT; else status &= ~WDS_RECORDT;
-            rwptr = seldrive->t.hdr[foundid].data - seldrive->t.trkd;
+            rwptr = seldrive->t.hdr[foundid].data - seldrive->t.trkd; // Смещение зоны данных сектора (в байтах) относительно начала трека
             rwlen = 128 << (seldrive->t.hdr[foundid].l & 3); // [vv]
             goto read_first_byte;
 
@@ -361,6 +396,7 @@ void WD1793::process()
                 state2 = S_IDLE;
                 state = S_WAIT;
                 next = time + 1;
+                idx_tmo = next + 15 * Z80FQ/FDD_RPS; // 15 disk turns
                 break;
             }
             end_waiting_am = next + 6*Z80FQ/FDD_RPS; // max wait disk 6 turns
@@ -394,13 +430,15 @@ void WD1793::find_marker()
    foundid = -1;
    if (seldrive->motor && seldrive->rawdata)
    {
-      unsigned div = seldrive->t.trklen*seldrive->t.ts_byte;
-      unsigned i = (unsigned)((next+tshift) % div) / seldrive->t.ts_byte;
+      unsigned div = seldrive->t.trklen*seldrive->t.ts_byte; // Длина дорожки в тактах cpu
+      unsigned i = (unsigned)((next+tshift) % div) / seldrive->t.ts_byte; // Позиция байта соответствующего текущему такту на дорожке
       unsigned wait = -1;
+
+      // Поиск заголовка минимально отстоящего от текущего байта
       for (unsigned is = 0; is < seldrive->t.s; is++)
       {
-         unsigned pos = seldrive->t.hdr[is].id - seldrive->t.trkd;
-         unsigned dist = (pos > i)? pos-i : seldrive->t.trklen+pos-i;
+         unsigned pos = seldrive->t.hdr[is].id - seldrive->t.trkd; // Смещение (в байтах) заголовка относительно начала дорожки
+         unsigned dist = (pos > i)? pos-i : seldrive->t.trklen+pos-i; // Расстояние (в байтах) от заголовка до текущего байта
          if (dist < wait)
          {
              wait = dist;
@@ -409,7 +447,7 @@ void WD1793::find_marker()
       }
 
       if (foundid != -1)
-          wait *= seldrive->t.ts_byte;
+          wait *= seldrive->t.ts_byte; // Задержка в тактах от текущего такта до такта чтения первого байта заголовка
       else
           wait = 10*Z80FQ/FDD_RPS;
 
@@ -467,7 +505,7 @@ unsigned char WD1793::in(unsigned char port)
 {
    process();
    if (port & 0x80) return rqs | 0x3F;
-   if (port == 0x1F) { rqs &= ~INTRQ; return status; }
+   if (port == 0x1F) { rqs &= ~INTRQ; return status & ((system & 8) ? 0xFF : ~WDS_HEADL); }
    if (port == 0x3F) return track;
    if (port == 0x5F) return sector;
    if (port == 0x7F) { status &= ~WDS_DRQ; rqs &= ~DRQ; return data; }
@@ -484,8 +522,45 @@ void WD1793::out(unsigned char port, unsigned char val)
       // force interrupt
       if ((val & 0xF0) == 0xD0)
       {
-         state = S_IDLE; rqs = INTRQ;
-         status &= ~WDS_BUSY;
+         u8 Cond = (val & 0xF);
+         next = comp.t_states + cpu.t;
+         cmd = val;
+
+         if(Cond == 0)
+         {
+             state = S_IDLE; rqs = 0;
+             status &= ~WDS_BUSY;
+             return;
+         }
+
+         if(Cond & 1) // unconditional int
+         {
+             state = S_IDLE; rqs = INTRQ;
+             status &= ~WDS_BUSY;
+             return;
+         }
+
+         if(Cond & 2) // int by idam (unimplemented yet)
+         {
+             state = S_IDLE; rqs = INTRQ;
+             status &= ~WDS_BUSY;
+             return;
+         }
+
+         if(Cond & 4) // int 1->0 rdy (unimplemented yet)
+         {
+             state = S_IDLE; rqs = INTRQ;
+             status &= ~WDS_BUSY;
+             return;
+         }
+
+         if(Cond & 8) // int 0->1 rdy (unimplemented yet)
+         {
+             state = S_IDLE; rqs = INTRQ;
+             status &= ~WDS_BUSY;
+             return;
+         }
+
          return;
       }
 
@@ -495,6 +570,8 @@ void WD1793::out(unsigned char port, unsigned char val)
       next = comp.t_states + cpu.t;
       status |= WDS_BUSY;
       rqs = 0;
+      idx_cnt = 0;
+      idx_tmo = LLONG_MAX;
 
       //-----------------------------------------------------------------------
 
@@ -546,7 +623,6 @@ void WD1793::out(unsigned char port, unsigned char val)
 
    if (port & 0x80) // FF
    { // system
-      system = val;
       drive = val & 3;
       side = ~(val >> 4) & 1;
       seldrive = &fdd[drive];
@@ -558,6 +634,8 @@ void WD1793::out(unsigned char port, unsigned char val)
          rqs = INTRQ;
          seldrive->motor = 0;
          state = S_IDLE;
+         idx_cnt = 0;
+         idx_status = 0;
 
          #if 0 // move head to trk00
          steptime = 6 * (Z80FQ / 1000); // 6ms
@@ -566,13 +644,42 @@ void WD1793::out(unsigned char port, unsigned char val)
            //seldrive->track = 0;
          #endif
       }
+      else
+      {
+          if((system ^ val) & SYS_HLT) // hlt 0->1
+          {
+              if(!(status & WDS_BUSY))
+              {
+                  idx_cnt++;
+              }
+          }
+      }
+      system = val;
    }
 }
 
 void WD1793::trdos_traps()
 {
    unsigned pc = (cpu.pc & 0xFFFF);
-   if (pc < 0x3E01) return;
+   if (pc < 0x3DFD) return;
+
+   // Позиционирование на соседнюю дорожку (пауза)
+   if (pc == 0x3DFD && bankr[0][0x3DFD] == 0x3E && bankr[0][0x3DFF] == 0x0E)
+   {
+       cpu.pc = cpu.DbgMemIf->rm(cpu.sp++);
+       cpu.pc |= (cpu.DbgMemIf->rm(cpu.sp++) << 8);
+       cpu.a = 0;
+       cpu.c = 0;
+   }
+
+   // Позиционирование на произвольную дорожку (пауза)
+   if (pc == 0x3EA0 && bankr[0][0x3EA0] == 0x06 && bankr[0][0x3EA2] == 0x3E)
+   {
+       cpu.pc = cpu.DbgMemIf->rm(cpu.sp++);
+       cpu.pc |= (cpu.DbgMemIf->rm(cpu.sp++) << 8);
+       cpu.a = 0;
+       cpu.b = 0;
+   }
 
    if (pc == 0x3E01 && bankr[0][0x3E01] == 0x0D) { cpu.a = cpu.c = 1; return; } // no delays
    if (pc == 0x3FEC && bankr[0][0x3FED] == 0xA2 &&
@@ -583,9 +690,13 @@ void WD1793::trdos_traps()
          cpu.hl++, cpu.b--;
          rqs &= ~DRQ; status &= ~WDS_DRQ;
       }
-      while (rwlen) { // move others
-         cpu.DbgMemIf->wm(cpu.hl, seldrive->t.trkd[rwptr++]); rwlen--;
-         cpu.hl++; cpu.b--;
+
+      if(seldrive->t.trkd)
+      {
+          while (rwlen) { // move others
+             cpu.DbgMemIf->wm(cpu.hl, seldrive->t.trkd[rwptr++]); rwlen--;
+             cpu.hl++; cpu.b--;
+          }
       }
       cpu.pc += 2; // skip INI
       return;

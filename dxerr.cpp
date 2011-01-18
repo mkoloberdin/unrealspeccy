@@ -5,7 +5,7 @@
 #include "util.h"
 
 #ifdef EMUL_DEBUG
-#include <dxerr8.h>
+#include "dxerr8.h"
 void printrdd(char *pr, HRESULT r)
 {
    color(CONSCLR_ERROR);

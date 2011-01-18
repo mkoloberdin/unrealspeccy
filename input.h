@@ -19,13 +19,16 @@ struct ATM_KBD
 struct K_INPUT
 {
 #pragma pack(push, 1)
-   union {
-      volatile unsigned char kbd[8];
-      volatile unsigned kbd_x4[2];
+   union
+   {
+      volatile unsigned char kbd[16];
+      volatile unsigned kbd_x4[4];
    };
-   union { // without keymatrix effect
-      volatile unsigned char rkbd[8];
-      volatile unsigned rkbd_x4[2];
+
+   union
+   { // without keymatrix effect
+      volatile unsigned char rkbd[16];
+      volatile unsigned rkbd_x4[4];
    };
 #pragma pack(pop)
 
@@ -63,6 +66,7 @@ struct K_INPUT
    void make_matrix();
    char readdevices();
    unsigned char read(unsigned char scan);
+   u8 read_quorum(u8 scan);
    void paste();
 
    K_INPUT()

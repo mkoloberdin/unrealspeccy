@@ -161,6 +161,9 @@ void FDD::addboot()
 
    // Проверка на то что диск имеет tr-dos формат
    const SECHDR *Hdr = t.get_sector(9);
+   if(!Hdr)
+       return;
+
    if((Hdr->l & 3) != 1) // Проверка кода размера сектора (1 - 256 байт)
        return;
 

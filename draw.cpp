@@ -226,7 +226,7 @@ void make_colortab(char flash_active)
       colortab_s24[a] = color << 24;
    }
 
-   if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450)
+   if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3 || conf.mem_model == MM_ATM450)
        atm_zc_tables(); // update with new flash bit
 }
 
@@ -515,7 +515,7 @@ void pixel_tables()
    if (temp.obpp > 8 && conf.noflic) calc_noflic_16_32();
 
    if ((temp.rflags & (RF_DRIVER|RF_2X|RF_USEFONT))==(RF_DRIVER|RF_2X) && // render="double"
-       (conf.mem_model == MM_ATM450 || conf.mem_model == MM_ATM710 || conf.mem_model == MM_PROFI))
+       (conf.mem_model == MM_ATM450 || conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3 || conf.mem_model == MM_PROFI))
       hires_sc_tables();
 }
 
@@ -653,7 +653,7 @@ void apply_video()
 {
    load_ula_preset();
    temp.rflags = renders[conf.render].flags;
-   if (conf.use_comp_pal && (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450 || conf.mem_model == MM_PROFI))
+   if (conf.use_comp_pal && (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3 || conf.mem_model == MM_ATM450 || conf.mem_model == MM_PROFI))
    {
       temp.rflags |= RF_COMPPAL | RF_PALB;
       // disable palette noflic, only if it is really used
@@ -813,10 +813,10 @@ void init_frame()
    // disable multicolors, border still works
    if ((temp.rflags & RF_BORDER) || // chunk/etc filter
        (conf.mem_model == MM_PROFI && (comp.pDFFD & 0x80)) ||   // profi hires screen
-       (conf.mem_model == MM_ATM710 && (comp.pFF77 & 7) != 3) ||  // ATM-2 hires screen
+       ((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)&& (comp.pFF77 & 7) != 3) ||  // ATM-2 hires screen
        (conf.mem_model == MM_ATM450 && (comp.aFE & 0x60) != 0x60)) // ATM-1 hires screen
    {
-       if ( conf.mem_model == MM_ATM710 && !cpu.dbgchk)
+       if ((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3) && !cpu.dbgchk)
        {
            // ATM2, один из расширенных видеорежимов
            AtmVideoCtrl.PrepareFrameATM2(comp.pFF77 & 7);

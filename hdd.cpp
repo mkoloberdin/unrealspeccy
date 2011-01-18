@@ -268,6 +268,7 @@ unsigned ATA_DEVICE::read_data()
    if (state == S_READ_SECTORS)
    {
 //       __debugbreak();
+//       printf("dev=%d, cnt=%d\n", device_id, reg.count);
        if(!--reg.count)
            command_ok();
        else
@@ -439,6 +440,7 @@ char ATA_DEVICE::exec_atapi_cmd(unsigned char cmd)
 
 void ATA_DEVICE::write(unsigned n_reg, unsigned char data)
 {
+//   printf("dev=%d, reg=%d, data=%02X\n", device_id, n_reg, data);
    if (!loaded())
        return;
    if (n_reg == 1)
@@ -451,7 +453,10 @@ void ATA_DEVICE::write(unsigned n_reg, unsigned char data)
    {
       regs[n_reg] = data;
       if (reg.control & CONTROL_SRST)
+      {
+//          printf("dev=%d, reset\n", device_id);
           reset(RESET_SRST);
+      }
       return;
    }
 
@@ -605,9 +610,9 @@ void ATA_DEVICE::read_sectors()
 
 /*
    if(reg.devhead & 0x40)
-       printf("lba=%d\n", *(unsigned*)(regs+3) & 0x0FFFFFFF);
+       printf("dev=%d lba=%d\n", device_id, *(unsigned*)(regs+3) & 0x0FFFFFFF);
    else
-       printf("c/h/s=%d/%d/%d\n", reg.cyl, (reg.devhead & 0xF), reg.sec);
+       printf("dev=%d c/h/s=%d/%d/%d\n", device_id, reg.cyl, (reg.devhead & 0xF), reg.sec);
 */
 }
 
@@ -703,6 +708,14 @@ void ATA_DEVICE::handle_atapi_packet_emulate()
                      (u32(atapi_p.cdb.CDB10.LogicalBlockByte1) << 16) |
                      (u32(atapi_p.cdb.CDB10.LogicalBlockByte2) << 8) |
                      atapi_p.cdb.CDB10.LogicalBlockByte3;
+
+      if(cnt * 2048 > sizeof(transbf))
+      {
+          reg.status = STATUS_DRDY | STATUS_DSC | STATUS_ERR;
+          reg.err = ERR_UNC | ERR_IDNF;
+          state = S_IDLE;
+          return;
+      }
 
       for(unsigned i = 0; i < cnt; i++, pos++)
       {

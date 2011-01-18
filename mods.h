@@ -1,10 +1,10 @@
 #pragma once
 /* edit this file to make optimized versions without unnecessary parts */
 
-#define VERS_STRING  "0.37.3"   // version for monitor (exact 6 chars)
-#define VERS_STRING_ VERS_STRING    // version for startup string (any length)
+#define VERS_STRING  "0.37.4"   // version for monitor (exact 6 chars)
+#define VERS_STRING_ VERS_STRING //##".alpha"  // version for startup string (any length)
 #define VER_HL 0x0025           // major version
-#define VER_A  0x03             // minor version and beta flag
+#define VER_A  0x04             // minor version and beta flag
 
 #define MOD_GSZ80     // exact gs emulation through Z80/ROM/DACs
 #define MOD_GSBASS    // fast gs emulation via sampleplayer and BASS mod-player

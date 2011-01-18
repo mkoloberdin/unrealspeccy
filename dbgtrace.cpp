@@ -9,6 +9,7 @@
 #include "dbgcmd.h"
 #include "memory.h"
 #include "z80asm.h"
+#include "z80/op_system.h"
 #include "util.h"
 
 int disasm_line(unsigned addr, char *line)
@@ -63,6 +64,10 @@ unsigned tracewndflags()
    }
 
    unsigned fl = 0;
+   if(opcode == 0x76) // halt
+   {
+       return TWF_BLKCMD;
+   }
 
    if (ed)
    {
@@ -511,8 +516,16 @@ void mon_step()
    cpu.SetLastT();
    prevcpu = cpu;
 //   CpuMgr.CopyToPrev();
-   cpu.halted = 0;
+   if(cpu.t >= conf.intlen)
+       cpu.int_pend = false;
    cpu.Step();
+   if (cpu.int_pend && cpu.iff1 && cpu.t != cpu.eipos && // int enabled in CPU not issued after EI
+       cpu.int_gate) // int enabled by ATM hardware
+   {
+      handle_int(&cpu, cpu.IntVec());
+   }
+
+   cpu.CheckNextFrame();
    cpu.trace_curs = cpu.pc;
 }
 

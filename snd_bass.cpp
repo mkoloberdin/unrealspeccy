@@ -131,7 +131,6 @@ void Load()
        errexit("can't import BASS API: BASS_StreamCreateFileUser");
    if (!StreamFree)
        errexit("can't import BASS API: BASS_StreamFree");
-
 }
 
 void Unload()

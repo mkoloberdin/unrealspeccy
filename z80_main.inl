@@ -5,6 +5,7 @@ unsigned char rm(unsigned addr)
    unsigned char *membit = membits + (addr & 0xFFFF);
    *membit |= MEMBITS_R;
    dbgbreak |= (*membit & MEMBITS_BPR);
+   cpu.dbgbreak |= (*membit & MEMBITS_BPR);
 #endif
 
 #ifdef MOD_GSZ80
@@ -27,6 +28,7 @@ void wm(unsigned addr, unsigned char val)
    unsigned char *membit = membits + (addr & 0xFFFF);
    *membit |= MEMBITS_W;
    dbgbreak |= (*membit & MEMBITS_BPW);
+   cpu.dbgbreak |= (*membit & MEMBITS_BPW);
 #endif
 
 #ifdef MOD_GSZ80
@@ -78,7 +80,7 @@ Z80INLINE unsigned char m1_cycle(Z80 *cpu)
 
 //#include "z80/cmd.cpp"
 
-void __cdecl step()
+void Z80FAST step()
 {
    if (comp.flags & CF_SETDOSROM)
    {
@@ -107,7 +109,7 @@ void __cdecl step()
           comp.wd.trdos_traps();
    }
 
-   if (conf.tape_traps)
+   if (comp.tape.play_pointer && conf.tape_traps && (cpu.pc & 0xFFFF) == 0x056B)
        tape_traps();
 
    if (comp.tape.play_pointer && !conf.sound.enabled)
@@ -147,21 +149,28 @@ void z80loop()
 {
    cpu.haltpos = 0;
 
+   cpu.int_pend = true;
    // INT check separated from main Z80 loop to improve emulation speed
    while (cpu.t < conf.intlen)
    {
-      if (cpu.iff1 && cpu.t != cpu.eipos && // int enabled in CPU not issued after EI
-           !(conf.mem_model == MM_ATM710 && !(comp.pFF77 & 0x20))) // int enabled by ATM hardware
-         handle_int(&cpu, (comp.flags & CF_Z80FBUS)? (BYTE)rdtsc() : 0xFF);
 #ifdef Z80_DBG
       debug_events(&cpu);
 #endif
+      if (cpu.int_pend && cpu.iff1 && cpu.t != cpu.eipos && // int enabled in CPU not issued after EI
+           !((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3) && !(comp.pFF77 & 0x20))) // int enabled by ATM hardware
+      {
+         handle_int(&cpu, cpu.IntVec()); // Начало обработки int (запись в стек адреса возврата и т.п.)
+      }
+      step();
+
+      if (!cpu.int_pend)
+          break;
+/*
       if (cpu.halted)
           break;
-
-      step();
+*/
    }
-
+   cpu.int_pend = false;
    cpu.eipos = -1;
 
    while (cpu.t < conf.frame)
@@ -169,6 +178,7 @@ void z80loop()
 #ifdef Z80_DBG
       debug_events(&cpu);
 #endif
+/*
       if (cpu.halted)
       {
          //cpu.t += 4, cpu.r = (cpu.r & 0x80) + ((cpu.r+1) & 0x7F); continue;
@@ -177,6 +187,7 @@ void z80loop()
          cpu.r_low += st;
          break;
       }
+*/
       step();
 
       if(nmi_pending)

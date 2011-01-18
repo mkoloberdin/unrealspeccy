@@ -225,6 +225,8 @@
 #define IDC_ALTLOCK                     1181
 #define IDC_ATMPAL                      1181
 #define IDC_ATM_KBD                     1182
+#define IDC_ATMPAL2                     1182
+#define IDC_PROFI_MONOCHROME            1182
 #define IDC_R3039                       1183
 #define IDC_R415A                       1184
 #define IDC_R617A                       1185
@@ -276,9 +278,12 @@
 #define IDC_CMOS_RUS                    1226
 #define IDC_TOTAL_ROM                   1227
 #define IDC_FLOAT_BUS                   1228
+#define IDC_RAM4096                     1228
 #define IDC_FLOAT_DOS                   1229
 #define IDE_BIGROM                      1229
 #define IDC_MEM_R                       1230
+#define IDC_FLOAT_DOS2                  1230
+#define IDC_PORT_FF                     1230
 #define IDC_MEM_W                       1231
 #define IDC_SMUC                        1232
 #define IDC_MOUSE_NONE                  1233

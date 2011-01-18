@@ -186,10 +186,12 @@ void load_ula_preset()
    sprintf(name, "PRESET.%s", ulapreset[conf.ula_preset]);
    static char defaults[] = "71680,17989,224,50,32,0,0";
    GetPrivateProfileString("ULA", name, defaults, line, sizeof line, ininame);
-   unsigned t1, t2, t3, t4;
-   sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d,%d", &/*conf.frame*/frametime/*Alone Coder*/, &conf.paper, &conf.t_line, &conf.intfq, &conf.intlen, &t1, &t2, &t3, &t4);
+   unsigned t1, t2, t3, t4, t5;
+   sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%u", &/*conf.frame*/frametime/*Alone Coder*/, &conf.paper,
+       &conf.t_line, &conf.intfq, &conf.intlen, &t1, &t2, &t3, &t4, &t5);
    conf.even_M1 = (unsigned char)t1; conf.border_4T = (unsigned char)t2;
    conf.floatbus = (unsigned char)t3; conf.floatdos = (unsigned char)t4;
+   conf.portff = t5 & 1;
 }
 
 void load_ay_stereo()
@@ -243,6 +245,7 @@ void load_config(const char *fname)
    static const char* input = "INPUT";
    static const char* colors = "COLORS";
    static const char* ay = "AY";
+   static const char* saa1099 = "SAA1099";
    static const char* atm = "ATM";
    static const char* hdd = "HDD";
    static const char* rom = "ROM";
@@ -278,21 +281,25 @@ void load_config(const char *fname)
 
    GetPrivateProfileString(rom, "ATM1", nil, conf.atm1_rom_path, sizeof conf.atm1_rom_path, ininame);
    GetPrivateProfileString(rom, "ATM2", nil, conf.atm2_rom_path, sizeof conf.atm2_rom_path, ininame);
+   GetPrivateProfileString(rom, "ATM3", nil, conf.atm3_rom_path, sizeof conf.atm3_rom_path, ininame);
    GetPrivateProfileString(rom, "SCORP", nil, conf.scorp_rom_path, sizeof conf.scorp_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFROM", nil, conf.prof_rom_path, sizeof conf.prof_rom_path, ininame);
    GetPrivateProfileString(rom, "PROFI", nil, conf.profi_rom_path, sizeof conf.profi_rom_path, ininame);
 //[vv]   GetPrivateProfileString(rom, "KAY", nil, conf.kay_rom_path, sizeof conf.kay_rom_path, ininame);
    GetPrivateProfileString(rom, "PLUS3", nil, conf.plus3_rom_path, sizeof conf.plus3_rom_path, ininame);
+   GetPrivateProfileString(rom, "QUORUM", nil, conf.quorum_rom_path, sizeof conf.quorum_rom_path, ininame);
    #ifdef MOD_GSZ80
    GetPrivateProfileString(rom, "GS", nil, conf.gs_rom_path, sizeof conf.gs_rom_path, ininame);
    addpath(conf.gs_rom_path);
    #endif
    addpath(conf.atm1_rom_path);
    addpath(conf.atm2_rom_path);
+   addpath(conf.atm3_rom_path);
    addpath(conf.scorp_rom_path);
    addpath(conf.prof_rom_path);
    addpath(conf.profi_rom_path);
    addpath(conf.plus3_rom_path);
+   addpath(conf.quorum_rom_path);
 //[vv]   addpath(conf.kay_rom_path);
 
    GetPrivateProfileString(rom, "ROMSET", "default", line, sizeof line, ininame);
@@ -310,7 +317,7 @@ void load_config(const char *fname)
    unsigned i; //Alone Coder 0.36.7
    for (/*unsigned*/ i = 0; i < N_MM_MODELS; i++)
       if (!strnicmp(line, mem_model[i].shortname, strlen(mem_model[i].shortname)))
-         conf.mem_model = (MEM_MODEL)i;
+         conf.mem_model = mem_model[i].Model;
    conf.ramsize = GetPrivateProfileInt(misc, "RamSize", 128, ininame);
 
    GetPrivateProfileString(misc, "DIR", nil, conf.workdir, sizeof conf.workdir, ininame);
@@ -342,6 +349,7 @@ void load_config(const char *fname)
    conf.even_M1 = GetPrivateProfileInt(ula, "EvenM1", 0, ininame);
    conf.floatbus = GetPrivateProfileInt(ula, "FloatBus", 0, ininame);
    conf.floatdos = GetPrivateProfileInt(ula, "FloatDOS", 0, ininame);
+   conf.portff = GetPrivateProfileInt(ula, "PortFF", 0, ininame);
 
    conf.ula_preset=-1;
    add_presets(ula, "preset", &num_ula, ulapreset, &conf.ula_preset);
@@ -499,6 +507,7 @@ void load_config(const char *fname)
    conf.sound.covoxDD_vol = GetPrivateProfileInt(sound, "CovoxDDVol", 4000, ininame);
    conf.sound.sd = GetPrivateProfileInt(sound, "SD", 0, ininame);
    conf.sound.sd_vol = GetPrivateProfileInt(sound, "SDVol", 4000, ininame);
+   conf.sound.saa1099 = GetPrivateProfileInt(sound, "Saa1099", 0, ininame);
 
    #ifdef MOD_GS
    conf.sound.gs_vol = GetPrivateProfileInt(sound, "GSVol", 8000, ininame);
@@ -507,6 +516,8 @@ void load_config(const char *fname)
    #ifdef MOD_GSBASS
    conf.sound.bass_vol = GetPrivateProfileInt(sound, "BASSVol", 8000, ininame);
    #endif
+
+   conf.sound.saa1099fq = GetPrivateProfileInt(saa1099, "Fq", 8000000, ininame);
 
    add_presets(ay, "VOLTAB", &num_ayvols, ayvols, &conf.sound.ay_vols);
    add_presets(ay, "STEREO", &num_aystereo, aystereo, &conf.sound.ay_stereo);
@@ -530,8 +541,13 @@ void load_config(const char *fname)
 
    GetPrivateProfileString(input, "ZXKeyMap", "default", conf.zxkeymap, sizeof conf.zxkeymap, ininame);
    for (i = 0; i < zxk_maps_count; i++)
+   {
       if (!strnicmp(conf.zxkeymap, zxk_maps[i].name, strlen(zxk_maps[i].name)))
-         { conf.input.active_zxk = &zxk_maps[i] ; break; }
+      {
+          conf.input.active_zxk = &zxk_maps[i];
+          break;
+      }
+   }
 
    GetPrivateProfileString(input, "KeybLayout", "default", line, sizeof(line), ininame);
    ptr = strtok(line, " ;");
@@ -559,6 +575,8 @@ void load_config(const char *fname)
    conf.input.paste_newline = GetPrivateProfileInt(input, "NewlineDelay", 20, ininame);
    conf.input.keybpcmode = GetPrivateProfileInt(input, "KeybPCMode", 0, ininame);
    conf.atm.xt_kbd = GetPrivateProfileInt(input, "ATMKBD", 0, ininame);
+   conf.input.JoyId = GetPrivateProfileInt(input, "Joy", 0, ininame);
+
    GetPrivateProfileString(input, "Fire", "0", line, sizeof line, ininame);
    conf.input.firenum = 0; conf.input.fire = 0;
    zxkeymap *active_zxk = conf.input.active_zxk;
@@ -610,6 +628,8 @@ void load_config(const char *fname)
    conf.ide_scheme = IDE_NONE;
    if(!strnicmp(line, "ATM", 3))
        conf.ide_scheme = IDE_ATM;
+   else if(!strnicmp(line, "NEMO-DIVIDE", 11))
+       conf.ide_scheme = IDE_NEMO_DIVIDE;
    else if(!strnicmp(line, "NEMO-A8", 7))
        conf.ide_scheme = IDE_NEMO_A8;
    else if(!strnicmp(line, "NEMO", 4))
@@ -618,6 +638,8 @@ void load_config(const char *fname)
        conf.ide_scheme = IDE_SMUC;
    else if(!strnicmp(line, "PROFI", 5))
        conf.ide_scheme = IDE_PROFI;
+   else if(!strnicmp(line, "DIVIDE", 6))
+       conf.ide_scheme = IDE_DIVIDE;
 
    conf.ide_skip_real = GetPrivateProfileInt(hdd, "SkipReal", 0, ininame);
    GetPrivateProfileString(hdd, "CDROM", "SPTI", line, sizeof line, ininame);
@@ -732,7 +754,7 @@ void apply_memory()
    }
    #endif
 
-   if (conf.ramsize != 128 && conf.ramsize != 256 && conf.ramsize != 512 && conf.ramsize != 1024)
+   if (conf.ramsize != 128 && conf.ramsize != 256 && conf.ramsize != 512 && conf.ramsize != 1024 && conf.ramsize != 4096)
       conf.ramsize = 0;
    if (!(mem_model[conf.mem_model].availRAMs & conf.ramsize)) {
       conf.ramsize = mem_model[conf.mem_model].defaultRAM;
@@ -744,6 +766,7 @@ void apply_memory()
    switch(conf.mem_model)
    {
    case MM_ATM710:
+   case MM_ATM3:
       base_sos_rom = ROM_BASE_M + 0*PAGE;
       base_dos_rom = ROM_BASE_M + 1*PAGE;
       base_128_rom = ROM_BASE_M + 2*PAGE;
@@ -765,12 +788,21 @@ void apply_memory()
       base_sos_rom = ROM_BASE_M + 3*PAGE;
    break;
 
+   case MM_QUORUM:
+      base_sys_rom = ROM_BASE_M + 0*PAGE;
+      base_dos_rom = ROM_BASE_M + 1*PAGE;
+      base_128_rom = ROM_BASE_M + 2*PAGE;
+      base_sos_rom = ROM_BASE_M + 3*PAGE;
+   break;
+
+/*
    case MM_KAY:
       base_128_rom = ROM_BASE_M + 0*PAGE;
       base_sos_rom = ROM_BASE_M + 1*PAGE;
       base_dos_rom = ROM_BASE_M + 2*PAGE;
       base_sys_rom = ROM_BASE_M + 3*PAGE;
    break;
+*/
 
    default:
       base_128_rom = ROM_BASE_M + 0*PAGE;
@@ -794,9 +826,9 @@ void apply_memory()
    }
    else
    {
-      if (conf.mem_model == MM_ATM710)
+      if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
       {
-         romsize = load_rom(conf.atm2_rom_path, ROM_BASE_M, 64);
+         romsize = load_rom(conf.mem_model == MM_ATM710 ? conf.atm2_rom_path : conf.atm3_rom_path, ROM_BASE_M, 64);
          if (romsize != 64 && romsize != 128 && romsize != 512 && romsize != 1024)
             errexit("invalid ROM size for ATM bios");
          unsigned char *lastpage = ROM_BASE_M + (romsize - 64) * 1024;
@@ -821,6 +853,7 @@ void apply_memory()
 //[vv]         case MM_KAY: romname = conf.kay_rom_path; break;
          case MM_ATM450: romname = conf.atm1_rom_path; break;
          case MM_PLUS3: romname = conf.plus3_rom_path; break;
+         case MM_QUORUM: romname = conf.quorum_rom_path; break;
 
          default:
              errexit("ROMSET should be defined for this memory model");
@@ -882,6 +915,7 @@ void applyconfig()
 
    input.firedelay = 1; // if conf.input.fire changed
    input.clear_zx();
+
    modem.open(conf.modem_port);
 
    load_atariset();

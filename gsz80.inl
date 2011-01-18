@@ -1,7 +1,7 @@
 Z80INLINE unsigned char rm(unsigned addr)
 {
 #ifdef Z80_DBG
-   unsigned char *membit = membits + (addr & 0xFFFF);
+   unsigned char *membit = z80gs::membits + (addr & 0xFFFF);
    *membit |= MEMBITS_R;
    dbgbreak |= (*membit & MEMBITS_BPR);
    gscpu.dbgbreak |= (*membit & MEMBITS_BPR);
@@ -16,7 +16,7 @@ Z80INLINE unsigned char rm(unsigned addr)
 Z80INLINE void wm(unsigned addr, unsigned char val)
 {
 #ifdef Z80_DBG
-   unsigned char *membit = membits + (addr & 0xFFFF);
+   unsigned char *membit = z80gs::membits + (addr & 0xFFFF);
    *membit |= MEMBITS_W;
    dbgbreak |= (*membit & MEMBITS_BPW);
    gscpu.dbgbreak |= (*membit & MEMBITS_BPW);
@@ -53,6 +53,7 @@ void z80loop()
 #ifdef Z80_DBG
          debug_events(&gscpu);
 #endif
+/* [vv]
          if (gscpu.halted)
          {
             unsigned st = (GSCPUINT - gscpu.t - 1) / 4 + 1;
@@ -60,13 +61,15 @@ void z80loop()
             gscpu.r_low += st;
             break;
          }
+*/
          stepi();
       }
       if (gscpu.t < GSCPUINT)
           break;
 
+      gscpu.int_pend = true;
       if (gscpu.iff1 && gscpu.t != gscpu.eipos) // interrupt, but not after EI
-         handle_int(&gscpu, 0xFF);
+         handle_int(&gscpu, gscpu.IntVec());
 
       gscpu.t -= GSCPUINT;
       gs_t_states += GSCPUINT;

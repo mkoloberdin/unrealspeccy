@@ -147,6 +147,7 @@ void __cdecl BankNames(int i, char *Name)
     if (IsRom)
         sprintf(Name, "ROM%2X", rom_bank);
 
+
     if (bankr[i] == base_sos_rom)
         strcpy(Name, "BASIC");
     if (bankr[i] == base_dos_rom)
@@ -185,7 +186,9 @@ void showports()
    sprintf(ln, "  FE:%02X", comp.pFE);
    tprint(ports_x, ports_y, ln, W_OTHER);
    sprintf(ln, "7FFD:%02X", comp.p7FFD);
-   tprint(ports_x, ports_y+1, ln, W_OTHER);
+   tprint(ports_x, ports_y+1, ln, (comp.p7FFD & 0x20) && 
+   !(conf.mem_model == MM_PENTAGON && conf.ramsize == 1024 ||
+     conf.mem_model == MM_PROFI && (comp.pDFFD & 0x10)) ? W_48K : W_OTHER);
 
    switch (conf.mem_model)
    {
@@ -202,13 +205,17 @@ void showports()
          dbg_extport = 0xFDFD; dgb_extval = comp.pFDFD;
       break;
       case MM_ATM710:
+      case MM_ATM3:
          dbg_extport = (comp.aFF77 & 0xFFFF);
          dgb_extval = comp.pFF77;
       break;
+      case MM_QUORUM:
+         dbg_extport = 0x0000; dgb_extval = comp.p00;
+      break;
       default:
-         dbg_extport = 0;
+         dbg_extport = -1;
    }
-   if (dbg_extport)
+   if (dbg_extport != -1)
        sprintf(ln, "%04X:%02X", dbg_extport, dgb_extval);
    else
        sprintf(ln, "cmos:%02X", comp.cmos_addr);
@@ -227,7 +234,7 @@ void showdos()
 //    SECT:00
 //    T:00/01
 //    S:00/00
-   if (conf.trdos_present) comp.wd.process();
+//[vv]   if (conf.trdos_present) comp.wd.process();
    char ln[64]; unsigned char atr = conf.trdos_present ? W_OTHER : W_OTHEROFF;
    sprintf(ln, "CD:%02X%02X", comp.wd.cmd, comp.wd.data);
    tprint(dos_x, dos_y, ln, atr);

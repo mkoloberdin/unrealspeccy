@@ -16,8 +16,112 @@ void out(unsigned port, unsigned char val)
    port &= 0xFFFF;
    brk_port_out = port; brk_port_val = val;
 
+   // В начале дешифрация портов по полным 8бит
+   #ifdef MOD_GS
+   // 10111011 | BB
+   // 10110011 | B3
+   // 00110011 | 33
+   if ((port & 0xFF) == 0x33 && conf.gs_type) // 33
+   {
+       out_gs(port, val);
+       return;
+   }
+   if ((port & 0xF7) == 0xB3 && conf.gs_type) // BB, B3
+   {
+       out_gs(port, val);
+       return;
+   }
+   #endif
+
+   // z-controller
+   if (conf.zc && (port & 0xFF) == 0x57)
+   {
+       Zc.Wr(port, val);
+       return;
+   }
+
+   // divide на nemo портах
+   if(conf.ide_scheme == IDE_NEMO_DIVIDE)
+   {
+       if((port & 0x1E) == 0x10) // rrr1000x
+       {
+           if((port & 0xFF) == 0x11)
+           {
+               comp.ide_write = val;
+               comp.ide_hi_byte_w = 0;
+               comp.ide_hi_byte_w1 = 1;
+               return;
+           }
+
+           if((port & 0xFE) == 0x10)
+           {
+               comp.ide_hi_byte_w ^= 1;
+
+               if(comp.ide_hi_byte_w1) // Была запись в порт 0x11 (старший байт уже запомнен)
+               {
+                   comp.ide_hi_byte_w1 = 0;
+               }
+               else
+               {
+                   if(comp.ide_hi_byte_w) // Запоминаем младший байт
+                   {
+                       comp.ide_write = val;
+                       return;
+                   }
+                   else // Меняем старший и младший байты местами (как этого ожидает write_hdd_5)
+                   {
+                       u8 tmp = comp.ide_write;
+                       comp.ide_write = val;
+                       val = tmp;
+                   }
+               }
+           }
+           else
+           {
+               comp.ide_hi_byte_w = 0;
+           }
+           goto write_hdd_5;
+       }
+       else if((port & 0xFF) == 0xC8)
+       {
+           return hdd.write(8, val);
+       }
+   }
+
+   // Порт расширений АТМ3
+   if((conf.mem_model == MM_ATM3) && ((port & 0xFF) == 0xBF))
+   {
+       comp.pBF = val;
+       set_banks();
+       return;
+   }
+
    if (comp.flags & CF_DOSPORTS)
    {
+#ifdef VG_EMUL // VG эмулятор от savelij'а
+      if(conf.mem_model == MM_PENTAGON)
+      {
+          u8 port8 = port & 0xFF;
+          switch(port8)
+          {
+          case 0x1D: // Переключение ПЗУ
+              comp.p1D = val;
+              set_banks();
+          return;
+          case 0x3D: // Переключение ОЗУ 0x8000-0xBFFF
+              comp.p3D = val;
+              set_banks();
+          return;
+          case 0x5D:
+              comp.p5D = val;
+          return;
+          case 0x7D:
+              comp.p7D = val;
+          return;
+          }
+      }
+#endif
+
       if (conf.ide_scheme == IDE_ATM && (port & 0x1F) == 0x0F)
       {
          if (port & 0x100) { comp.ide_write = val; return; }
@@ -28,7 +132,7 @@ void out(unsigned port, unsigned char val)
          if (port)
              hdd.write(port, val);
          else
-             hdd.write_data(val + (comp.ide_write << 8));
+             hdd.write_data(val | (comp.ide_write << 8));
          return;
       }
 
@@ -78,19 +182,30 @@ void out(unsigned port, unsigned char val)
       }
 
       unsigned char p1 = (unsigned char)port;
-      if (conf.mem_model == MM_ATM710)
+      if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
       {
-         if ((p1 & 0x9F) == 0x17)
+         if ((conf.mem_model == MM_ATM3) && ((port & 0x3FFF) == 0x37F7)) // x7f7 ATM3 4Mb memory manager
+         {
+             unsigned idx = ((comp.p7FFD & 0x10) >> 2) | ((port >> 14) & 3);
+             comp.pFFF7[idx] = (comp.pFFF7[idx] & ~0x1FF) | (val ^ 0xFF); // always ram
+             set_banks();
+             return;
+         }
+
+         if (p1 == 0x77) // xx77
          {
              set_atm_FF77(port, val);
              return;
          }
-         if ((p1 & 0x9F) == 0x97)
+
+         u32 mask = (conf.mem_model == MM_ATM3) ? 0x3FFF : 0x00FF;
+         if ((port & mask) == (0x3FF7 & mask)) // xff7
          {
-             comp.pFFF7[((comp.p7FFD & 0x10) >> 2) + ((port >> 14) & 3)] = val ^ 0xFF;
+             comp.pFFF7[((comp.p7FFD & 0x10) >> 2) | ((port >> 14) & 3)] = (((val & 0xC0) << 2) | (val & 0x3F)) ^ 0x33F;
              set_banks();
              return;
          }
+
          if ((p1 & 0x9F) == 0x9F && !(comp.aFF77 & 0x4000))
              atm_writepal(val); // don't return - write to TR-DOS system port
       }
@@ -135,7 +250,7 @@ void out(unsigned port, unsigned char val)
                           return;
                       }
                       port >>= 8;
-                      goto write_hdd;              
+                      goto write_hdd;
                   }
 
                   // cs3
@@ -150,34 +265,79 @@ void out(unsigned port, unsigned char val)
           else
           {
               // BDI ports
-              if((p1 & 0x83) == 0x03)  // WD93 ports 1F, 3F, 7F
+              if((p1 & 0x83) == 0x03)  // WD93 ports 1F, 3F, 5F, 7F
               {
                   comp.wd.out((p1 & 0x60) | 0x1F,val);
                   return;
-              } 
+              }
 
               if((p1 & 0xE3) == ((comp.pDFFD & 0x20) ? 0xA3 : 0xE3)) // port FF
               {
                   comp.wd.out(0xFF,val);
                   return;
               }
-          }        
+          }
       }
 
-      if ((p1 & 0x1F) == 0x1F)
+      if(conf.mem_model == MM_QUORUM /* && !(comp.p00 & Q_TR_DOS)*/) // cpm ports
+      {
+          if((p1 & 0xFC) == 0x80) // 80, 81, 82, 83
+          {
+              p1 = ((p1 & 3) << 5) | 0x1F;
+
+              comp.wd.out(p1, val);
+              return;
+          }
+
+          if(p1 == 0x85) // 85
+          {
+//            01 -> 00 A
+//            10 -> 01 B
+//            00 -> 11 D (unused)
+//            11 -> 11 D (unused)
+              static const u8 drv_decode[] = { 3, 0, 1, 3 };
+              u8 drv = drv_decode[val & 3];
+              comp.wd.out(0xFF, ((val & ~3) ^ 0x10) | drv);
+              return;
+          }
+      }
+      else if ((p1 & 0x1F) == 0x1F) // 1F, 3F, 5F, 7F, FF
       {
           comp.wd.out(p1, val);
           return;
       }
       // don't return - out to port #FE works in trdos!
    }
-   else
+   else // не dos
    {
+         if(((port & 0xA3) == 0xA3) && (conf.ide_scheme == IDE_DIVIDE))
+         {
+             if((port & 0xFF) == 0xA3)
+             {
+                 comp.ide_hi_byte_w ^= 1;
+                 if(comp.ide_hi_byte_w)
+                 {
+                     comp.ide_write = val;
+                     return;
+                 }
+                 u8 tmp = comp.ide_write;
+                 comp.ide_write = val;
+                 val = tmp;
+             }
+             else
+             {
+                 comp.ide_hi_byte_w = 0;
+             }
+             port >>= 2;
+             goto write_hdd;
+         }
+
          if ((unsigned char)port == 0x1F && conf.sound.ay_scheme == AY_SCHEME_POS)
          {
              comp.active_ay = val & 1;
              return;
          }
+
          if (!(port & 6) && (conf.ide_scheme == IDE_NEMO || conf.ide_scheme == IDE_NEMO_A8))
          {
              unsigned hi_byte = (conf.ide_scheme == IDE_NEMO)? (port & 1) : (port & 0x100);
@@ -198,6 +358,13 @@ void out(unsigned port, unsigned char val)
          }
    }
 
+   if((port & 0xFF) == 0x00 && conf.mem_model == MM_QUORUM)
+   {
+       comp.p00 = val;
+       set_banks();
+       return;
+   }
+
    #ifdef MOD_VID_VD
    if ((unsigned char)port == 0xDF)
    {
@@ -208,10 +375,17 @@ void out(unsigned port, unsigned char val)
    #endif
 
    // port #FE
+   bool pFE;
+
    // scorp  xx1xxx10 /dos=1 (sc16 green)
-   // others xxxxxxx0
-   if (!(conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && !(port & 1) ||
-       (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && !(comp.flags & CF_DOSPORTS) && (port & 0x23) == (0xFE & 0x23))
+   if((conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && !(comp.flags & CF_DOSPORTS))
+       pFE = ((port & 0x23) == (0xFE & 0x23));
+   else if(conf.mem_model == MM_QUORUM) // 1xx11xx0
+       pFE = ((port & 0x99) == (0xFE & 0x99));
+   else // others xxxxxxx0
+       pFE = !(port & 1);
+
+   if (pFE)
    {
 //[vv]      assert(!(val & 0x08));
 
@@ -227,7 +401,7 @@ void out(unsigned port, unsigned char val)
 
 
       unsigned char new_border = (val & 7);
-      if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM450)
+      if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3 || conf.mem_model == MM_ATM450)
           new_border += ((port & 8) ^ 8);
       if (comp.border_attr ^ new_border)
           update_screen();
@@ -269,7 +443,7 @@ void out(unsigned port, unsigned char val)
 
          if ((port & 0xC003) == (0x1FFD & 0xC003) && conf.mem_model == MM_KAY)
              goto set1FFD;
-                       
+
          // 00xxxxxxxx1xxx01 (sc16 green)
          if ((port & 0xC023) == (0x1FFD & 0xC023) && (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP))
          {
@@ -298,6 +472,10 @@ set1FFD:
          // 01xxxxxxxx1xxx01 (sc16 green)
          if ((port & 0xC023) != (0x7FFD & 0xC023) && (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP))
              return;
+         // 0xxxxxxxxxx11x0x
+         if ((port & 0x801A) != (0x7FFD & 0x801A) && (conf.mem_model == MM_QUORUM))
+             return;
+
          // 7FFD
          if (comp.p7FFD & 0x20)
          { // 48k lock
@@ -334,6 +512,14 @@ set1FFD:
           return;
       }
 
+      // 1x0xxxxxxxx11x0x
+      if ((port & 0xA01A) == (0x80FD & 0xA01A) && conf.mem_model == MM_QUORUM)
+      {
+          comp.p80FD = val;
+          set_banks();
+          return;
+      }
+
       if ((port & 0xC0FF) == 0xC0FD)
       { // A15=A14=1, FxFD - AY select register
          if ((conf.sound.ay_scheme == AY_SCHEME_CHRV) && ((val & 0xF8) == 0xF8)) //Alone Coder
@@ -361,25 +547,6 @@ set1FFD:
       return;
    }
 
-   #ifdef MOD_GS
-   if ((port & 0xFF) == 0x33 && conf.gs_type) // ngs
-   {
-       out_gs(port, val);
-       return;
-   }
-   if ((port & 0xF7) == 0xB3 && conf.gs_type)
-   {
-       out_gs(port, val);
-       return;
-   }
-   #endif
-
-   if (conf.zc && (port & 0xFF) == 0x57)
-   {
-       Zc.Wr(port, val);
-       return;
-   }
-
    if (conf.sound.sd && (port & 0xAF) == 0x0F)
    { // soundrive
 //      __debugbreak();
@@ -399,6 +566,16 @@ set1FFD:
       covFB_vol = val*conf.sound.covoxFB_vol/0x100;
       return;
    }
+
+   if (conf.sound.saa1099 && ((port & 0xFF) == 0xFF)) // saa1099
+   {
+       if(port & 0x100)
+           Saa1099.WrCtl(val);
+       else
+           Saa1099.WrData(temp.sndblock? 0 : cpu.t, val);
+       return;
+   }
+
    if (port == 0xEFF7 && conf.mem_model == MM_PENTAGON)
    {
       unsigned char oldpEFF7 = comp.pEFF7; //Alone Coder 0.36.4
@@ -422,14 +599,16 @@ set1FFD:
           set_banks(); //Alone Coder 0.36.4
       return;
    }
-   if (conf.cmos && (comp.pEFF7 & EFF7_CMOS) && conf.mem_model == MM_PENTAGON)
+   if (conf.cmos && (((comp.pEFF7 & EFF7_CMOS) && conf.mem_model == MM_PENTAGON) || conf.mem_model == MM_ATM3))
    {
-      if (port == 0xDFF7)
+      unsigned mask = (conf.mem_model == MM_ATM3 && (comp.flags & CF_DOSPORTS)) ? ~0x100 : 0xFFFF;
+
+      if (port == (0xDFF7 & mask))
       {
           comp.cmos_addr = val;
           return;
       }
-      if (port == 0xBFF7)
+      if (port == (0xBFF7 & mask))
       {
           cmos_write(val);
           return;
@@ -449,8 +628,75 @@ __inline unsigned char in1(unsigned port)
        __debugbreak();
 */
 
+   // В начале дешифрация портов по полным 8бит
+   // ngs
+   #ifdef MOD_GS
+   if ((port & 0xF7) == 0xB3 && conf.gs_type)
+       return in_gs(port);
+   #endif
+
+   // z-controller
+   if (conf.zc && (port & 0xFF) == 0x57)
+       return Zc.Rd(port);
+
+   // divide на nemo портах
+   if(conf.ide_scheme == IDE_NEMO_DIVIDE)
+   {
+       if(((port & 0x1E) == 0x10)) // rrr1000x
+       {
+           if((port & 0xFF) == 0x11)
+           {
+               comp.ide_hi_byte_r = 0;
+               return comp.ide_read;
+           }
+
+           if((port & 0xFE) == 0x10)
+           {
+               comp.ide_hi_byte_r ^= 1;
+               if(!comp.ide_hi_byte_r)
+               {
+                   return comp.ide_read;
+               }
+           }
+           else
+           {
+               comp.ide_hi_byte_r = 0;
+           }
+           goto read_hdd_5;
+       }
+       else if((port & 0xFF) == 0xC8)
+       {
+        return hdd.read(8);
+       }
+   }
+
+   // quorum additional keyboard port
+   if((conf.mem_model == MM_QUORUM) && ((port & 0xFF) == 0x7E))
+   {
+      u8 val = input.read_quorum(port >> 8);
+      return val;
+   }
+
    if (comp.flags & CF_DOSPORTS)
    {
+#ifdef VG_EMUL // VG эмулятор от savelij'а
+      if(conf.mem_model == MM_PENTAGON)
+      {
+          u8 port8 = port & 0xFF;
+          switch(port8)
+          {
+          case 0x1D: // Переключение ПЗУ
+          return comp.p1D;
+          case 0x3D: // Переключение ОЗУ 0x8000-0xBFFF
+          return comp.p3D;
+          case 0x5D:
+          return comp.p5D;
+          case 0x7D:
+          return comp.p7D;
+          }
+      }
+#endif
+
       if (conf.ide_scheme == IDE_ATM && (port & 0x1F) == 0x0F)
       {
          if (port & 0x100)
@@ -520,7 +766,7 @@ __inline unsigned char in1(unsigned port)
                     if (p1 & 0x20)
                         return comp.ide_read;
                     port >>= 8;
-                    goto read_hdd;      
+                    goto read_hdd;
                 }
             }
           }
@@ -531,36 +777,55 @@ __inline unsigned char in1(unsigned port)
                   return comp.wd.in((p1 & 0x60) | 0x1F);  // WD93 ports
               if((p1 & 0xE3) == ((comp.pDFFD & 0x20) ? 0xA3 : 0xE3))
                   return comp.wd.in(0xFF);                // port FF
-          }        
+          }
       }
-      
 
-      if ((p1 & 0x1F) == 0x1F)
+      if(conf.mem_model == MM_QUORUM /* && !(comp.p00 & Q_TR_DOS) */) // cpm ports
+      {
+          if((p1 & 0xFC) == 0x80) // 80, 81, 82, 83
+          {
+              p1 = ((p1 & 3) << 5) | 0x1F;
+              return comp.wd.in(p1);
+          }
+      }
+      else if ((p1 & 0x1F) == 0x1F) // 1F, 3F, 5F, 7F, FF
           return comp.wd.in(p1);
    }
-   else
+   else // не dos
    {
-      if (!(port & 6) && (conf.ide_scheme == IDE_NEMO || conf.ide_scheme == IDE_NEMO_A8))
-      {
-         unsigned hi_byte = (conf.ide_scheme == IDE_NEMO)? (port & 1) : (port & 0x100);
-         if(hi_byte)
-             return comp.ide_read;
-         comp.ide_read = 0xFF;
-         if((port & 0x18) == 0x08)
-             return ((port & 0xE0) == 0xC0)? hdd.read(8) : 0xFF; // CS1=0,CS0=1,reg=6
-         if((port & 0x18) != 0x10)
-             return 0xFF; // invalid CS0,CS1
-         goto read_hdd_5;
-      }
+       if(((port & 0xA3) == 0xA3) && (conf.ide_scheme == IDE_DIVIDE))
+       {
+           if((port & 0xFF) == 0xA3)
+           {
+               comp.ide_hi_byte_r ^= 1;
+               if(!comp.ide_hi_byte_r)
+               {
+                   return comp.ide_read;
+               }
+           }
+           else
+           {
+               comp.ide_hi_byte_r = 0;
+           }
+           port >>= 2;
+           goto read_hdd;
+       }
+
+
+       if (!(port & 6) && (conf.ide_scheme == IDE_NEMO || conf.ide_scheme == IDE_NEMO_A8))
+       {
+          unsigned hi_byte = (conf.ide_scheme == IDE_NEMO)? (port & 1) : (port & 0x100);
+          if(hi_byte)
+              return comp.ide_read;
+          comp.ide_read = 0xFF;
+          if((port & 0x18) == 0x08)
+              return ((port & 0xE0) == 0xC0)? hdd.read(8) : 0xFF; // CS1=0,CS0=1,reg=6
+          if((port & 0x18) != 0x10)
+              return 0xFF; // invalid CS0,CS1
+          goto read_hdd_5;
+       }
    }
 
-   #ifdef MOD_GS
-   if ((port & 0xF7) == 0xB3 && conf.gs_type)
-       return in_gs(port);
-   #endif
-
-   if (conf.zc && (port & 0xFF) == 0x57)
-       return Zc.Rd(port);
 
    if (!(port & 0x20))
    { // kempstons
@@ -582,10 +847,17 @@ __inline unsigned char in1(unsigned port)
    }
 
    // port #FE
+   bool pFE;
+
    // scorp  xx1xxx10 (sc16)
-   // others xxxxxxx0
-   if (!(conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && !(port & 1) ||
-       (conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && !(comp.flags & CF_DOSPORTS) && (port & 0x23) == (0xFE & 0x23))
+   if((conf.mem_model == MM_SCORP || conf.mem_model == MM_PROFSCORP) && !(comp.flags & CF_DOSPORTS))
+       pFE = ((port & 0x23) == (0xFE & 0x23));
+   else if(conf.mem_model == MM_QUORUM) // 1xx11xx0
+       pFE = ((port & 0x99) == (0xFE & 0x99));
+   else // others xxxxxxx0
+       pFE = !(port & 1);
+
+   if (pFE)
    {
       if ((cpu.pc & 0xFFFF) == 0x0564 && bankr[0][0x0564]==0x1F && conf.tape_autostart && !comp.tape.play_pointer)
           start_tape();
@@ -630,13 +902,17 @@ __inline unsigned char in1(unsigned port)
       return 0xFF;
    }
 
-   if (port == 0xBFF7 && conf.cmos && (comp.pEFF7 & EFF7_CMOS))
-       return cmos_read();
+   if (conf.cmos && ((comp.pEFF7 & EFF7_CMOS) || conf.mem_model == MM_ATM3))
+   {
+      unsigned mask = (conf.mem_model == MM_ATM3 && (comp.flags & CF_DOSPORTS)) ? ~0x100 : 0xFFFF;
+      if(port == (0xBFF7 & mask))
+          return cmos_read();
+   }
 
    if ((port & 0xF8FF) == 0xF8EF && modem.open_port)
        return modem.read((port >> 8) & 7);
 
-   if ((port & 0xFF) == 0xFF)
+   if (conf.portff && ((port & 0xFF) == 0xFF))
    {
       update_screen();
       if (vmode != 2) return 0xFF; // ray is not in paper

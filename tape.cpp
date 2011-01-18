@@ -749,11 +749,6 @@ void fast_tape()
 
 void tape_traps()
 {
-  if ((cpu.pc & 0xFFFF) != 0x056B)
-       return;
-  if(!comp.tape.play_pointer)
-       return;
-
    unsigned pulse;
    do
    {

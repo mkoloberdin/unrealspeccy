@@ -109,7 +109,7 @@ void savesnddialog()
       ofn.lpstrFilter = "All sound (WAV)\0*.wav\0AY sound (VTX)\0*.vtx\0";
       ofn.lpstrFile = sndsavename; ofn.nMaxFile = sizeof sndsavename;
       ofn.lpstrTitle = "Save Sound";
-      ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
+      ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
       ofn.hwndOwner = wnd;
       ofn.nFilterIndex = 1;
       if (GetSaveFileName(&ofn)) {

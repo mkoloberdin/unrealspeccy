@@ -57,9 +57,14 @@ CACHE_ALIGNED struct T
    };
 
    union {
-      struct {
+      struct { // 8bpp
          CACHE_ALIGNED unsigned char scale2buf[8][sc2lines_width];    // temp buffer for scale2x,3x filter
          CACHE_ALIGNED unsigned char scale4buf[8][sc2lines_width];    // temp buffer for scale4x filter
+      };
+      struct // 32 bpp
+      {
+         CACHE_ALIGNED u32 scale2buf32[8][sc2lines_width];    // temp buffer for scale2x,3x filter
+         CACHE_ALIGNED u32 scale4buf32[8][sc2lines_width];    // temp buffer for scale4x filter
       };
       unsigned bs2h[96][129];      // temp buffer for chunks 2x2 flt
       unsigned bs4h[48][65];       // temp buffer for chunks 4x4 flt
@@ -121,7 +126,12 @@ extern AtmVideoController AtmVideoCtrl;
 
 static const int rb2_offs = MAX_HEIGHT*MAX_WIDTH_P;
 static const int sizeof_rbuf = rb2_offs*(MAX_BUFFERS+2);
-extern unsigned char rbuf[sizeof_rbuf];
+#ifdef CACHE_ALIGNED
+extern CACHE_ALIGNED unsigned char rbuf[sizeof_rbuf];
+#else // __declspec(align) not available, force QWORD align with old method
+extern unsigned char * const rbuf;
+#endif
+
 extern unsigned char * const save_buf;
 extern unsigned char colortab[0x100];// map zx attributes to pc attributes
 // colortab shifted to 8 and 24

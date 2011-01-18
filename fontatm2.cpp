@@ -1,3 +1,6 @@
+#include "std.h"
+
+#include "fontatm2.h"
 
 // data(chr,y) = fontatm2[chr+y*0x100];
 

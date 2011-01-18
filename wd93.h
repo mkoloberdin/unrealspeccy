@@ -127,19 +127,49 @@ struct FDD
 
 struct WD1793
 {
+   enum WDSTATE
+   {
+      S_IDLE = 0,
+      S_WAIT,
+
+      S_DELAY_BEFORE_CMD,
+      S_CMD_RW,
+      S_FOUND_NEXT_ID,
+      S_RDSEC,
+      S_READ,
+      S_WRSEC,
+      S_WRITE,
+      S_WRTRACK,
+      S_WR_TRACK_DATA,
+
+      S_TYPE1_CMD,
+      S_STEP,
+      S_SEEKSTART,
+      S_SEEK,
+      S_VERIFY,
+
+      S_RESET
+   };
+
    __int64 next, time;
+   __int64 idx_tmo;
+
    FDD *seldrive;
    unsigned tshift;
 
-   unsigned char state, state2, cmd;
+   WDSTATE state, state2;
+
+   unsigned char cmd;
    unsigned char data, track, sector;
    unsigned char rqs, status;
+   u8 idx_status;
 
    unsigned drive, side;                // update this with changing 'system'
 
    signed char stepdirection;
    unsigned char system;                // beta128 system register
 
+   unsigned idx_cnt; // idx counter
 
    // read/write sector(s) data
    __int64 end_waiting_am;
@@ -165,29 +195,6 @@ struct WD1793
       CMD_MULTIPLE      = 0x10
    };
 
-   enum WDSTATE
-   {
-      S_IDLE = 0,
-      S_WAIT,
-
-      S_DELAY_BEFORE_CMD,
-      S_CMD_RW,
-      S_FOUND_NEXT_ID,
-      S_READ,
-      S_WRSEC,
-      S_WRITE,
-      S_WRTRACK,
-      S_WR_TRACK_DATA,
-
-      S_TYPE1_CMD,
-      S_STEP,
-      S_SEEKSTART,
-      S_SEEK,
-      S_VERIFY,
-
-      S_RESET
-   };
-
    enum BETA_STATUS
    {
       DRQ   = 0x40,
@@ -211,6 +218,10 @@ struct WD1793
       WDS_NOTRDY    = 0x80
    };
 
+   enum WD_SYS
+   {
+      SYS_HLT       = 0x08
+   };
 
    unsigned char in(unsigned char port);
    void out(unsigned char port, unsigned char val);
@@ -230,5 +241,8 @@ struct WD1793
        for(unsigned i = 0; i < 4; i++) // [vv] Для удобства отладки
            fdd[i].Id = i;
        seldrive = &fdd[0];
+       idx_cnt = 0;
+       idx_status = 0;
+       idx_tmo = LLONG_MAX;
    }
 };

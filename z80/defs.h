@@ -4,7 +4,9 @@
 #include "../sysdefs.h"
 
 struct Z80;
+
 #define Z80FAST fastcall
+
 #define Z80INLINE forceinline // time-critical inlines
 
 typedef void (Z80FAST *STEPFUNC)(Z80*);
@@ -174,6 +176,7 @@ struct TMemIf
     TWm wm;
 };
 
+
 struct Z80 : public TZ80State
 {
    unsigned char tmp0, tmp1, tmp3;
@@ -187,6 +190,8 @@ struct Z80 : public TZ80State
    unsigned dbg_loop_r1;
    unsigned dbg_loop_r2;
    unsigned char dbgchk; // Признак наличия активных брекпоинтов
+   bool int_pend; // На входе int есть активное прерывание
+   bool int_gate; // Разрешение внешних прерываний (1-разрешены/0 - запрещены)
 
    #define MAX_CBP 16
    unsigned cbp[MAX_CBP][128]; // Условия для условных брекпоинтов
@@ -199,7 +204,7 @@ struct Z80 : public TZ80State
 //   typedef u8 *(__fastcall * TMemDbg)(u32 addr);
 //   typedef void (__fastcall * TWmDbg)(u32 addr, u8 val);
    typedef void (__cdecl *TBankNames)(int i, char *Name);
-   typedef void (__cdecl * TStep)();
+   typedef void (Z80FAST * TStep)();
    typedef __int64 (__cdecl * TDelta)();
    typedef void (__cdecl * TSetLastT)();
 //   TRmDbg DirectRm; // direct read memory in debuger
@@ -216,7 +221,7 @@ struct Z80 : public TZ80State
    const TMemIf *DbgMemIf; // Интерфейс памяти для поддержки отладчика (брекпоинты на доступ к памяти)
    const TMemIf *MemIf; // Текущий активный интерфейс памяти
 
-   void reset() { int_flags = ir_ = pc = 0; im = 0; last_branch = 0; }
+   void reset() { int_flags = ir_ = pc = 0; im = 0; last_branch = 0; int_pend = false; int_pend = false; int_gate = true; }
    Z80(u32 Idx, TBankNames BankNames, TStep Step, TDelta Delta,
        TSetLastT SetLastT, u8 *membits, const TMemIf *FastMemIf, const TMemIf *DbgMemIf) :
        Idx(Idx), 
@@ -235,7 +240,10 @@ struct Z80 : public TZ80State
        dbg_stophere = dbg_stopsp = -1;
        dbg_loop_r1 = 0;
        dbg_loop_r2 = 0xFFFF;
+       int_pend = false;
+       int_gate = true;
    }
+   virtual ~Z80() { }
    u32 GetIdx() const { return Idx; }
    void SetTpi(u32 Tpi) { tpi = Tpi; }
 
@@ -253,6 +261,8 @@ struct Z80 : public TZ80State
    virtual unsigned char in(unsigned port) = 0;
    virtual void out(unsigned port, unsigned char val) = 0;
    virtual unsigned char m1_cycle() = 0; // [vv] Не зависит от процессора (вынести в библиотеку)
+   virtual u8 IntVec() = 0; // Функция возвращающая значение вектора прерывания для im2
+   virtual void CheckNextFrame() = 0; // Проверка и обновления счетчика кадров и тактов внутри прерывания
 };
 
 #define CF 0x01

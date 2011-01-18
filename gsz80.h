@@ -3,6 +3,8 @@
 namespace z80gs
 {
 const int GSCPUFQ = 24000000; // hz //12
+extern const int GSCPUINT;
+extern unsigned __int64 gs_t_states; // inc'ed with GSCPUINT every gs int
 
 void apply_gs();
 void init_gs_frame();
@@ -39,4 +41,6 @@ public:
    virtual unsigned char m1_cycle() override;
    virtual unsigned char in(unsigned port) override;
    virtual void out(unsigned port, unsigned char val) override;
+   virtual u8 IntVec() override;
+   virtual void CheckNextFrame() override;
 };

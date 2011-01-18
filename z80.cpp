@@ -15,9 +15,6 @@
 
 #include "util.h"
 
-//#include "z80/init.cpp"
-
-//#include "z80/cmd.cpp"
 namespace z80gs
 {
 void flush_gs_z80();
@@ -79,7 +76,11 @@ void reset(ROM_MODE mode)
    comp.p7FFD = comp.pDFFD = comp.pFDFD = comp.p1FFD = 0;
    comp.p7EFD = 0;
 
-   if (conf.mem_model == MM_ATM710)
+   comp.p00 = comp.p80FD = 0; // quorum
+
+   comp.pBF = 0; // ATM3
+
+   if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
    {
        switch(mode)
        {
@@ -123,6 +124,7 @@ void reset(ROM_MODE mode)
    reset_tape();
    ay[0].reset();
    ay[1].reset();
+   Saa1099.reset();
 
    if (conf.sound.ay_scheme == AY_SCHEME_CHRV)
    {
@@ -141,15 +143,34 @@ void reset(ROM_MODE mode)
 
    if (conf.mem_model == MM_ATM450 ||
        conf.mem_model == MM_ATM710 ||
+       conf.mem_model == MM_ATM3 ||
        conf.mem_model == MM_PROFI)
        load_spec_colors();
 
+   comp.ide_hi_byte_r = 0;
+   comp.ide_hi_byte_w = 0;
+   comp.ide_hi_byte_w1 = 0;
    hdd.reset();
    input.atm51.reset();
 
    if ((!conf.trdos_present && mode == RM_DOS) ||
        (!conf.cache && mode == RM_CACHE))
        mode = RM_SOS;
+
+#ifdef VG_EMUL // VG эмулятор от savelij'а
+   u8 *base_rom = base_128_rom;
+   switch(mode)
+   {
+   case RM_DOS: base_rom = base_dos_rom; break;
+   case RM_SOS: base_rom = base_dos_rom; break;
+   case RM_SYS: base_rom = base_sys_rom; break;
+   case RM_128: base_rom = base_dos_rom; break;
+   }
+   comp.p1D = (base_rom - ROM_BASE_M) / PAGE;
+   comp.p3D = 2; // RAM2
+   comp.p5D = 0;
+   comp.p7D = 0;
+#endif
 
    set_mode(mode);
 }

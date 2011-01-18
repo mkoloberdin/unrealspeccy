@@ -5,12 +5,20 @@
 #include "memory.h"
 #include "util.h"
 
+
 // input: ports 7FFD,1FFD,DFFD,FFF7,FF77,EFF7, flags CF_TRDOS,CF_CACHEON
 void set_banks()
 {
    bankw[1] = bankr[1] = RAM_BASE_M + 5*PAGE;
    bankw[2] = bankr[2] = RAM_BASE_M + 2*PAGE;
+
+   // screen begining
    temp.base = memory + ((comp.p7FFD & 8) ? 7*PAGE : 5*PAGE);
+/*
+   if(conf.mem_model == MM_QUORUM)
+       temp.base = memory + (comp.p80FD & 7) * 0x2000 + 5*PAGE;
+*/
+
    if (temp.base_2)
        temp.base_2 = temp.base;
 
@@ -23,7 +31,13 @@ void set_banks()
    {
        if(comp.p7FFD & 0x10)
        {
-           bank0 = base_dos_rom;
+           bank0 = 
+#ifdef VG_EMUL // VG эмулятор от savelij'а
+           (conf.mem_model == MM_PENTAGON) ?
+            ROM_BASE_M + (comp.p1D & temp.rom_mask) * PAGE : base_dos_rom;
+#else
+            base_dos_rom;
+#endif         
        }
        else
        {
@@ -45,6 +59,10 @@ void set_banks()
 
          if (comp.pEFF7 & EFF7_ROCACHE)
              bank0 = RAM_BASE_M + 0*PAGE; //Alone Coder 0.36.4
+
+#ifdef VG_EMUL // VG эмулятор от savelij'а
+         bankw[2] = bankr[2] = RAM_BASE_M + (comp.p3D & temp.ram_mask) * PAGE;
+#endif         
          break;
 
       case MM_PROFSCORP:
@@ -138,6 +156,10 @@ void set_banks()
          break;
       }
 
+      case MM_ATM3:
+         if (comp.pBF & 1) // shaden
+            comp.flags |= CF_DOSPORTS;
+
       case MM_ATM710:
       {
          if (!(comp.aFF77 & 0x200)) // ~cpm=0
@@ -152,19 +174,19 @@ void set_banks()
          unsigned i = ((comp.p7FFD & 0x10) >> 2);
          for (unsigned bank = 0; bank < 4; bank++)
          {
-            switch (comp.pFFF7[i+bank] & 0xC0)
+            switch (comp.pFFF7[i+bank] & 0x300)
             {
-               case 0x00: // RAM from 7FFD
-                  bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE * ((comp.p7FFD & 7) + (comp.pFFF7[i+bank] & 0x38 & temp.ram_mask));
+               case 0x000: // RAM from 7FFD
+                  bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE * ((comp.p7FFD & 7) | (comp.pFFF7[i+bank] & 0xF8 & temp.ram_mask));
                   break;
-               case 0x40: // ROM from 7FFD
-                  bankr[bank] = ROM_BASE_M + PAGE*((comp.pFFF7[i+bank] & temp.rom_mask & 0xFE) + ((comp.flags & CF_TRDOS)?1:0));
+               case 0x100: // ROM from 7FFD
+                  bankr[bank] = ROM_BASE_M + PAGE*((comp.pFFF7[i+bank] & 0xFE & temp.rom_mask) + ((comp.flags & CF_TRDOS)?1:0));
                   break;
-               case 0x80: // RAM from FFF7
-                  bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE*(comp.pFFF7[i+bank] & temp.ram_mask);
+               case 0x200: // RAM from FFF7
+                  bankr[bank] = bankw[bank] = RAM_BASE_M + PAGE*(comp.pFFF7[i+bank] & 0xFF & temp.ram_mask);
                   break;
-               case 0xC0: // ROM from FFF7
-                  bankr[bank] = ROM_BASE_M + PAGE*(comp.pFFF7[i+bank] & temp.rom_mask);
+               case 0x300: // ROM from FFF7
+                  bankr[bank] = ROM_BASE_M + PAGE*(comp.pFFF7[i+bank] & 0xFF & temp.rom_mask);
                   break;
             }
          }
@@ -202,6 +224,34 @@ void set_banks()
               bank0 = bankr[0];
               bank3 = bankr[3];
           }
+          break;
+      }
+
+      case MM_QUORUM:
+      {
+          if(!(comp.p00 & Q_TR_DOS))
+              comp.flags |= CF_DOSPORTS;
+
+          if(comp.p00 & Q_B_ROM)
+          {
+              if (comp.flags & CF_TRDOS)
+                  bank0 = base_dos_rom;
+              else
+                  bank0 = (comp.p7FFD & 0x10) ? base_sos_rom : base_128_rom;
+          }
+          else
+          {
+              bank0 = base_sys_rom;
+          }
+
+          if(comp.p00 & Q_F_RAM)
+          {
+              unsigned bnk0 = (comp.p00 & Q_RAM_8) ? 8 : 0;
+              bank0 = RAM_BASE_M + (bnk0 & temp.ram_mask) * PAGE;
+          }
+
+          bank |= ((comp.p7FFD & 0xC0) >> 3) | (comp.p7FFD & 0x20);
+          bank3 = RAM_BASE_M + (bank & temp.ram_mask) * PAGE;
           break;
       }
 
@@ -337,7 +387,7 @@ void set_mode(ROM_MODE mode)
       case RM_DOS:
          comp.flags |= CF_TRDOS;
          comp.p7FFD |=  0x10;
-         if(conf.mem_model == MM_ATM710)
+         if(conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
              comp.p7FFD &=  ~0x10;
          break;
    }

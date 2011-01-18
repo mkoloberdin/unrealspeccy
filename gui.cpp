@@ -91,12 +91,14 @@ char *MemDlg_get_bigrom()
 {
    if (c1.mem_model == MM_ATM450) return c1.atm1_rom_path;
    if (c1.mem_model == MM_ATM710) return c1.atm2_rom_path;
+   if (c1.mem_model == MM_ATM3) return c1.atm3_rom_path;
    if (c1.mem_model == MM_PROFI) return c1.profi_rom_path;
    if (c1.mem_model == MM_SCORP) return c1.scorp_rom_path;
    if (c1.mem_model == MM_PROFSCORP) return c1.prof_rom_path;
  //[vv] kay-1024 не имел стандартной раскладки ПЗУ (раскладка переключалась джампером J5)
 //   if (c1.mem_model == MM_KAY) return c1.kay_rom_path;
    if (c1.mem_model == MM_PLUS3) return c1.plus3_rom_path;
+   if (c1.mem_model == MM_QUORUM) return c1.quorum_rom_path;
    return 0;
 }
 
@@ -169,7 +171,7 @@ void change_rombank(int dx, int reload)
 
    if ((c1.mem_model == MM_SCORP || c1.mem_model == MM_PROFI || c1.mem_model == MM_KAY) && sz != 64)
        goto err;
-   if (c1.mem_model == MM_ATM710 && sz != 64 && sz != 128 && sz != 256 && sz != 512 && sz != 1024)
+   if ((c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM3) && sz != 64 && sz != 128 && sz != 256 && sz != 512 && sz != 1024)
        goto err;
    if (c1.mem_model == MM_PROFSCORP && sz != 128 && sz != 256 && sz != 512 && sz != 1024)
        goto err;
@@ -223,22 +225,26 @@ void mem_set_sizes()
    EnableWindow(GetDlgItem(dlg, IDC_RAM256),  (mems & RAM_256)?  1:0);
    EnableWindow(GetDlgItem(dlg, IDC_RAM512),  (mems & RAM_512)?  1:0);
    EnableWindow(GetDlgItem(dlg, IDC_RAM1024), (mems & RAM_1024)? 1:0);
+   EnableWindow(GetDlgItem(dlg, IDC_RAM4096), (mems & RAM_4096)? 1:0);
 
    char ok = 1;
-   if (getcheck(IDC_RAM128) && !(mems & RAM_128)) ok = 0;
-   if (getcheck(IDC_RAM256) && !(mems & RAM_256)) ok = 0;
-   if (getcheck(IDC_RAM512) && !(mems & RAM_512)) ok = 0;
-   if (getcheck(IDC_RAM1024)&& !(mems & RAM_1024))ok = 0;
+   if (getcheck(IDC_RAM128) && !(mems & RAM_128))  ok = 0;
+   if (getcheck(IDC_RAM256) && !(mems & RAM_256))  ok = 0;
+   if (getcheck(IDC_RAM512) && !(mems & RAM_512))  ok = 0;
+   if (getcheck(IDC_RAM1024)&& !(mems & RAM_1024)) ok = 0;
+   if (getcheck(IDC_RAM4096)&& !(mems & RAM_4096)) ok = 0;
 
    if (!ok) {
       setcheck(IDC_RAM128, 0);
       setcheck(IDC_RAM256, 0);
       setcheck(IDC_RAM512, 0);
       setcheck(IDC_RAM1024,0);
+      setcheck(IDC_RAM4096,0);
       if (best == 128) setcheck(IDC_RAM128);
       if (best == 256) setcheck(IDC_RAM256);
       if (best == 512) setcheck(IDC_RAM512);
       if (best == 1024)setcheck(IDC_RAM1024);
+      if (best == 4096)setcheck(IDC_RAM4096);
    }
 
    char *romname = MemDlg_get_bigrom();
@@ -320,6 +326,7 @@ INT_PTR CALLBACK MemDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       if (getcheck(IDC_RAM256)) c1.ramsize = 256;
       if (getcheck(IDC_RAM512)) c1.ramsize = 512;
       if (getcheck(IDC_RAM1024))c1.ramsize = 1024;
+      if (getcheck(IDC_RAM4096))c1.ramsize = 4096;
 
       c1.smuc = getcheck(IDC_SMUC);
    }
@@ -330,6 +337,7 @@ INT_PTR CALLBACK MemDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       setcheck(IDC_RAM256, (c1.ramsize == 256));
       setcheck(IDC_RAM512, (c1.ramsize == 512));
       setcheck(IDC_RAM1024,(c1.ramsize == 1024));
+      setcheck(IDC_RAM4096,(c1.ramsize == 4096));
       setcheck(IDC_SINGLE_ROM, !c1.use_romset);
       setcheck(IDC_CUSTOM_ROM, c1.use_romset);
       find_romset();
@@ -379,7 +387,7 @@ INT_PTR CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    if (msg == WM_COMMAND && !block) {
       unsigned id = LOWORD(wp), code = HIWORD(wp);
       if ((code == EN_CHANGE && (id==IDE_FRAME || id==IDE_LINE || id==IDE_INT || id==IDE_PAPER))
-          || (code == BN_CLICKED && (id==IDC_EVENM1 || id==IDC_4TBORDER || id==IDC_FLOAT_BUS || id==IDC_FLOAT_DOS)))
+          || (code == BN_CLICKED && (id==IDC_EVENM1 || id==IDC_4TBORDER || id==IDC_FLOAT_BUS || id==IDC_FLOAT_DOS || id==IDC_PORT_FF)))
       {
          c1.ula_preset = -1;
          SendDlgItemMessage(dlg, IDC_ULAPRESET, CB_SETCURSEL, num_ula, 0);
@@ -395,6 +403,7 @@ INT_PTR CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             c1.frame = /*conf.frame*/frametime/*Alone Coder*/, c1.intfq = conf.intfq, c1.intlen = conf.intlen, c1.t_line = conf.t_line,
             c1.paper = conf.paper, c1.even_M1 = conf.even_M1, c1.border_4T = conf.border_4T;
             c1.floatbus = conf.floatbus, c1.floatdos = conf.floatdos;
+            c1.portff = conf.portff;
             conf = tmp;
             goto refresh;
          }
@@ -413,9 +422,18 @@ INT_PTR CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       c1.border_4T = getcheck(IDC_4TBORDER);
       c1.floatbus = getcheck(IDC_FLOAT_BUS);
       c1.floatdos = getcheck(IDC_FLOAT_DOS);
-      if (c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM450) {
+      c1.portff = getcheck(IDC_PORT_FF);
+      if(c1.mem_model == MM_PROFI)
+      {
+           c1.profi_monochrome = getcheck(IDC_PROFI_MONOCHROME);
+      }
+      if (c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM3 || c1.mem_model == MM_ATM450 || c1.mem_model == MM_PROFI)
+      {
+          c1.use_comp_pal = getcheck(IDC_ATMPAL);
+      }
+      if (c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM3 || c1.mem_model == MM_ATM450)
+      {
          c1.atm.mem_swap = getcheck(IDC_ATM_SWAP);
-         c1.use_comp_pal = getcheck(IDC_ATMPAL);
       }
    }
    if (nm->code == PSN_SETACTIVE) {
@@ -432,12 +450,16 @@ refresh:
       setcheck(IDC_4TBORDER, c1.border_4T);
       setcheck(IDC_FLOAT_BUS, c1.floatbus);
       setcheck(IDC_FLOAT_DOS, c1.floatdos);
+      setcheck(IDC_PORT_FF, c1.portff);
 
-      unsigned en =  (c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM450);
-      EnableWindow(GetDlgItem(dlg, IDC_ATM_SWAP), en);
-      EnableWindow(GetDlgItem(dlg, IDC_ATMPAL), en);
-      setcheck(IDC_ATM_SWAP, en? c1.atm.mem_swap : 0);
-      setcheck(IDC_ATMPAL, en? c1.use_comp_pal : 0);
+      unsigned en_atm =  (c1.mem_model == MM_ATM710 || c1.mem_model == MM_ATM3 || c1.mem_model == MM_ATM450);
+      unsigned en_profi =  (c1.mem_model == MM_PROFI);
+      EnableWindow(GetDlgItem(dlg, IDC_ATM_SWAP), en_atm);
+      EnableWindow(GetDlgItem(dlg, IDC_PROFI_MONOCHROME), en_profi);
+      EnableWindow(GetDlgItem(dlg, IDC_ATMPAL), en_atm || en_profi);
+      setcheck(IDC_PROFI_MONOCHROME, en_profi ? c1.profi_monochrome : 0);
+      setcheck(IDC_ATM_SWAP, en_atm ? c1.atm.mem_swap : 0);
+      setcheck(IDC_ATMPAL, (en_atm || en_profi) ? c1.use_comp_pal : 0);
 
       block=0;
       lastpage = "ULA";
@@ -595,14 +617,18 @@ INT_PTR CALLBACK HddDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       ComboBox_AddString(box, "ATM");
       ComboBox_AddString(box, "NEMO");
       ComboBox_AddString(box, "NEMO (A8)");
+      ComboBox_AddString(box, "NEMO (DIVIDE)");
       ComboBox_AddString(box, "SMUC");
       ComboBox_AddString(box, "PROFI");
+      ComboBox_AddString(box, "DIVIDE");
       ComboBox_SetItemData(box, 0, (LPARAM)IDE_NONE);
       ComboBox_SetItemData(box, 1, (LPARAM)IDE_ATM);
       ComboBox_SetItemData(box, 2, (LPARAM)IDE_NEMO);
       ComboBox_SetItemData(box, 3, (LPARAM)IDE_NEMO_A8);
-      ComboBox_SetItemData(box, 4, (LPARAM)IDE_SMUC);
-      ComboBox_SetItemData(box, 5, (LPARAM)IDE_PROFI);
+      ComboBox_SetItemData(box, 4, (LPARAM)IDE_NEMO_DIVIDE);
+      ComboBox_SetItemData(box, 5, (LPARAM)IDE_SMUC);
+      ComboBox_SetItemData(box, 6, (LPARAM)IDE_PROFI);
+      ComboBox_SetItemData(box, 7, (LPARAM)IDE_DIVIDE);
    }
    if (msg == WM_COMMAND && !block)
    {

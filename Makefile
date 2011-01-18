@@ -1,10 +1,11 @@
+.SUFFIXES : .dep .cpp
 CXX=icl -c
 LINK=xilink
 
 #-RTCsu -Qtrapuv
 
-CFLAGS_COMMON=-nologo -W3 -Wcheck -Qms0 -EHa- -GR- -Zi -MT -Oi \
-         -D_CRT_SECURE_NO_DEPRECATE -DUSE_SND_EXTERNAL_BUFFER
+CFLAGS_COMMON=-nologo -W3 -Wcheck -Qms0 -EHa- -GR- -Zi -MT -MP -Oi \
+         -D_CRT_SECURE_NO_DEPRECATE -DUSE_SND_EXTERNAL_BUFFER -D_PREFIX_
 
 !ifdef VGEMUL
 CFLAGS_COMMON=$(CFLAGS_COMMON) -DVG_EMUL
@@ -27,17 +28,40 @@ CFLAGS_RELEASE=-O3 -Qipo
 CXXFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE) -Zc:forScope,wchar_t
 CFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE) -Zc:wchar_t
 
-LFLAGS= -debug -fixed:no -release
+LFLAGS= -debug -fixed:no -release -libpath:lib32
 
 LIBS=$(LIBS) sndrender/snd.lib z80/z80.lib
 
+SRCS=emul.cpp std.cpp atm.cpp cheat.cpp config.cpp dbgbpx.cpp dbgcmd.cpp dbglabls.cpp \
+	dbgmem.cpp dbgoth.cpp dbgpaint.cpp dbgreg.cpp dbgrwdlg.cpp dbgtrace.cpp \
+        debug.cpp draw.cpp drawnomc.cpp draw_384.cpp dx.cpp dxerr.cpp dxovr.cpp \
+        dxrcopy.cpp dxrend.cpp dxrendch.cpp dxrframe.cpp dxr_4bpp.cpp dxr_512.cpp \
+        dxr_advm.cpp dxr_atm.cpp dxr_atm0.cpp dxr_atm2.cpp dxr_atm6.cpp dxr_atm7.cpp \
+        dxr_atmf.cpp dxr_prof.cpp dxr_rsm.cpp dxr_text.cpp dxr_vd.cpp \
+        emulkeys.cpp emul_2203.cpp fntsrch.cpp font.cpp font14.cpp font16.cpp \
+        font8.cpp fontatm2.cpp fontdata.cpp gs.cpp gshlbass.cpp gshle.cpp \
+        gsz80.cpp gui.cpp hdd.cpp hddaspi.cpp hddio.cpp iehelp.cpp init.cpp \
+        input.cpp inputpc.cpp io.cpp keydefs.cpp leds.cpp mainloop.cpp \
+        memory.cpp modem.cpp opendlg.cpp savesnd.cpp sdcard.cpp snapshot.cpp \
+        snd_bass.cpp sound.cpp sshot_png.cpp tape.cpp util.cpp vars.cpp \
+        vs1001.cpp wd93cmd.cpp wd93crc.cpp wd93dat.cpp wd93trk.cpp \
+        wldr_fdi.cpp wldr_isd.cpp wldr_pro.cpp wldr_td0.cpp wldr_trd.cpp wldr_udi.cpp \
+        z80.cpp z80asm.cpp zc.cpp
+
+OBJS=$(SRCS:.cpp=.obj)
+
 all: x32/emul.exe
+
+dep: mk.dep
+
+mk.dep: $(SRCS)
+	$(CXX) -QMM $** >mk.dep
 
 .c.obj::
 	$(CXX) $(CFLAGS) $<
 
 std.obj: std.cpp
-	$(CXX) $(CXXFLAGS) -Yc"std.h" $?
+	$(CXX) $(CXXFLAGS) -Yc"std.h" std.cpp
 
 .cpp.obj::
 	$(CXX) $(CXXFLAGS) -Yu"std.h" $<
@@ -45,21 +69,11 @@ std.obj: std.cpp
 .rc.res:
 	$(RC) $<
 
-x32/emul.exe: emul.obj std.obj atm.obj cheat.obj config.obj dbgbpx.obj dbgcmd.obj dbglabls.obj \
-	dbgmem.obj dbgoth.obj dbgpaint.obj dbgreg.obj dbgrwdlg.obj dbgtrace.obj \
-        debug.obj draw.obj drawnomc.obj draw_384.obj dx.obj dxerr.obj dxovr.obj \
-        dxrcopy.obj dxrend.obj dxrendch.obj dxrframe.obj dxr_4bpp.obj dxr_512.obj \
-        dxr_advm.obj dxr_atm.obj dxr_atm0.obj dxr_atm2.obj dxr_atm6.obj dxr_atm7.obj \
-        dxr_atmf.obj dxr_prof.obj dxr_rsm.obj dxr_text.obj dxr_vd.obj \
-        emulkeys.obj emul_2203.obj fntsrch.obj font.obj font14.obj font16.obj \
-        font8.obj fontatm2.obj fontdata.obj gs.obj gshlbass.obj gshle.obj \
-        gsz80.obj gui.obj hdd.obj hddaspi.obj hddio.obj iehelp.obj init.obj \
-        input.obj inputpc.obj io.obj keydefs.obj leds.obj mainloop.obj \
-        memory.obj modem.obj opendlg.obj savesnd.obj sdcard.obj snapshot.obj \
-        snd_bass.obj sound.obj sshot_png.obj tape.obj util.obj vars.obj \
-        vs1001.obj wd93cmd.obj wd93crc.obj wd93dat.obj wd93trk.obj \
-        wldr_fdi.obj wldr_isd.obj wldr_pro.obj wldr_td0.obj wldr_trd.obj wldr_udi.obj \
-        z80.obj z80asm.obj zc.obj settings.res
+x32/emul.exe: $(OBJS) $(LIBS) settings.res
 	$(LINK) $(LFLAGS) -out:$@ -pdb:$*.pdb -map:$*.map $** $(LIBS)
 clean:
 	-del *.obj *.res *.map *.pdb *.pch *.pchi
+
+!if exist(mk.dep)
+!include mk.dep
+!endif

@@ -37,7 +37,9 @@ unsigned char ruspastekeys[64] =
 
 void K_INPUT::clear_zx()
 {
-   kbd_x4[0] = kbd_x4[1] = -1;
+   int i;
+   for(i = 0; i < _countof(kbd_x4); i++)
+       kbd_x4[i] = -1;
 }
 
 inline void K_INPUT::press_zx(unsigned char key)
@@ -68,17 +70,18 @@ bool K_INPUT::process_pc_layout()
 void K_INPUT::make_matrix()
 {
    unsigned char altlock = conf.input.altlock? (kbdpc[DIK_LMENU] | kbdpc[DIK_RMENU]) & 0x80 : 0;
+   int i;
 
    kjoy = 0xFF;
    switch (keymode)
    {
       case KM_DEFAULT:
-         kbd_x4[0] = kbd_x4[1] = -1;
+         clear_zx();
          if (!altlock)
          {
             if (!conf.input.keybpcmode || !process_pc_layout())
             {
-                for (int i = 0; i < VK_MAX; i++)
+                for (i = 0; i < VK_MAX; i++)
                 {
                    if (kbdpc[i] & 0x80)
                    {
@@ -103,10 +106,11 @@ void K_INPUT::make_matrix()
          break;
 
       case KM_KEYSTICK:
-         kbd_x4[0] = rkbd_x4[0]; kbd_x4[1] = rkbd_x4[1];
+         for(i = 0; i < _countof(kbd_x4); i++)
+             kbd_x4[i] = rkbd_x4[i];
          if (stick_delay) stick_delay--, altlock = 1;
          if (!altlock)
-            for (int i = 0; i < VK_MAX; i++)
+            for (i = 0; i < VK_MAX; i++)
                if (kbdpc[i] & 0x80)
                   *(inports[i].port1) ^= ~inports[i].mask1,
                   *(inports[i].port2) ^= ~inports[i].mask2;
@@ -115,7 +119,7 @@ void K_INPUT::make_matrix()
 
       case KM_PASTE_HOLD:
       {
-         kbd_x4[0] = kbd_x4[1] = -1;
+         clear_zx();
          if (tdata & 0x08) kbd[0] &= ~1; // caps
          if (tdata & 0x80) kbd[7] &= ~2; // sym
          if (tdata & 7) kbd[(tdata >> 4) & 7] &= ~(1 << ((tdata & 7) - 1));
@@ -128,7 +132,7 @@ void K_INPUT::make_matrix()
 
       case KM_PASTE_RELEASE:
       {
-         kbd_x4[0] = kbd_x4[1] = -1;
+         clear_zx();
          if (tdelay) { tdelay--; break; }
          if (textsize == textoffset)
          {
@@ -194,15 +198,16 @@ void K_INPUT::make_matrix()
    if (conf.input.joymouse)
        kjoy |= mousejoy;
 
-   rkbd_x4[0] = kbd_x4[0]; rkbd_x4[1] = kbd_x4[1];
+   for(i = 0; i < _countof(kbd_x4); i++)
+       rkbd_x4[i] = kbd_x4[i];
    if (!conf.input.keymatrix)
        return;
    for (;;)
    {
       char done = 1;
-      for (int k = 0; k < 7; k++)
+      for (int k = 0; k < _countof(kbd) - 1; k++)
       {
-         for (int j = k+1; j < 8; j++)
+         for (int j = k+1; j < _countof(kbd); j++)
          {
             if (((kbd[k] | kbd[j]) != 0xFF) && (kbd[k] != kbd[j]))
             {
@@ -224,6 +229,9 @@ char K_INPUT::readdevices()
    if (nomouse) nomouse--;
 
    kbdpc[VK_JLEFT] = kbdpc[VK_JRIGHT] = kbdpc[VK_JUP] = kbdpc[VK_JDOWN] = kbdpc[VK_JFIRE] = 0;
+   int i;
+   for(i = 0; i < 32; i++)
+       kbdpc[VK_JB0 + i] = 0;
    if (active && dijoyst)
    {
       dijoyst->Poll();
@@ -233,7 +241,12 @@ char K_INPUT::readdevices()
       if ((signed short)js.lX > 0) kbdpc[VK_JRIGHT] = 0x80;
       if ((signed short)js.lY < 0) kbdpc[VK_JUP] = 0x80;
       if ((signed short)js.lY > 0) kbdpc[VK_JDOWN] = 0x80;
-      if (js.rgbButtons[0] & 0x80) kbdpc[VK_JFIRE] = 0x80;
+
+      for(i = 0; i < 32; i++)
+      {
+          if (js.rgbButtons[i] & 0x80)
+              kbdpc[VK_JB0 + i] = 0x80;
+      }
    }
 
    mbuttons = 0xFF;
@@ -396,6 +409,21 @@ unsigned char K_INPUT::read(unsigned char scan)
    if(res != 0xFF)
        __debugbreak();
 */
+
+   return res;
+}
+
+// read quorum additional keys (port 7E)
+u8 K_INPUT::read_quorum(u8 scan)
+{
+   u8 res = 0xFF;
+   kbdled &= scan;
+
+   for (int i = 0; i < 8; i++)
+   {
+      if (!(scan & (1<<i)))
+          res &= kbd[8+i];
+   }
 
    return res;
 }

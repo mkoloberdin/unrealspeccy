@@ -1,7 +1,7 @@
 CXX=icl -c
 
-CFLAGS_COMMON=-nologo -W3 -Wcheck -Qms0 -EHa- -GR- -Zi -MT -Oi \
-         -D_CRT_SECURE_NO_DEPRECATE -DUSE_SND_EXTERNAL_BUFFER
+CFLAGS_COMMON=-nologo -W3 -Wcheck -Qms0 -EHa- -GR- -Zi -MT -MP -Oi \
+         -D_CRT_SECURE_NO_DEPRECATE -DUSE_SND_EXTERNAL_BUFFER -D_PREFIX_
 
 !ifdef SSE1
 CFLAGS_COMMON=$(CFLAGS_COMMON) -QxK
@@ -24,12 +24,12 @@ LIB=xilib
 all: snd.lib
 
 .c.obj::
-	$(CXX) $(CFLAGS) $<
+    $(CXX) $(CFLAGS) $<
 
 .cpp.obj::
-	$(CXX) $(CXXFLAGS) $<
+    $(CXX) $(CXXFLAGS) $<
 
-snd.lib: sndbuffer.obj sndchip.obj sndcounter.obj sndrender.obj
-	$(LIB) $(LIBFLAGS) -out:$@ $**
+snd.lib: sndbuffer.obj sndchip.obj saa1099.obj sndcounter.obj sndrender.obj
+    $(LIB) $(LIBFLAGS) -out:$@ $**
 clean:
-	-del *.obj *.lib
+    -del *.obj *.lib

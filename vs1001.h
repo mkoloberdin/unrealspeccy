@@ -1,5 +1,6 @@
 #ifndef VS1001_H
 #define VS1001_H
+#include "util.h"
 
 // S_CTRL bits
 const u8 _MPNCS  = 2;
@@ -20,27 +21,6 @@ const u8 MD_SEND = 0x14; // W same as SD_RSTR!!!
 
 const u8 MC_SEND = 0x15; // W
 const u8 MC_READ = 0x15; // R
-
-class TCriticalSection
-{
-    CRITICAL_SECTION CritSect;
-public:
-    TCriticalSection() { InitializeCriticalSection(&CritSect); }
-    ~TCriticalSection() { DeleteCriticalSection(&CritSect); }
-    void Lock() { EnterCriticalSection(&CritSect); }
-    void Unlock() { LeaveCriticalSection(&CritSect); }
-};
-
-class TEvent
-{
-    HANDLE Event;
-public:
-    TEvent(BOOL InitState) { Event = CreateEvent(0, TRUE, InitState, 0); }
-    ~TEvent() { CloseHandle(Event); }
-    void Set() { SetEvent(Event); }
-    void Reset() { ResetEvent(Event); }
-    bool Wait(DWORD TimeOut = INFINITE) { return WaitForSingleObject(Event, TimeOut) == WAIT_OBJECT_0; }
-};
 
 class TRingBuffer
 {

@@ -281,6 +281,7 @@ void m_nmi(ROM_MODE page)
 {
    set_mode(page);
    sprintf(statusline, "NMI to %s", getrom(page)); statcnt = 50;
+   comp.p00 = 0; // quorum
    cpu.sp -= 2; cpu.DbgMemIf->wm(cpu.sp, cpu.pcl); cpu.DbgMemIf->wm(cpu.sp+1, cpu.pch);
    cpu.pc = 0x66; cpu.iff1 = cpu.halted = 0;
 }
@@ -398,6 +399,14 @@ void wnd_resize(int scale)
    RECT rc = { 0, 0, temp.ox * scale, temp.oy * scale };
    AdjustWindowRect(&rc, style, 0);
    SetWindowPos(wnd, 0, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOCOPYBITS | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+   if(temp.rflags & RF_2X)
+       scale = 2;
+   else if(temp.rflags & RF_3X)
+       scale = 3;
+   else if(temp.rflags & RF_4X)
+       scale = 4;
+   else
+       scale = 1;
    sprintf(statusline, "scale: %dx", scale);
    statcnt = 50;
 }

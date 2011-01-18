@@ -44,15 +44,6 @@ BOOL WINAPI ConsoleHandler(DWORD CtrlType);
 #include "iehelp.h"
 #include "util.h"
 
-/*
-#include "vars.cpp"
-#include "util.cpp"
-#include "iehelp.cpp"
-#include "draw.cpp"
-#include "atm.cpp"
-#include "dx.cpp"
-*/
-
 void m_nmi(ROM_MODE page);
 void showhelp(char *anchor)
 {
@@ -60,45 +51,6 @@ void showhelp(char *anchor)
    showhelppp(anchor); //Alone Coder 0.36.6
    sound_play(); //Alone Coder 0.36.6
 }
-
-/*
-#include "emul_2203.cpp" //Dexus
-#include "sound.cpp"
-#include "memory.cpp"
-#include "z80.cpp"
-#include "vs1001.h"
-#include "vs1001.cpp"
-#include "sdcard.h"
-#include "sdcard.cpp"
-#include "zc.h"
-#include "zc.cpp"
-#include "gs.cpp"
-#include "tape.cpp"
-#include "wd93crc.cpp"
-#include "wd93trk.cpp"
-#include "wd93dat.cpp"
-#include "wd93cmd.cpp"
-#include "hddaspi.cpp"
-#include "hddio.cpp"
-#include "hdd.cpp"
-#include "input.cpp"
-#include "modem.cpp"
-#include "io.cpp"
-#include "config.cpp"
-#include "opendlg.cpp"
-#include "sshot_png.cpp"
-#include "snapshot.cpp"
-#include "debug.cpp"
-#include "leds.cpp"
-#include "savesnd.cpp"
-#include "fntsrch.cpp"
-#include "gui.cpp"
-#include "cheat.cpp"
-#include "emulkeys.cpp"
-#include "keydefs.cpp"
-#include "mainloop.cpp"
-#include "init.cpp"
-*/
 
 LONG __stdcall filter(EXCEPTION_POINTERS *pp)
 {
@@ -167,7 +119,7 @@ int __cdecl main(int argc, char **argv)
    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 
    color(CONSCLR_TITLE);
-   printf("UnrealSpeccy %s.fix5 by SMT, %s\n", VERS_STRING_, __DATE__);
+   printf("UnrealSpeccy %s by SMT, %s\n", VERS_STRING_, __DATE__);
    printf("Integrated YM2203 version 1.4A by Tatsuyuki Satoh, Jarek Burczynski, Alone Coder\n"); //Dexus
 #ifdef __ICL
    printf("Intel C++ Compiler: %d.%02d\n", __ICL/100, __ICL % 100);

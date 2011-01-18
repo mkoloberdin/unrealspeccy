@@ -35,7 +35,6 @@ LPDIRECTDRAWSURFACE7 sprim, surf0, surf1;
 
 LPDIRECTINPUTDEVICE dikeyboard;
 LPDIRECTINPUTDEVICE dimouse;
-LPDIRECTINPUTDEVICE dijoyst1;
 LPDIRECTINPUTDEVICE2 dijoyst;
 
 LPDIRECTSOUND ds;
@@ -70,10 +69,11 @@ RENDER renders[] =
 {
    { "Normal",                    render_small,   "normal",    RF_DRIVER },
    { "Double size",               render_dbl,     "double",    RF_DRIVER | RF_2X },
-#ifdef _M_IX86
-   { "Anti-Text64",               render_text,    "text",      RF_2X | RF_USEFONT | RF_DRIVER },
-#endif
+   { "Triple size",               render_3x,      "triple",    RF_DRIVER | RF_3X },
    { "Quad size",                 render_quad,    "quad",      RF_DRIVER | RF_4X },
+#ifdef _M_IX86
+   { "Anti-Text64",               render_text,    "text",      RF_DRIVER | RF_2X | RF_USEFONT },
+#endif
    { "Frame resampler",           render_rsm,     "resampler", RF_DRIVER | RF_8BPCH },
 
    { "TV Emulation",              render_tv,      "tv",        RF_YUY2 | RF_OVR },
@@ -81,13 +81,13 @@ RENDER renders[] =
    { "Bilinear filter (MMX,fullscr)", render_bil, "bilinear",  RF_2X | RF_PALB },
 #endif
    { "Vector scaling (fullscr)",  render_scale,   "scale",     RF_2X },
-   { "AdvMAME scale",             render_advmame, "advmame",   0 },
+   { "AdvMAME scale (fullscr)",   render_advmame, "advmame",   RF_DRIVER },
 
    { "Chunky overlay (fast!)",    render_ch_ov,   "ch_ov",     RF_OVR | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_USE32AS16 },
-   { "Chunky 32bit hardware flt", render_ch_hw,   "ch_hw",     RF_CLIP | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_32 | RF_USEC32 },
+   { "Chunky 32bit hardware (flt,fullscr)", render_ch_hw,   "ch_hw",     RF_CLIP | 0*RF_128x96 | 0*RF_64x48 | RF_BORDER | RF_32 | RF_USEC32 },
 
-   { "Chunky 16bit, low-res, flt",render_c16bl,   "ch_bl",     RF_16 | RF_BORDER | RF_USEC32 },
-   { "Chunky 16bit, hi-res, flt", render_c16b,    "ch_b",      RF_16 | RF_2X | RF_BORDER | RF_USEC32 },
+   { "Chunky 16bit, low-res, (flt,fullscr)",render_c16bl,   "ch_bl",     RF_16 | RF_BORDER | RF_USEC32 },
+   { "Chunky 16bit, hi-res, (flt,fullscr)", render_c16b,    "ch_b",      RF_16 | RF_2X | RF_BORDER | RF_USEC32 },
    { "Ch4x4 true color (fullscr)",render_c4x32b,  "ch4true",   RF_32 | RF_2X | RF_BORDER | RF_USEC32 },
 
    { 0,0,0,0 }
@@ -97,13 +97,12 @@ size_t renders_count = _countof(renders);
 
 const RENDER drivers[] =
 {
-   { "video memory",        0, "ddraw",  0 },
-   { "gdi device context",  0, "gdi",    RF_GDI },
-   { "overlay",             0, "ovr",    RF_OVR },
-   { "hardware blitter",    0, "blt",    RF_CLIP },
-   { "memory (high color)", 0, "ddrawh", RF_16 },
-   { "memory (true color)", 0, "ddrawt", RF_32 },
-
+   { "video memory (8bpp)",  0, "ddraw",  RF_8 },
+   { "video memory (16bpp)", 0, "ddrawh", RF_16 },
+   { "video memory (32bpp)", 0, "ddrawt", RF_32 },
+   { "gdi device context",   0, "gdi",    RF_GDI },
+   { "overlay",              0, "ovr",    RF_OVR },
+   { "hardware blitter",     0, "blt",    RF_CLIP },
    { 0,0,0,0 }
 };
 
@@ -1055,6 +1054,8 @@ void set_vidmode()
    }
 
    SendMessage(wnd, WM_USER, 0, 0); // setup rectangle for RF_GDI,OVR,CLIP, adjust cursor
+   if(!conf.fullscr)
+       scale_normal();
 }
 
 HRESULT SetDIDwordProperty(LPDIRECTINPUTDEVICE pdev, REFGUID guidProperty,
@@ -1069,66 +1070,107 @@ HRESULT SetDIDwordProperty(LPDIRECTINPUTDEVICE pdev, REFGUID guidProperty,
    return pdev->SetProperty(guidProperty, &dipdw.diph);
 }
 
-BOOL FAR PASCAL InitJoystickInput(LPCDIDEVICEINSTANCE pdinst, LPVOID pvRef)
+BOOL CALLBACK InitJoystickInput(LPCDIDEVICEINSTANCE pdinst, LPVOID pvRef)
 {
    HRESULT r;
    LPDIRECTINPUT pdi = (LPDIRECTINPUT)pvRef;
+   LPDIRECTINPUTDEVICE dijoyst1;
+   LPDIRECTINPUTDEVICE2 dijoyst;
    if ((r = pdi->CreateDevice(pdinst->guidInstance, &dijoyst1, 0)) != DI_OK)
-   { printrdi("IDirectInput::CreateDevice() (joystick)", r); return DIENUM_CONTINUE; }
+   {
+       printrdi("IDirectInput::CreateDevice() (joystick)", r);
+       return DIENUM_CONTINUE;
+   }
 
    r = dijoyst1->QueryInterface(IID_IDirectInputDevice2, (void**)&dijoyst);
-   if (r != S_OK) {
+   if (r != S_OK)
+   {
       printrdi("IDirectInputDevice::QueryInterface(IID_IDirectInputDevice2) [dx5 not found]", r);
-      dijoyst1->Release(); dijoyst1=0; return DIENUM_CONTINUE; }
-
-   if ((r = dijoyst->SetDataFormat(&c_dfDIJoystick)) != DI_OK)
-   { printrdi("IDirectInputDevice::SetDataFormat() (joystick)", r); exit(); }
-
-   if ((r = dijoyst->SetCooperativeLevel(wnd, DISCL_NONEXCLUSIVE | DISCL_FOREGROUND)) != DI_OK)
-   { printrdi("IDirectInputDevice::SetCooperativeLevel() (joystick)", r); exit(); }
-
-   DIPROPRANGE diprg;
-   diprg.diph.dwSize       = sizeof(diprg);
-   diprg.diph.dwHeaderSize = sizeof(diprg.diph);
-   diprg.diph.dwObj        = DIJOFS_X;
-   diprg.diph.dwHow        = DIPH_BYOFFSET;
-   diprg.lMin              = -1000;
-   diprg.lMax              = +1000;
-
-   if ((r = dijoyst->SetProperty(DIPROP_RANGE, &diprg.diph)) != DI_OK)
-   { printrdi("IDirectInputDevice::SetProperty(DIPH_RANGE)", r); exit(); }
-
-   diprg.diph.dwObj        = DIJOFS_Y;
-
-   if ((r = dijoyst->SetProperty(DIPROP_RANGE, &diprg.diph)) != DI_OK)
-   { printrdi("IDirectInputDevice::SetProperty(DIPH_RANGE) (y)", r); exit(); }
-
-   if ((r = SetDIDwordProperty(dijoyst, DIPROP_DEADZONE, DIJOFS_X, DIPH_BYOFFSET, 2000)) != DI_OK)
-   { printrdi("IDirectInputDevice::SetProperty(DIPH_DEADZONE)", r); exit(); }
-
-   if ((r = SetDIDwordProperty(dijoyst, DIPROP_DEADZONE, DIJOFS_Y, DIPH_BYOFFSET, 2000)) != DI_OK)
-   { printrdi("IDirectInputDevice::SetProperty(DIPH_DEADZONE) (y)", r); exit(); }
+      dijoyst1->Release();
+      dijoyst1=0;
+      return DIENUM_CONTINUE;
+   }
+   dijoyst1->Release();
 
    DIDEVICEINSTANCE dide = { sizeof dide };
    if ((r = dijoyst->GetDeviceInfo(&dide)) != DI_OK)
-   { printrdi("IDirectInputDevice::GetDeviceInfo()", r); return DIENUM_STOP; }
+   {
+       printrdi("IDirectInputDevice::GetDeviceInfo()", r);
+       return DIENUM_STOP;
+   }
 
    DIDEVCAPS dc = { sizeof dc };
    if ((r = dijoyst->GetCapabilities(&dc)) != DI_OK)
-   { printrdi("IDirectInputDevice::GetCapabilities()", r); return DIENUM_STOP; }
+   {
+       printrdi("IDirectInputDevice::GetCapabilities()", r);
+       return DIENUM_STOP;
+   }
+
+   DIPROPDWORD JoyId;
+   JoyId.diph.dwSize       = sizeof(JoyId);
+   JoyId.diph.dwHeaderSize = sizeof(JoyId.diph);
+   JoyId.diph.dwObj        = 0;
+   JoyId.diph.dwHow        = DIPH_DEVICE;
+   if ((r = dijoyst->GetProperty(DIPROP_JOYSTICKID, &JoyId.diph)) != DI_OK)
+   { printrdi("IDirectInputDevice::GetProperty(DIPROP_JOYSTICKID)", r); exit(); }
 
    trim_right(dide.tszInstanceName);
    trim_right(dide.tszProductName);
 
    CharToOem(dide.tszInstanceName, dide.tszInstanceName);
    CharToOem(dide.tszProductName, dide.tszProductName);
-   if (strcmp(dide.tszProductName, dide.tszInstanceName)) strcat(dide.tszInstanceName, ", ");
-   else dide.tszInstanceName[0] = 0;
+   if (strcmp(dide.tszProductName, dide.tszInstanceName))
+       strcat(dide.tszInstanceName, ", ");
+   else
+       dide.tszInstanceName[0] = 0;
 
+   bool UseJoy = (JoyId.dwData == conf.input.JoyId);
    color(CONSCLR_HARDINFO);
-   printf("joy: %s%s (%d axes, %d buttons, %d POVs)\n",
+   printf("%cjoy(%u): %s%s (%d axes, %d buttons, %d POVs)\n", UseJoy ? '*' : ' ', JoyId.dwData,
       dide.tszInstanceName, dide.tszProductName, dc.dwAxes, dc.dwButtons, dc.dwPOVs);
-   return DIENUM_STOP;
+
+   if(UseJoy)
+   {
+       if ((r = dijoyst->SetDataFormat(&c_dfDIJoystick)) != DI_OK)
+       {
+           printrdi("IDirectInputDevice::SetDataFormat() (joystick)", r);
+           exit();
+       }
+
+       if ((r = dijoyst->SetCooperativeLevel(wnd, DISCL_NONEXCLUSIVE | DISCL_FOREGROUND)) != DI_OK)
+       {
+           printrdi("IDirectInputDevice::SetCooperativeLevel() (joystick)", r);
+           exit();
+       }
+
+       DIPROPRANGE diprg;
+       diprg.diph.dwSize       = sizeof(diprg);
+       diprg.diph.dwHeaderSize = sizeof(diprg.diph);
+       diprg.diph.dwObj        = DIJOFS_X;
+       diprg.diph.dwHow        = DIPH_BYOFFSET;
+       diprg.lMin              = -1000;
+       diprg.lMax              = +1000;
+
+       if ((r = dijoyst->SetProperty(DIPROP_RANGE, &diprg.diph)) != DI_OK)
+       { printrdi("IDirectInputDevice::SetProperty(DIPH_RANGE)", r); exit(); }
+
+       diprg.diph.dwObj        = DIJOFS_Y;
+
+       if ((r = dijoyst->SetProperty(DIPROP_RANGE, &diprg.diph)) != DI_OK)
+       { printrdi("IDirectInputDevice::SetProperty(DIPH_RANGE) (y)", r); exit(); }
+
+       if ((r = SetDIDwordProperty(dijoyst, DIPROP_DEADZONE, DIJOFS_X, DIPH_BYOFFSET, 2000)) != DI_OK)
+       { printrdi("IDirectInputDevice::SetProperty(DIPH_DEADZONE)", r); exit(); }
+
+       if ((r = SetDIDwordProperty(dijoyst, DIPROP_DEADZONE, DIJOFS_Y, DIPH_BYOFFSET, 2000)) != DI_OK)
+       { printrdi("IDirectInputDevice::SetProperty(DIPH_DEADZONE) (y)", r); exit(); }
+       ::dijoyst = dijoyst;
+   }
+   else
+   {
+      dijoyst->Release();
+   }
+   return DIENUM_CONTINUE;
 }
 
 HRESULT WINAPI callb(LPDDSURFACEDESC2 surf, void *lpContext)
@@ -1145,6 +1187,11 @@ HRESULT WINAPI callb(LPDDSURFACEDESC2 surf, void *lpContext)
 
 const int WIN_SX = 640;
 const int WIN_SY = 480;
+
+void scale_normal()
+{
+   SendMessage(wnd, WM_SYSCOMMAND, SCU_SCALE1, 0); // set window size
+}
 
 void start_dx()
 {
@@ -1365,7 +1412,6 @@ void done_dx()
    if (sprim) sprim->Release(); sprim = 0;
    if (clip) clip->Release(); clip = 0;
    if (dd) dd->Release(); dd = 0;
-   if (dijoyst1) dijoyst1->Release(); dijoyst1 = 0;
    if (dikeyboard) dikeyboard->Unacquire(), dikeyboard->Release(); dimouse = 0;
    if (dimouse) dimouse->Unacquire(), dimouse->Release(); dimouse = 0;
    if (dijoyst) dijoyst->Unacquire(), dijoyst->Release(); dijoyst = 0;

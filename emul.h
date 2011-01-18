@@ -9,7 +9,7 @@
 #define TRASH_PAGE
 
 #define PAGE 0x4000U
-#define MAX_RAM_PAGES 64        // 1Mb RAM
+#define MAX_RAM_PAGES 256       // 4Mb RAM
 #define MAX_CACHE_PAGES 2       // 32K cache
 #define MAX_MISC_PAGES 1        // trash page
 #define MAX_ROM_PAGES 64        // 1Mb
@@ -42,7 +42,15 @@
 #define TRASH_M     (MISC_BASE_M+0*PAGE)
 
 
-enum IDE_SCHEME { IDE_NONE = 0, IDE_ATM, IDE_NEMO, IDE_NEMO_A8, IDE_SMUC, IDE_PROFI };
+enum IDE_SCHEME
+{
+    IDE_NONE = 0,
+    IDE_ATM,
+    IDE_NEMO, IDE_NEMO_A8, IDE_NEMO_DIVIDE,
+    IDE_SMUC,
+    IDE_PROFI,
+    IDE_DIVIDE,
+};
 
 enum MOUSE_WHEEL_MODE { MOUSE_WHEEL_NONE, MOUSE_WHEEL_KEYBOARD, MOUSE_WHEEL_KEMPSTON }; //0.36.6 from 0.35b2
 
@@ -51,19 +59,21 @@ enum MEM_MODEL
    MM_PENTAGON = 0,
    MM_SCORP, MM_PROFSCORP,
    MM_PROFI,
-   MM_ATM450, MM_ATM710,
+   MM_ATM450, MM_ATM710, MM_ATM3,
    MM_KAY,
    MM_PLUS3,
+   MM_QUORUM,
    N_MM_MODELS
 };
 
 enum ROM_MODE { RM_NOCHANGE=0, RM_SOS, RM_DOS, RM_SYS, RM_128, RM_CACHE };
 
-const int RAM_128 = 128, RAM_256 = 256, RAM_512 = 512, RAM_1024 = 1024;
+const int RAM_128 = 128, RAM_256 = 256, RAM_512 = 512, RAM_1024 = 1024, RAM_4096 = 4096;
 
 struct TMemModel
 {
    char *fullname, *shortname;
+   MEM_MODEL Model;
    unsigned defaultRAM;
    unsigned availRAMs;
 };
@@ -123,6 +133,8 @@ struct CONFIG
    unsigned char even_M1, border_4T;
 
    unsigned char floatbus, floatdos;
+   bool portff;
+
    int modem_port; //, modem_scheme;
    unsigned char fdd_noise;
 
@@ -156,8 +168,8 @@ struct CONFIG
    unsigned char RejectDC;
    struct
    {
-      unsigned fq, ayfq;
-      int covoxFB, covoxDD, sd;
+      unsigned fq, ayfq, saa1099fq;
+      int covoxFB, covoxDD, sd, saa1099;
       int beeper_vol, micout_vol, micin_vol, ay_vol, aydig_vol,
           covoxFB_vol, covoxDD_vol, sd_vol, gs_vol, bass_vol;
       VOID_FUNC do_sound;
@@ -175,6 +187,7 @@ struct CONFIG
       signed char mousescale;
       unsigned char mousewheel; // enum MOUSE_WHEEL_MODE //0.36.6 from 0.35b2
       zxkeymap *active_zxk;
+      unsigned JoyId;
    } input;
 
    struct {
@@ -215,11 +228,13 @@ struct CONFIG
    char sys_rom_path[FILENAME_MAX];
    char atm1_rom_path[FILENAME_MAX];
    char atm2_rom_path[FILENAME_MAX];
+   char atm3_rom_path[FILENAME_MAX];
    char scorp_rom_path[FILENAME_MAX];
    char prof_rom_path[FILENAME_MAX];
    char profi_rom_path[FILENAME_MAX];
 //[vv]   char kay_rom_path[FILENAME_MAX];
    char plus3_rom_path[FILENAME_MAX];
+   char quorum_rom_path[FILENAME_MAX];
 
    #ifdef MOD_GSZ80
    char gs_rom_path[FILENAME_MAX];
@@ -342,6 +357,13 @@ enum AY_SCHEME
 #define EFF7_384        0x40
 #define EFF7_CMOS       0x80
 
+// Биты порта 00 для кворума
+static const u8 Q_F_RAM = 0x01;
+static const u8 Q_RAM_8 = 0x08;
+static const u8 Q_B_ROM = 0x20;
+static const u8 Q_BLK_WR = 0x40;
+static const u8 Q_TR_DOS = 0x80;
+
 enum SNAP
 {
    snNOFILE, snUNKNOWN, snTOOLARGE,
@@ -367,13 +389,20 @@ struct COMPUTER
 {
    unsigned char p7FFD, pFE, pEFF7, pXXXX;
    unsigned char pDFFD, pFDFD, p1FFD, pFF77;
+#ifdef VG_EMUL // VG н¬г«пв®а ®в savelij' 
+   u8 p1D, p3D, p5D, p7D;
+#endif
    u8 p7EFD; // gmx
+   u8 p00, p80FD; // quorum
    __int64 t_states; // inc with conf.frame by each frame
    unsigned frame_counter; // inc each frame
    unsigned char aFE, aFB; // ATM 4.50 system ports
-   unsigned char pFFF7[8]; // ATM 7.10 memory map
+   unsigned pFFF7[8]; // ATM 7.10 / ATM3(4Mb) memory map
+   // |7ffd|rom|b7b6|b5..b0| b7b6 = 0 for atm2
+
    unsigned aFF77;
    unsigned active_ay;
+   u8 pBF; // ATM3
 
    unsigned char flags;
    unsigned char border_attr;
@@ -400,7 +429,7 @@ struct COMPUTER
    } tape;
    SNDRENDER tape_sound; //Alone Coder
    unsigned char comp_pal[0x10];
-   unsigned char ide_read, ide_write; // high byte in IDE i/o
+   unsigned char ide_hi_byte_r, ide_hi_byte_w, ide_hi_byte_w1, ide_read, ide_write; // high byte in IDE i/o
    unsigned char profrom_bank;
 };
 

@@ -93,7 +93,8 @@ void apply_gs()
 void init_gs()
 {
 #ifdef MOD_GS
-   BASS::Load();
+   if (conf.gs_type != 0)
+       BASS::Load();
 #endif
 
 #ifdef MOD_GSZ80
@@ -106,7 +107,8 @@ void init_gs()
 void done_gs()
 {
 #ifdef MOD_GS
-   BASS::Unload();
+   if (conf.gs_type != 0)
+       BASS::Unload();
 #endif
 }
 

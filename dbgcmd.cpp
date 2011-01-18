@@ -103,11 +103,15 @@ void mon_fill()
    }
 }
 
+// Выход из монитора
 void mon_emul()
 {
-   Z80 &cpu = CpuMgr.Cpu();
-   cpu.dbgchk = isbrk(cpu);
-   cpu.dbgbreak = 0;
+   for(unsigned i = 0; i < CpuMgr.GetCount(); i++)
+   {
+       Z80 &cpu = CpuMgr.Cpu(i);
+       cpu.dbgchk = isbrk(cpu);
+       cpu.dbgbreak = 0;
+   }
    dbgbreak = 0;
 }
 
@@ -150,7 +154,7 @@ void editbank()
 
 void editextbank()
 {
-   if(!dbg_extport)
+   if(dbg_extport != -1)
        return;
    unsigned x = input2(ports_x+5, ports_y+2, dgb_extval);
    if (x != -1)

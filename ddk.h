@@ -47,6 +47,7 @@ typedef struct _SCSI_PASS_THROUGH_DIRECT {
     UCHAR Cdb[16];
 } SCSI_PASS_THROUGH_DIRECT, *PSCSI_PASS_THROUGH_DIRECT;
 
+#pragma pack(push, cdb, 1)
 typedef union _CDB
 {
     //
@@ -146,10 +147,23 @@ typedef union _CDB
         UCHAR Control;
     } CDB12;
 
+    struct _START_STOP {
+        UCHAR OperationCode;    // 0x1B - SCSIOP_START_STOP_UNIT
+        UCHAR Immediate: 1;
+        UCHAR Reserved1 : 4;
+        UCHAR LogicalUnitNumber : 3;
+        UCHAR Reserved2[2];
+        UCHAR Start : 1;
+        UCHAR LoadEject : 1;
+        UCHAR Reserved3 : 6;
+        UCHAR Control;
+    } START_STOP;
+
     ULONG AsUlong[4];
     UCHAR AsByte[16];
 
 } CDB, *PCDB;
+#pragma pack(pop, cdb)
 
 typedef struct _INQUIRYDATA
 {
@@ -397,6 +411,7 @@ typedef struct {
 #define SCSIOP_TEST_UNIT_READY          0x00
 
 // 10-byte commands
+#define SCSIOP_START_STOP_UNIT          0x1B
 #define SCSIOP_READ                     0x28
 #define SCSIOP_READ_TOC                 0x43
 

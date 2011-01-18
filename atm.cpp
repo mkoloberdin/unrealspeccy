@@ -272,6 +272,7 @@ void set_atm_FF77(unsigned port, unsigned char val)
 
    comp.pFF77 = val;
    comp.aFF77 = port;
+   cpu.int_gate = (comp.pFF77 & 0x20) != false;
    set_banks();
 }
 

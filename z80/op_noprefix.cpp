@@ -1,8 +1,9 @@
 #include "defs.h"
 #include "tables.h"
+#include "op_system.h"
 #include "op_noprefix.h"
 #include "daa_tabs.h"
-
+#include <stdio.h>
 /*  not prefixed opcodes */
 
 //#ifdef Z80_COMMON
@@ -594,8 +595,11 @@ Z80OPCODE op_75(Z80 *cpu) { // ld (hl),l
 //#endif
 //#ifdef Z80_COMMON
 Z80OPCODE op_76(Z80 *cpu) { // halt
+   if(!cpu->halted)
+       cpu->haltpos = cpu->t;
+
+   cpu->pc--;
    cpu->halted = 1;
-   cpu->haltpos = cpu->t;
 }
 //#endif
 //#ifndef Z80_COMMON

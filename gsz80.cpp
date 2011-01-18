@@ -11,11 +11,11 @@
 #include "z80/op_noprefix.h"
 
 #ifdef MOD_GSZ80
+namespace z80gs
+{
 unsigned __int64 gs_t_states; // inc'ed with GSCPUINT every gs int
 unsigned __int64 gscpu_t_at_frame_start; // gs_t_states+gscpu.t when spectrum frame begins
 
-namespace z80gs
-{
 Z80INLINE unsigned char rm(unsigned addr);
 u8 __fastcall dbgrm(u32 addr);
 Z80INLINE void wm(unsigned addr, unsigned char val);
@@ -510,7 +510,7 @@ static inline void stepi()
    (::normal_opcode[opcode])(&gscpu);
 }
 
-void __cdecl step()
+void Z80FAST step()
 {
     stepi();
 }

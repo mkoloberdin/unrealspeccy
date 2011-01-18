@@ -56,6 +56,7 @@
 #define W_TRACEPOS 0x70
 #define W_INPUTCUR 0x60
 #define W_INPUTBG  0x40
+#define W_48K 0x20
 
 #define W_TRACE_JINFO_CURS_FG   0x0D
 #define W_TRACE_JINFO_NOCURS_FG 0x02

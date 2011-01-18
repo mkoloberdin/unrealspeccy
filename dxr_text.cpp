@@ -12,7 +12,7 @@
 #include "util.h"
 
 unsigned *root_tab;
-unsigned char *fontdata = fontdata1;
+const unsigned char *fontdata = fontdata1;
 
 #ifdef _M_IX86
 #if 1
@@ -544,7 +544,7 @@ unsigned *alloc_table(unsigned *&tptr, unsigned *startval)
 
 void create_font_tables()
 {
-   unsigned char *fontbase = conf.fast_sl? font8 : font16;
+   const unsigned char *fontbase = conf.fast_sl? font8 : font16;
    unsigned fonth = conf.fast_sl? 8 : 16;
    if (conf.fontsize < 8) fontbase = conf.fast_sl? font8 : font14, fonth = conf.fast_sl? 8 : 14;
 
@@ -559,7 +559,7 @@ void create_font_tables()
    // (last bytes of same char with
    // different first bytes may be same)
    for (unsigned invert = 0; invert < 0x100; invert += 0xFF) {
-      for (unsigned char *ptr = fontdata; *ptr; ptr += 8) {
+      for (const unsigned char *ptr = fontdata; *ptr; ptr += 8) {
          unsigned code = *ptr++; unsigned *tab = root_tab;
          for (unsigned level = 0; ; level++) {
             unsigned bits = (ptr[level] ^ (unsigned char)invert) & 0x0F;

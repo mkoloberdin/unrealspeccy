@@ -50,7 +50,7 @@ void debugflip()
       {
          unsigned ch = *tptr, at = tptr[80*30];
          if (at == 0xFF) continue; // transparent color
-         unsigned char *fnt = &font16[ch*16];
+         const unsigned char *fnt = &font16[ch*16];
          at <<= 4;
          for (int yy = 0; yy < 16; yy++, fnt++)
          {

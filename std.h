@@ -1,6 +1,6 @@
 #define _WIN32_WINNT        0x0500   // mouse wheel since win2k
 // #define _WIN32_IE           0x0300   // for property sheet in win95. without this will not start in 9x
-#define DIRECTINPUT_VERSION 0x0500   // joystick since dx 5.0 (for NT4, need 3.0)
+#define DIRECTINPUT_VERSION 0x05b2   // joystick since dx 5.0 (for NT4, need 3.0)
 #define DIRECTSOUND_VERSION 0x0800
 #define DIRECTDRAW_VERSION  0x0500
 //#define _CRT_SECURE_NO_DEPRECATE

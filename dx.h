@@ -1,10 +1,14 @@
 #pragma once
-#define DRIVER_DDRAW    0
-#define DRIVER_GDI      1
-#define DRIVER_OVR      2
-#define DRIVER_BLT      3
-#define DRIVER_DDRAW16  4
-#define DRIVER_DDRAW32  5
+
+enum
+{
+    DRIVER_DDRAW, 
+    DRIVER_DDRAW16,
+    DRIVER_DDRAW32,
+    DRIVER_GDI, 
+    DRIVER_OVR,
+    DRIVER_BLT,
+};
 
 #define MAXWQSIZE 32
 
@@ -36,6 +40,7 @@ void updatebitmap();
 void adjust_mouse_cursor();
 void start_dx();
 void done_dx();
+void scale_normal();
 
 void readdevice(VOID *md, DWORD sz, LPDIRECTINPUTDEVICE dev);
 void readmouse(DIMOUSESTATE *md);

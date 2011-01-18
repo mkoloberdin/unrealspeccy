@@ -41,7 +41,7 @@ void spectrum_frame()
    showleds();
 
    if (!cpu.iff1 || // int disabled in CPU
-        (conf.mem_model == MM_ATM710 && !(comp.pFF77 & 0x20))) // int disabled by ATM hardware
+        ((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3) && !(comp.pFF77 & 0x20))) // int disabled by ATM hardware
    {
       unsigned char *mp = am_r(cpu.pc);
       if (cpu.halted)

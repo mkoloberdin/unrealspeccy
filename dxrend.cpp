@@ -119,13 +119,29 @@ void __fastcall render_dbl(unsigned char *dst, unsigned pitch)
        rend_atm_1(dst, pitch);
        return;
    }
-   if (conf.mem_model == MM_ATM710)
+   if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
    {
        rend_atm_2(dst, pitch);
        return;
    }
 
    rend_dbl(dst, pitch);
+}
+
+void __fastcall render_3x(unsigned char *dst, unsigned pitch)
+{
+   if (conf.noflic) {
+      if (temp.obpp == 8)  rend_copy8t_nf (dst, pitch);
+      if (temp.obpp == 16) rend_copy16t_nf(dst, pitch);
+      if (temp.obpp == 32) rend_copy32t_nf(dst, pitch);
+      memcpy(rbuf_s, rbuf, temp.scy*temp.scx/4);
+   }
+   else
+   {
+      if (temp.obpp == 8)  { rend_copy8t (dst, pitch); return; }
+      if (temp.obpp == 16) { rend_copy16t(dst, pitch); return; }
+      if (temp.obpp == 32) { rend_copy32t(dst, pitch); return; }
+   }
 }
 
 void __fastcall render_quad(unsigned char *dst, unsigned pitch)

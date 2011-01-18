@@ -1,6 +1,7 @@
 #pragma once
 #include "emul_2203.h"
 #include "sndrender/sndchip.h"
+#include "sndrender/saa1099.h"
 
 #define ROMLED_TIME 16
 
@@ -25,6 +26,38 @@ enum
    VK_JUP,
    VK_JDOWN,
    VK_JFIRE,
+   VK_JB0 = VK_JFIRE,
+   VK_JB1,
+   VK_JB2,
+   VK_JB3,
+   VK_JB4,
+   VK_JB5,
+   VK_JB6,
+   VK_JB7,
+   VK_JB8,
+   VK_JB9,
+   VK_JB10,
+   VK_JB11,
+   VK_JB12,
+   VK_JB13,
+   VK_JB14,
+   VK_JB15,
+   VK_JB16,
+   VK_JB17,
+   VK_JB18,
+   VK_JB19,
+   VK_JB20,
+   VK_JB21,
+   VK_JB22,
+   VK_JB23,
+   VK_JB24,
+   VK_JB25,
+   VK_JB26,
+   VK_JB27,
+   VK_JB28,
+   VK_JB29,
+   VK_JB30,
+   VK_JB31,
    DIK_MENU,
    DIK_CONTROL,
    DIK_SHIFT, 
@@ -61,6 +94,8 @@ public:
    virtual unsigned char m1_cycle() override;
    virtual unsigned char in(unsigned port) override;
    virtual void out(unsigned port, unsigned char val) override;
+   virtual u8 IntVec() override;
+   virtual void CheckNextFrame() override;
 };
 
 extern PALETTE_OPTIONS pals[32];
@@ -176,6 +211,7 @@ extern class TGsZ80 gscpu;
 namespace z80gs
 {
     extern SNDRENDER sound;
+    extern u8 membits[];
 }
 #endif
 

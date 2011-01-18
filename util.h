@@ -1,5 +1,27 @@
 #pragma once
 
+class TCriticalSection
+{
+    CRITICAL_SECTION CritSect;
+public:
+    TCriticalSection() { InitializeCriticalSection(&CritSect); }
+    ~TCriticalSection() { DeleteCriticalSection(&CritSect); }
+    void Lock() { EnterCriticalSection(&CritSect); }
+    void Unlock() { LeaveCriticalSection(&CritSect); }
+};
+
+class TEvent
+{
+    HANDLE Event;
+public:
+    TEvent(BOOL InitState) { Event = CreateEvent(0, TRUE, InitState, 0); }
+    ~TEvent() { CloseHandle(Event); }
+    void Set() { SetEvent(Event); }
+    void Reset() { ResetEvent(Event); }
+    bool Wait(DWORD TimeOut = INFINITE) { return WaitForSingleObject(Event, TimeOut) == WAIT_OBJECT_0; }
+};
+
+
 #define VK_ALT VK_MENU
 
 #define WORD4(a,b,c,d) (((unsigned)(a)) | (((unsigned)(b)) << 8) | (((unsigned)(c)) << 16) | (((unsigned)(d)) << 24))
