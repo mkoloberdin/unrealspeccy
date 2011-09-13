@@ -7,7 +7,11 @@ struct Z80;
 
 #define Z80FAST fastcall
 
+#ifdef _MSC_VER
 #define Z80INLINE forceinline // time-critical inlines
+#else
+#define Z80INLINE inline
+#endif
 
 typedef void (Z80FAST *STEPFUNC)(Z80*);
 #define Z80OPCODE void Z80FAST
@@ -165,6 +169,7 @@ struct TZ80State
     unsigned eipos, haltpos;
     /*------------------------------*/
     unsigned char im;
+    bool nmi_in_progress;
 };
 
 typedef u8 (__fastcall * TRm)(u32 addr);
@@ -197,7 +202,7 @@ struct Z80 : public TZ80State
    unsigned cbp[MAX_CBP][128]; // Условия для условных брекпоинтов
    unsigned cbpn;
 
-   __int64 debug_last_t; // used to find time delta
+   i64 debug_last_t; // used to find time delta
    u32 tpi; // Число тактов между прерываниями
    u32 trpc[40];
 //   typedef u8 (__fastcall * TRmDbg)(u32 addr);
@@ -205,18 +210,18 @@ struct Z80 : public TZ80State
 //   typedef void (__fastcall * TWmDbg)(u32 addr, u8 val);
    typedef void (__cdecl *TBankNames)(int i, char *Name);
    typedef void (Z80FAST * TStep)();
-   typedef __int64 (__cdecl * TDelta)();
+   typedef i64 (__cdecl * TDelta)();
    typedef void (__cdecl * TSetLastT)();
 //   TRmDbg DirectRm; // direct read memory in debuger
 //   TWmDbg DirectWm; // direct write memory in debuger
 //   TMemDbg DirectMem; // get direct memory pointer in debuger
+   u32 Idx; // Индекс в массиве процессоров
    TBankNames BankNames;
    TStep Step;
    TDelta Delta;
    TSetLastT SetLastT;
    u8 *membits;
    u8 dbgbreak;
-   u32 Idx; // Индекс в массиве процессоров
    const TMemIf *FastMemIf; // Быстрый интерфес памяти
    const TMemIf *DbgMemIf; // Интерфейс памяти для поддержки отладчика (брекпоинты на доступ к памяти)
    const TMemIf *MemIf; // Текущий активный интерфейс памяти
@@ -234,14 +239,15 @@ struct Z80 : public TZ80State
        dbgbreak = 0;
        dbgchk = 0;
        debug_last_t = 0;
-       trace_curs = trace_top = -1; trace_mode = 0;
+       trace_curs = trace_top = (unsigned)-1; trace_mode = 0;
        mem_curs = mem_top = 0;
        pc_trflags = nextpc = 0;
-       dbg_stophere = dbg_stopsp = -1;
+       dbg_stophere = dbg_stopsp = (unsigned)-1;
        dbg_loop_r1 = 0;
        dbg_loop_r2 = 0xFFFF;
        int_pend = false;
        int_gate = true;
+       nmi_in_progress = false;
    }
    virtual ~Z80() { }
    u32 GetIdx() const { return Idx; }
@@ -263,6 +269,7 @@ struct Z80 : public TZ80State
    virtual unsigned char m1_cycle() = 0; // [vv] Не зависит от процессора (вынести в библиотеку)
    virtual u8 IntVec() = 0; // Функция возвращающая значение вектора прерывания для im2
    virtual void CheckNextFrame() = 0; // Проверка и обновления счетчика кадров и тактов внутри прерывания
+   virtual void retn() = 0; // Вызывается в конце инструкции retn (должна сбрасывать флаг nmi_in_progress и обновлять раскладку памяти)
 };
 
 #define CF 0x01

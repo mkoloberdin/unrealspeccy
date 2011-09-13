@@ -26,10 +26,13 @@ void show_time()
    frame(time_x, time_y, 26, 1, FRAME);
 }
 
-void wtline(char *name, unsigned ptr, unsigned y)
+static void wtline(const char *name, unsigned ptr, unsigned y)
 {
    char line[40];
-   sprintf(line, name?"%3s: ":"%04X ", name?name:(char*)ptr);
+   if(name)
+       sprintf(line, "%3s: ", name);
+   else
+       sprintf(line, "%04X ", ptr);
 
    Z80 &cpu = CpuMgr.Cpu();
    for (unsigned dx = 0; dx < 8; dx++)
@@ -69,10 +72,12 @@ void showwatch()
       wtline(0, user_watches[1], 11);
       wtline(0, user_watches[2], 12);
    }
-   char *text = "watches";
+   const char *text = "watches";
    if (show_scrshot == 1) text = "screen memory";
    if (show_scrshot == 2) text = "ray-painted";
    tprint(wat_x, wat_y-1, text, W_TITLE);
+   if(comp.flags & CF_DOSPORTS)
+       tprint(wat_x+34, wat_y-1, "DOS", W_DOS);
    frame(wat_x,wat_y,37,wat_sz,FRAME);
 }
 
@@ -108,7 +113,7 @@ void showstack()
 void show_ay()
 {
    if (!conf.sound.ay_scheme) return;
-   char *ayn = comp.active_ay? "AY1" : "AY0";
+   const char *ayn = comp.active_ay ? "AY1" : "AY0";
    if (conf.sound.ay_scheme < AY_SCHEME_QUADRO) ayn = "AY:", comp.active_ay = 0;
    tprint(ay_x-3, ay_y, ayn, W_TITLE);
    SNDCHIP *chip = &ay[comp.active_ay];
@@ -146,7 +151,6 @@ void __cdecl BankNames(int i, char *Name)
 
     if (IsRom)
         sprintf(Name, "ROM%2X", rom_bank);
-
 
     if (bankr[i] == base_sos_rom)
         strcpy(Name, "BASIC");
@@ -187,8 +191,8 @@ void showports()
    tprint(ports_x, ports_y, ln, W_OTHER);
    sprintf(ln, "7FFD:%02X", comp.p7FFD);
    tprint(ports_x, ports_y+1, ln, (comp.p7FFD & 0x20) && 
-   !(conf.mem_model == MM_PENTAGON && conf.ramsize == 1024 ||
-     conf.mem_model == MM_PROFI && (comp.pDFFD & 0x10)) ? W_48K : W_OTHER);
+   !((conf.mem_model == MM_PENTAGON && conf.ramsize == 1024) ||
+     (conf.mem_model == MM_PROFI && (comp.pDFFD & 0x10))) ? W_48K : W_OTHER);
 
    switch (conf.mem_model)
    {

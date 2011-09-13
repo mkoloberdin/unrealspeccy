@@ -349,7 +349,7 @@ void load_config(const char *fname)
    conf.even_M1 = GetPrivateProfileInt(ula, "EvenM1", 0, ininame);
    conf.floatbus = GetPrivateProfileInt(ula, "FloatBus", 0, ininame);
    conf.floatdos = GetPrivateProfileInt(ula, "FloatDOS", 0, ininame);
-   conf.portff = GetPrivateProfileInt(ula, "PortFF", 0, ininame);
+   conf.portff = GetPrivateProfileInt(ula, "PortFF", 0, ininame) != 0;
 
    conf.ula_preset=-1;
    add_presets(ula, "preset", &num_ula, ulapreset, &conf.ula_preset);
@@ -492,6 +492,7 @@ void load_config(const char *fname)
    #ifdef MOD_GSBASS
    if (!strnicmp(line, "BASS", 4)) conf.gs_type = 2;
    #endif
+   conf.gs_ramsize = GetPrivateProfileInt(ngs, "RamSize", 2048, ininame);
 #endif
 
    conf.soundfilter = GetPrivateProfileInt(sound, "SoundFilter", 0, ininame); //Alone Coder 0.36.4
@@ -652,10 +653,36 @@ void load_config(const char *fname)
       conf.ide[ide_device].lba = GetPrivateProfileInt(hdd, param, 0, ininame);
       sprintf(param, "CHS%d", ide_device);
       GetPrivateProfileString(hdd, param, "0/0/0", line, sizeof line, ininame);
-      sscanf(line, "%d/%d/%d", &conf.ide[ide_device].c, &conf.ide[ide_device].h, &conf.ide[ide_device].s);
+      unsigned c, h, s;
+
+      sscanf(line, "%u/%u/%u", &c, &h, &s);
+      if(h > 16)
+      {
+          sprintf(line, "HDD%d heads count > 16 : %u\n", ide_device, h);
+          errexit(line);
+      }
+      if(s > 63)
+      {
+          sprintf(line, "error HDD%d sectors count > 63 : %u\n", ide_device, s);
+          errexit(line);
+      }
+      if(c > 16383)
+      {
+          sprintf(line, "error HDD%d cylinders count > 16383 : %u\n", ide_device, c);
+          errexit(line);
+      }
+
+      conf.ide[ide_device].c = c;
+      conf.ide[ide_device].h = h;
+      conf.ide[ide_device].s = s;
+
       sprintf(param, "Image%d", ide_device);
       GetPrivateProfileString(hdd, param, nil, conf.ide[ide_device].image, sizeof conf.ide[ide_device].image, ininame);
-      addpath(conf.ide[ide_device].image);
+
+      if(conf.ide[ide_device].image[0] &&
+         conf.ide[ide_device].image[0] != '<')
+          addpath(conf.ide[ide_device].image);
+
       sprintf(param, "HD%dRO", ide_device);
       conf.ide[ide_device].readonly = (BYTE)GetPrivateProfileInt(hdd, param, 0, ininame);
       sprintf(param, "CD%d", ide_device);
@@ -671,7 +698,7 @@ void load_config(const char *fname)
           {
               __int64 sz = _filelengthi64(file);
               close(file);
-              conf.ide[ide_device].lba = sz / 512;
+              conf.ide[ide_device].lba = unsigned(sz / 512);
           }
       }
    }
@@ -710,6 +737,18 @@ void load_config(const char *fname)
            printf("ZC SDCARD=`%s'\n", conf.zc_sd_card_path);
    }
 
+   GetPrivateProfileString("AUTOLOAD", "DefaultDrive", nil, line, sizeof(line), ininame);
+   if(!strnicmp(line, "Auto", 4))
+       DefaultDrive = -1;
+   else if(!strnicmp(line, "A", 1))
+       DefaultDrive = 0;
+   else if(!strnicmp(line, "B", 1))
+       DefaultDrive = 1;
+   else if(!strnicmp(line, "C", 1))
+       DefaultDrive = 2;
+   else if(!strnicmp(line, "D", 1))
+       DefaultDrive = 3;
+
    load_atm_font();
    load_arch(ininame);
    loadkeys(ac_main);
@@ -719,6 +758,7 @@ void load_config(const char *fname)
    loadkeys(ac_trace);
    loadkeys(ac_mem);
 #endif
+   temp.scale = GetPrivateProfileInt(video, "winscale", 1, ininame);
 }
 
 void autoload()
@@ -880,6 +920,8 @@ void apply_memory()
 #ifdef MOD_MONITOR
    load_labels(conf.sos_labels_path, base_sos_rom, 0x4000);
 #endif
+
+   temp.gs_ram_mask = (conf.gs_ramsize-1) >> 4;
    temp.ram_mask = (conf.ramsize-1) >> 4;
    temp.rom_mask = (romsize-1) >> 4;
    set_banks();
@@ -905,7 +947,7 @@ void applyconfig()
        conf.frame = 71680;
 */
 //~Alone Coder
-   temp.ticks_frame = (unsigned)(temp.cpufq / conf.intfq);
+   temp.ticks_frame = (unsigned)(temp.cpufq / double(conf.intfq) + 1.0);
    loadzxkeys(&conf);
    apply_memory();
 

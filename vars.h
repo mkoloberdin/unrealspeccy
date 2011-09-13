@@ -9,7 +9,7 @@
 struct PALETTE_OPTIONS
 { // custom palettes
    char name[33];
-   unsigned char ZZ,ZN,NN,NB,BB,ZB;
+   unsigned ZZ,ZN,NN,NB,BB,ZB;
    unsigned r11,r12,r13,r21,r22,r23,r31,r32,r33;
 };
 #pragma pack()
@@ -96,6 +96,7 @@ public:
    virtual void out(unsigned port, unsigned char val) override;
    virtual u8 IntVec() override;
    virtual void CheckNextFrame() override;
+   virtual void retn() override;
 };
 
 extern PALETTE_OPTIONS pals[32];
@@ -147,6 +148,7 @@ extern const size_t pckeys_count;
 extern keyports inports[VK_MAX];
 
 extern unsigned trd_toload; // drive to load
+extern unsigned DefaultDrive; // Дисковод по умолчанию в который грузятся образы дисков при старте
 
 extern unsigned char *base_sos_rom;
 extern unsigned char *base_dos_rom;

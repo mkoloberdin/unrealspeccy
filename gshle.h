@@ -64,5 +64,5 @@ struct GSHLE
    void cont_mod();
    void debug_note(unsigned i);
 
-   void reportError(char *err);
+   void reportError(const char *err);
 };

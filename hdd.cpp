@@ -126,12 +126,14 @@ void ATA_DEVICE::configure(IDE_CONFIG *cfg)
    DWORD errcode;
    if (dev->type == ATA_NTHDD || dev->type == ATA_FILEHDD)
    {
+       dev->usage = ATA_OP_USE;
        errcode = ata_p.open(dev);
        atapi = 0;
    }
 
    if (dev->type == ATA_SPTI_CD || dev->type == ATA_ASPI_CD || dev->type == ATA_FILECD)
    {
+       dev->usage = ATA_OP_USE;
        errcode = atapi_p.open(dev);
        atapi = 1;
    }

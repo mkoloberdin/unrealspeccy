@@ -33,7 +33,7 @@ CACHE_ALIGNED struct T
    unsigned char attrtab[0x200]; // pc attribute + bit (pixel on/off) -> palette index
 
    CACHE_ALIGNED union {
-      unsigned p4bpp8[2][0x100];   // ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
+      unsigned p4bpp8[2][0x100];   // ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled) (p2p2p1p1)
       unsigned p4bpp16[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels (doubled)
       unsigned p4bpp32[2][2*0x100];// ATM EGA screen. EGA byte -> raw video data: 2 pixels
    };
@@ -68,7 +68,7 @@ CACHE_ALIGNED struct T
       };
       unsigned bs2h[96][129];      // temp buffer for chunks 2x2 flt
       unsigned bs4h[48][65];       // temp buffer for chunks 4x4 flt
-      unsigned font_tables[MAX_FONT_TABLES / sizeof(unsigned)]; // for anti-text64
+      void* font_tables[MAX_FONT_TABLES / sizeof(void*)]; // for anti-text64
    };
    // pre-calculated
    unsigned settab[0x100];         // for chunks 4x4
@@ -103,23 +103,23 @@ struct AtmVideoController
 {
     struct ScanLine
     {
-        int Offset; // смещение внутри АТМ видеостраницы
-        int VideoMode; // видеорежим для данной сканлинии
+        int Offset; // ёьх∙хэшх тэєЄЁш └╥╠ тшфхюёЄЁрэшЎ√
+        int VideoMode; // тшфхюЁхцшь фы  фрээющ ёърэышэшш
     };
     void PrepareFrameATM2(int VideoMode);
     void PrepareFrameATM1(int VideoMode);
 
-    ScanLine Scanlines[256]; // параметры 56 надбордерных сканлиний и 200 растровых сканлиний
+    ScanLine Scanlines[256]; // ярЁрьхЄЁ√ 56 эрфсюЁфхЁэ√ї ёърэышэшщ ш 200 ЁрёЄЁют√ї ёърэышэшщ
 
-    // Если инкременты видеоадреса происходят до фактической отрисовки сканлинии - 
-    // то они применяются к её началу и сохраняются в соответствующем поле .offset этой сканлинии.
+    // ┼ёыш шэъЁхьхэЄ√ тшфхюрфЁхёр яЁюшёїюф Є фю ЇръЄшўхёъющ юЄЁшёютъш ёърэышэшш - 
+    // Єю юэш яЁшьхэ ■Єё  ъ х╕ эрўрыє ш ёюїЁрэ ■Єё  т ёююЄтхЄёЄтє■∙хь яюых .offset ¤Єющ ёърэышэшш.
     //
-    // Если инкременты видеоадреса происходят в момент отрисовки растра или сразу за ним -
-    // то они применяются к следующей сканлинии.
-    // Чтобы вести учёт накопления инкрементов используются следующие два поля:
-    int CurrentRayLine; // номер текущей сканлинии, на которой происходит накопление инкрементов
-    int IncCounter_InRaster; // счётчик для накопления +64 инкрементов, сделанных на растре
-    int IncCounter_InBorder; // счётчик для накопления +64 инкрементов, сделанных на бордюре
+    // ┼ёыш шэъЁхьхэЄ√ тшфхюрфЁхёр яЁюшёїюф Є т ьюьхэЄ юЄЁшёютъш ЁрёЄЁр шыш ёЁрчє чр эшь -
+    // Єю юэш яЁшьхэ ■Єё  ъ ёыхфє■∙хщ ёърэышэшш.
+    // ╫Єюс√ тхёЄш єў╕Є эръюяыхэш  шэъЁхьхэЄют шёяюы№чє■Єё  ёыхфє■∙шх фтр яюы :
+    int CurrentRayLine; // эюьхЁ Єхъє∙хщ ёърэышэшш, эр ъюЄюЁющ яЁюшёїюфшЄ эръюяыхэшх шэъЁхьхэЄют
+    int IncCounter_InRaster; // ёў╕Єўшъ фы  эръюяыхэш  +64 шэъЁхьхэЄют, ёфхырээ√ї эр ЁрёЄЁх
+    int IncCounter_InBorder; // ёў╕Єўшъ фы  эръюяыхэш  +64 шэъЁхьхэЄют, ёфхырээ√ї эр сюЁф■Ёх
 };
 
 extern AtmVideoController AtmVideoCtrl;

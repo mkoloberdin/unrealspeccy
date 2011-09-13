@@ -11,6 +11,13 @@
 #include "draw.h"
 #include "util.h"
 
+void rend_small(unsigned char *dst, unsigned pitch)
+{
+    if (temp.obpp == 8)  { rend_copy8 (dst, pitch); return; }
+    if (temp.obpp == 16) { rend_copy16(dst, pitch); return; }
+    if (temp.obpp == 32) { rend_copy32(dst, pitch); return; }
+}
+
 void __fastcall render_small(unsigned char *dst, unsigned pitch)
 {
    if (conf.noflic)
@@ -19,13 +26,27 @@ void __fastcall render_small(unsigned char *dst, unsigned pitch)
       if (temp.obpp == 16) { rend_copy16_nf(dst, pitch); }
       if (temp.obpp == 32) { rend_copy32_nf(dst, pitch); }
       memcpy(rbuf_s, rbuf, temp.scy*temp.scx/4);
+      return;
    }
-   else
+
+   if (comp.pEFF7 & EFF7_4BPP)
    {
-      if (temp.obpp == 8)  { rend_copy8 (dst, pitch); return; }
-      if (temp.obpp == 16) { rend_copy16(dst, pitch); return; }
-      if (temp.obpp == 32) { rend_copy32(dst, pitch); return; }
+       rend_p4bpp_small(dst, pitch);
+       return;
    }
+
+   if (conf.mem_model == MM_ATM450)
+   {
+       rend_atm_1_small(dst, pitch);
+       return;
+   }
+
+   if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
+   {
+       rend_atm_2_small(dst, pitch);
+       return;
+   }
+   rend_small(dst, pitch);
 }
 
 void rend_dbl(unsigned char *dst, unsigned pitch)
@@ -199,13 +220,17 @@ void __fastcall render_scale(unsigned char *dst, unsigned pitch)
    }
 }
 
-unsigned __int64 mask49 = 0x4949494949494949;
-unsigned __int64 mask92 = 0x9292929292929292;
-#ifdef _M_IX86
-void __declspec(naked) __fastcall _bil_line1(unsigned char *dst, unsigned char *src)
+static u64 mask49 = 0x4949494949494949;
+static u64 mask92 = 0x9292929292929292;
+
+static void /*__declspec(naked)*/ __fastcall _bil_line1(unsigned char *dst, unsigned char *src)
 {
-//      for (j = 0; j < temp.scx; j++, src++)
-//         *dst++ = *src, *dst++ = ((*src + src[1]) >> 1);
+    for (unsigned i = 0; i < temp.scx; i += 2)
+    {
+       dst[i] = src[i];
+       dst[i+1] = ((src[i] + src[i+1]) >> 1);
+    }
+/*
    __asm {
 
       push ebx
@@ -238,16 +263,32 @@ l1:
       pop ebx
       retn
    }
+*/
 }
 
-void __declspec(naked) __fastcall _bil_line2(unsigned char *dst, unsigned char *s1)
+static void /*__declspec(naked)*/ __fastcall _bil_line2(unsigned char *dst, unsigned char *s1)
 {
-//      for (j = 0; j < temp.ox; j+=4) {
-//         unsigned a = *(unsigned*)(s1+j),
-//                  b = *(unsigned*)(s1+j+2*MAX_WIDTH);
-//         *(unsigned*)(dst+j) = (0x49494949 & ((a&b)^((a^b)>>1))) |
-//                               (0x92929292 & ((a&b)|((a|b)&((a&b)<<1))));
-//      }
+      u32 *s = (u32 *)s1;
+      u32 *d = (u32 *)dst;
+
+      for (unsigned j = 0; j < temp.ox/4; j++)
+      {
+          u32 a = s[j];
+          u32 b = s[j+2*MAX_WIDTH/4];
+          u32 x = a & b;
+          u32 y = (a ^ b) >> 1;
+          u32 z = a | b;
+          u32 n = x << 1;
+          u32 v1 = x ^ y;
+          v1 &= 0x49494949;
+          u32 v2 = z & n;
+          v2 |= x;
+          v2 &= 0x92929292;
+
+          d[j] = v1 | v2;
+      }
+
+/*
    __asm {
 
       mov  eax, [temp.ox]
@@ -280,6 +321,7 @@ m2:   movq  mm0, [edx]
 
       retn
    }
+*/
 }
 
 void __fastcall render_bil(unsigned char *dst, unsigned pitch)
@@ -287,38 +329,33 @@ void __fastcall render_bil(unsigned char *dst, unsigned pitch)
    render_small(snbuf, MAX_WIDTH);
 
    unsigned char *src = snbuf;
-   unsigned char l1[MAX_WIDTH*4];
+   unsigned char ATTR_ALIGN(16) l1[MAX_WIDTH*4];
    #define l2 (l1+MAX_WIDTH*2)
    _bil_line1(l1, src); src += MAX_WIDTH;
-   unsigned j; //Alone Coder 0.36.7
-   for (/*unsigned*/ j = 0; j < temp.ox; j+=4)
-      *(unsigned*)(dst+j) = *(unsigned*)(l1+j);
+   memcpy(dst, l1, temp.ox);
    dst += pitch;
 
-   for (unsigned i = temp.scy/2-1; i; i--) {
+   for (unsigned i = temp.scy/2-1; i; i--)
+   {
       _bil_line1(l2, src); src += MAX_WIDTH;
       _bil_line2(dst, l1); dst += pitch;
-      for (j = 0; j < temp.ox; j+=4)
-         *(unsigned*)(dst+j) = *(unsigned*)(l2+j);
+      memcpy(dst, l2, temp.ox);
       dst += pitch;
 
       _bil_line1(l1, src); src += MAX_WIDTH;
       _bil_line2(dst, l1); dst += pitch;
-      for (j = 0; j < temp.ox; j+=4)
-         *(unsigned*)(dst+j) = *(unsigned*)(l1+j);
+      memcpy(dst, l1, temp.ox);
       dst += pitch;
    }
    _bil_line1(l2, src); src += MAX_WIDTH;
    _bil_line2(dst, l1); dst += pitch;
-   for (j = 0; j < temp.ox; j+=4)
-      *(unsigned*)(dst+j) = *(unsigned*)(l2+j);
+   memcpy(dst, l2, temp.ox);
    dst += pitch;
-   for (j = 0; j < temp.ox; j+=4)
-      *(unsigned*)(dst+j) = *(unsigned*)(l2+j);
+   memcpy(dst, l2, temp.ox);
    #undef l2
-   __asm emms
+
+//   _mm_empty();
 }
-#endif
 
 void __fastcall render_tv(unsigned char *dst, unsigned pitch)
 {

@@ -18,3 +18,4 @@ void mon_tool();
 void mon_watchdialog();
 void mon_scrshot();
 void mon_switch_cpu();
+void mon_switch_dump();

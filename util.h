@@ -46,19 +46,13 @@ unsigned process_msgs();
 char dispatch(action *table);
 char dispatch_more(action *table);
 
-#ifdef _M_IX86
-void __cdecl fillCpuString(char *dst);
+void fillCpuString(char *dst);
 unsigned cpuid(unsigned _eax, int ext);
-#endif
 unsigned __int64 GetCPUFrequency();
 
-forceinline unsigned __int64 rdtsc()
+static forceinline u64 rdtsc()
 {
-#ifdef __INTEL_COMPILER
     return __rdtsc();
-#else
-    __asm rdtsc
-#endif
 }
 
 bool wcmatch(char *string, char *wc);

@@ -45,9 +45,20 @@ static const int p4bpp_ofs[] =
 
 #define p4bpp8_nf p4bpp8
 
-int buf4bpp_shift = 0;
+static int buf4bpp_shift = 0;
 
-void line_p4bpp_8(unsigned char *dst, unsigned char *src, unsigned *tab)
+static void line_p4bpp_8(unsigned char *dst, unsigned char *src, unsigned *tab)
+{
+   u8 *d = (u8 *)dst;
+   for (unsigned x = 0, i = 0; x < 256; x += 2, i++)
+   {
+       unsigned tmp = tab[src[p4bpp_ofs[(i+temp.offset_hscroll) & 0x7f]]];
+       d[x]   = tmp;
+       d[x+1] = tmp >> 16;
+   }
+}
+
+static void line_p4bpp_8d(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
    for (unsigned x = 0; x < 128; x++)
    {
@@ -56,7 +67,7 @@ void line_p4bpp_8(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
-void line_p4bpp_8_nf(unsigned char *dst, unsigned char *src1, unsigned char *src2, unsigned *tab)
+static void line_p4bpp_8d_nf(unsigned char *dst, unsigned char *src1, unsigned char *src2, unsigned *tab)
 {
    for (unsigned x = 0; x < 128; x++)
    {
@@ -67,7 +78,18 @@ void line_p4bpp_8_nf(unsigned char *dst, unsigned char *src1, unsigned char *src
    }
 }
 
-void line_p4bpp_16(unsigned char *dst, unsigned char *src, unsigned *tab)
+static void line_p4bpp_16(unsigned char *dst, unsigned char *src, unsigned *tab)
+{
+   u16 *d = (u16 *)dst;
+   for (unsigned x = 0, i = 0; x < 256; x +=2, i++)
+   {
+       unsigned tmp = 2*src[p4bpp_ofs[(i+temp.offset_hscroll) & 0x7f]];
+       d[x]   = tab[0+tmp];
+       d[x+1] = tab[1+tmp];
+   }
+}
+
+static void line_p4bpp_16d(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
    unsigned tmp;
    for (unsigned x = 0; x < 128; x++)
@@ -80,7 +102,7 @@ void line_p4bpp_16(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
-void line_p4bpp_16_nf(unsigned char *dst, unsigned char *src1, unsigned char *src2, unsigned *tab)
+static void line_p4bpp_16d_nf(unsigned char *dst, unsigned char *src1, unsigned char *src2, unsigned *tab)
 {
    unsigned tmp1;
    unsigned tmp2;
@@ -95,7 +117,18 @@ void line_p4bpp_16_nf(unsigned char *dst, unsigned char *src1, unsigned char *sr
    }
 }
 
-void line_p4bpp_32(unsigned char *dst, unsigned char *src, unsigned *tab)
+static void line_p4bpp_32(unsigned char *dst, unsigned char *src, unsigned *tab)
+{
+   u32 *d = (u32 *)dst;
+   for (unsigned x = 0, i = 0; x < 256; x += 2, i++)
+   {
+       unsigned tmp = 2*src[p4bpp_ofs[(i+temp.offset_hscroll) & 0x7f]];
+       d[x]   = tab[0+tmp];
+       d[x+1] = tab[1+tmp];
+   }
+}
+
+static void line_p4bpp_32d(unsigned char *dst, unsigned char *src, unsigned *tab)
 {
    unsigned tmp;
    for (unsigned x = 0; x < 128; x++)
@@ -108,7 +141,7 @@ void line_p4bpp_32(unsigned char *dst, unsigned char *src, unsigned *tab)
    }
 }
 
-void line_p4bpp_32_nf(unsigned char *dst, unsigned char *src1, unsigned char *src2, unsigned *tab)
+static void line_p4bpp_32d_nf(unsigned char *dst, unsigned char *src1, unsigned char *src2, unsigned *tab)
 {
    unsigned tmp1;
    unsigned tmp2;
@@ -123,15 +156,24 @@ void line_p4bpp_32_nf(unsigned char *dst, unsigned char *src1, unsigned char *sr
    }
 }
 
-void r_p4bpp_8(unsigned char *dst, unsigned pitch)
+static void r_p4bpp_8(unsigned char *dst, unsigned pitch)
+{
+    for (unsigned y = 0; y < 192; y++)
+    {
+       unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+       line_p4bpp_8(dst, src, t.p4bpp8[0]); dst += pitch;
+    }
+}
+
+static void r_p4bpp_8d1(unsigned char *dst, unsigned pitch)
 {
    if (conf.noflic)
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src1 = temp.base                 + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[unsigned char(y+temp.offset_vscroll_prev)];
-         line_p4bpp_8_nf(dst, src1, src2, t.p4bpp8_nf[0]); dst += pitch;
+         unsigned char *src1 = temp.base                 + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[(unsigned char)(y+temp.offset_vscroll_prev)];
+         line_p4bpp_8d_nf(dst, src1, src2, t.p4bpp8_nf[0]); dst += pitch;
       }
 
    }
@@ -139,23 +181,23 @@ void r_p4bpp_8(unsigned char *dst, unsigned pitch)
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src = temp.base + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         line_p4bpp_8(dst, src, t.p4bpp8[0]); dst += pitch;
+         unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         line_p4bpp_8d(dst, src, t.p4bpp8[0]); dst += pitch;
       }
    }
 }
 
-void r_p4bpp_8d(unsigned char *dst, unsigned pitch)
+static void r_p4bpp_8d(unsigned char *dst, unsigned pitch)
 {
    if (conf.noflic)
    {
 
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src1 = temp.base                 + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[unsigned char(y+temp.offset_vscroll_prev)];
-         line_p4bpp_8_nf(dst, src1, src2, t.p4bpp8_nf[0]); dst += pitch;
-         line_p4bpp_8_nf(dst, src1, src2, t.p4bpp8_nf[1]); dst += pitch;
+         unsigned char *src1 = temp.base                 + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[(unsigned char)(y+temp.offset_vscroll_prev)];
+         line_p4bpp_8d_nf(dst, src1, src2, t.p4bpp8_nf[0]); dst += pitch;
+         line_p4bpp_8d_nf(dst, src1, src2, t.p4bpp8_nf[1]); dst += pitch;
       }
 
    }
@@ -164,47 +206,33 @@ void r_p4bpp_8d(unsigned char *dst, unsigned pitch)
 
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src = temp.base + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         line_p4bpp_8(dst, src, t.p4bpp8[0]); dst += pitch;
-         line_p4bpp_8(dst, src, t.p4bpp8[1]); dst += pitch;
-      }
-
-   }
-}
-
-void r_p4bpp_16(unsigned char *dst, unsigned pitch)
-{
-   if (conf.noflic)
-   {
-      for (unsigned y = 0; y < 192; y++)
-      {
-         unsigned char *src1 = temp.base                 + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[unsigned char(y+temp.offset_vscroll_prev)];
-         line_p4bpp_16_nf(dst, src1, src2, t.p4bpp16_nf[0]); dst += pitch;
-      }
-
-   }
-   else
-   {
-      for (unsigned y = 0; y < 192; y++)
-      {
-         unsigned char *src = temp.base + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         line_p4bpp_16(dst, src, t.p4bpp16[0]); dst += pitch;
+         unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         line_p4bpp_8d(dst, src, t.p4bpp8[0]); dst += pitch;
+         line_p4bpp_8d(dst, src, t.p4bpp8[1]); dst += pitch;
       }
 
    }
 }
 
-void r_p4bpp_16d(unsigned char *dst, unsigned pitch)
+static void r_p4bpp_16(unsigned char *dst, unsigned pitch)
+{
+    for (unsigned y = 0; y < 192; y++)
+    {
+       unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+       line_p4bpp_16(dst, src, t.p4bpp16[0]);
+       dst += pitch;
+    }
+}
+
+static void r_p4bpp_16d1(unsigned char *dst, unsigned pitch)
 {
    if (conf.noflic)
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src1 = temp.base                 + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[unsigned char(y+temp.offset_vscroll_prev)];
-         line_p4bpp_16_nf(dst, src1, src2, t.p4bpp16_nf[0]); dst += pitch;
-         line_p4bpp_16_nf(dst, src1, src2, t.p4bpp16_nf[1]); dst += pitch;
+         unsigned char *src1 = temp.base                 + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[(unsigned char)(y+temp.offset_vscroll_prev)];
+         line_p4bpp_16d_nf(dst, src1, src2, t.p4bpp16_nf[0]); dst += pitch;
       }
 
    }
@@ -212,22 +240,56 @@ void r_p4bpp_16d(unsigned char *dst, unsigned pitch)
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src = temp.base + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         line_p4bpp_16(dst, src, t.p4bpp16[0]); dst += pitch;
-         line_p4bpp_16(dst, src, t.p4bpp16[1]); dst += pitch;
+         unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         line_p4bpp_16d(dst, src, t.p4bpp16[0]); dst += pitch;
+      }
+
+   }
+}
+
+static void r_p4bpp_16d(unsigned char *dst, unsigned pitch)
+{
+   if (conf.noflic)
+   {
+      for (unsigned y = 0; y < 192; y++)
+      {
+         unsigned char *src1 = temp.base                 + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[(unsigned char)(y+temp.offset_vscroll_prev)];
+         line_p4bpp_16d_nf(dst, src1, src2, t.p4bpp16_nf[0]); dst += pitch;
+         line_p4bpp_16d_nf(dst, src1, src2, t.p4bpp16_nf[1]); dst += pitch;
+      }
+
+   }
+   else
+   {
+      for (unsigned y = 0; y < 192; y++)
+      {
+         unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         line_p4bpp_16d(dst, src, t.p4bpp16[0]); dst += pitch;
+         line_p4bpp_16d(dst, src, t.p4bpp16[1]); dst += pitch;
       }
    }
 }
 
-void r_p4bpp_32(unsigned char *dst, unsigned pitch)
+static void r_p4bpp_32(unsigned char *dst, unsigned pitch)
+{
+    for (unsigned y = 0; y < 192; y++)
+    {
+       unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+       line_p4bpp_32(dst, src, t.p4bpp32[0]);
+       dst += pitch;
+    }
+}
+
+static void r_p4bpp_32d1(unsigned char *dst, unsigned pitch)
 {
    if (conf.noflic)
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src1 = temp.base                 + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[unsigned char(y+temp.offset_vscroll_prev)];
-         line_p4bpp_32_nf(dst, src1, src2, t.p4bpp32_nf[0]); dst += pitch;
+         unsigned char *src1 = temp.base                 + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[(unsigned char)(y+temp.offset_vscroll_prev)];
+         line_p4bpp_32d_nf(dst, src1, src2, t.p4bpp32_nf[0]); dst += pitch;
       }
 
    }
@@ -235,33 +297,69 @@ void r_p4bpp_32(unsigned char *dst, unsigned pitch)
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src = temp.base + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         line_p4bpp_32(dst, src, t.p4bpp32[0]); dst += pitch;
+         unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         line_p4bpp_32d(dst, src, t.p4bpp32[0]); dst += pitch;
       }
    }
 }
 
-void r_p4bpp_32d(unsigned char *dst, unsigned pitch)
+static void r_p4bpp_32d(unsigned char *dst, unsigned pitch)
 {
    if (conf.noflic)
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src1 = temp.base                 + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[unsigned char(y+temp.offset_vscroll_prev)];
-         line_p4bpp_32_nf(dst, src1, src2, t.p4bpp32_nf[0]); dst += pitch;
-         line_p4bpp_32_nf(dst, src1, src2, t.p4bpp32_nf[1]); dst += pitch;
+         unsigned char *src1 = temp.base                 + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         unsigned char *src2 = temp.base + buf4bpp_shift + t.scrtab[(unsigned char)(y+temp.offset_vscroll_prev)];
+         line_p4bpp_32d_nf(dst, src1, src2, t.p4bpp32_nf[0]); dst += pitch;
+         line_p4bpp_32d_nf(dst, src1, src2, t.p4bpp32_nf[1]); dst += pitch;
       }
    }
    else
    {
       for (unsigned y = 0; y < 192; y++)
       {
-         unsigned char *src = temp.base + t.scrtab[unsigned char(y+temp.offset_vscroll)];
-         line_p4bpp_32(dst, src, t.p4bpp32[0]); dst += pitch;
-         line_p4bpp_32(dst, src, t.p4bpp32[1]); dst += pitch;
+         unsigned char *src = temp.base + t.scrtab[(unsigned char)(y+temp.offset_vscroll)];
+         line_p4bpp_32d(dst, src, t.p4bpp32[0]); dst += pitch;
+         line_p4bpp_32d(dst, src, t.p4bpp32[1]); dst += pitch;
       }
    }
+}
+
+void rend_p4bpp_small(unsigned char *dst, unsigned pitch)
+{
+   unsigned char *dst2 = dst + (temp.ox-256)*temp.obpp/16;
+   dst2 += temp.b_top * pitch * ((temp.oy > temp.scy)?2:1);
+
+   if (temp.oy > temp.scy && conf.fast_sl)
+       pitch *= 2;
+
+   if (conf.noflic)
+       buf4bpp_shift = (rbuf_s+PAGE) - temp.base;
+
+   if (temp.obpp == 8) 
+   {
+       rend_frame8(dst, pitch);
+       r_p4bpp_8(dst2, pitch);
+   }
+   if (temp.obpp == 16)
+   {
+       rend_frame16(dst, pitch);
+       r_p4bpp_16(dst2, pitch);
+   }
+   if (temp.obpp == 32)
+   {
+       rend_frame32(dst, pitch);
+       r_p4bpp_32(dst2, pitch);
+   }
+
+   if (conf.noflic)
+       memcpy(rbuf_s, temp.base-PAGE, 2*PAGE);
+
+   temp.offset_vscroll_prev = temp.offset_vscroll;
+   temp.offset_vscroll = 0;
+   temp.offset_hscroll_prev = temp.offset_hscroll;
+   temp.offset_hscroll = 0;
 }
 
 void rend_p4bpp(unsigned char *dst, unsigned pitch)
@@ -276,18 +374,42 @@ void rend_p4bpp(unsigned char *dst, unsigned pitch)
 
    if (temp.obpp == 8) 
    {
-       if (conf.fast_sl) rend_frame_x2_8s (dst, pitch), r_p4bpp_8 (dst2, pitch);
-       else rend_frame_x2_8d (dst, pitch), r_p4bpp_8d (dst2, pitch);
+       if (conf.fast_sl)
+       {
+           rend_frame_8d1(dst, pitch);
+           r_p4bpp_8d1(dst2, pitch);
+       }
+       else
+       {
+           rend_frame_8d(dst, pitch);
+           r_p4bpp_8d(dst2, pitch);
+       }
    }
    if (temp.obpp == 16)
    {
-       if (conf.fast_sl) rend_frame_x2_16s(dst, pitch), r_p4bpp_16(dst2, pitch);
-       else rend_frame_x2_16d(dst, pitch), r_p4bpp_16d(dst2, pitch);
+       if (conf.fast_sl)
+       {
+           rend_frame_16d1(dst, pitch);
+           r_p4bpp_16d1(dst2, pitch);
+       }
+       else
+       {
+           rend_frame_16d(dst, pitch);
+           r_p4bpp_16d(dst2, pitch);
+       }
    }
    if (temp.obpp == 32)
    {
-       if (conf.fast_sl) rend_frame_x2_32s(dst, pitch), r_p4bpp_32(dst2, pitch);
-       else rend_frame_x2_32d(dst, pitch), r_p4bpp_32d(dst2, pitch);
+       if (conf.fast_sl)
+       {
+           rend_frame_32d1(dst, pitch);
+           r_p4bpp_32d1(dst2, pitch);
+       }
+       else
+       {
+           rend_frame_32d(dst, pitch);
+           r_p4bpp_32d(dst2, pitch);
+       }
    }
 
    if (conf.noflic)

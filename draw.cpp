@@ -635,10 +635,8 @@ void video_timing_tables()
       *(&temp.led.ay+i) = (z & 0x80000000) ? rbuf + ((x>>2)&0xFE) + y*width : 0;
    }
 
-#ifdef _M_IX86
    if (temp.rflags & RF_USEFONT)
        create_font_tables();
-#endif
 
    needclr = 2;
 }
@@ -816,13 +814,13 @@ void init_frame()
        ((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)&& (comp.pFF77 & 7) != 3) ||  // ATM-2 hires screen
        (conf.mem_model == MM_ATM450 && (comp.aFE & 0x60) != 0x60)) // ATM-1 hires screen
    {
-       if ((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3) && !cpu.dbgchk)
+       if ((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3))
        {
            // ATM2, один из расширенных видеорежимов
            AtmVideoCtrl.PrepareFrameATM2(comp.pFF77 & 7);
        }
 
-       if (conf.mem_model == MM_ATM450 && !cpu.dbgchk)
+       if (conf.mem_model == MM_ATM450)
        {
            // ATM1, один из расширенных видеорежимов
            AtmVideoCtrl.PrepareFrameATM1( (comp.aFE >> 5) & 3 );
@@ -836,7 +834,7 @@ void init_frame()
 
    // paper + border
    temp.base_2 = temp.base;
-allow_border:
+//allow_border:
    prev_t = vmode = 0;
    vcurr = video;
 }

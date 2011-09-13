@@ -72,7 +72,7 @@ void find_tape_sizes()
 void stop_tape()
 {
    find_tape_index();
-   char *msg = "tape stopped";
+   const char *msg = "tape stopped";
    if (comp.tape.play_pointer == comp.tape.end_of_tape)
       comp.tape.index = 0, msg = "end of tape";
    comp.tape.play_pointer = 0;
@@ -159,7 +159,7 @@ void desc(unsigned char *data, unsigned size, char *dst)
 
 void alloc_infocell()
 {
-   tapeinfo = (TAPEINFO*)realloc(tapeinfo, (tape_infosize+1)*sizeof TAPEINFO);
+   tapeinfo = (TAPEINFO*)realloc(tapeinfo, (tape_infosize+1)*sizeof(TAPEINFO));
    tapeinfo[tape_infosize].pos = tape_imagesize;
    appendable = 0;
 }
@@ -360,7 +360,7 @@ void parse_hardware(unsigned char *ptr)
       unsigned char type_n = *ptr++;
       unsigned char id_n = *ptr++;
       unsigned char value_n = *ptr++;
-      char *type = ids, *id, *value;
+      const char *type = ids, *id, *value;
       unsigned j; //Alone Coder 0.36.7
       for (/*unsigned*/ j = 0; j < type_n; j++) {
          if (!*type) break;
@@ -547,7 +547,7 @@ int readTZX()
             named_cell("- ARCHIVE INFO ");
             p = (char*)ptr + 3;
             for (i = 0; i < ptr[2]; i++) {
-               char *info;
+               const char *info;
                switch (*p++) {
                   case 0: info = "Title"; break;
                   case 1: info = "Publisher"; break;

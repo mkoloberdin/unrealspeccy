@@ -36,7 +36,7 @@ unsigned char getcheck(unsigned ID)
 CONFIG c1;
 char dlgok = 0;
 
-char *lastpage;
+const char *lastpage;
 
 char rset_list[0x800];
 
@@ -386,7 +386,7 @@ INT_PTR CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    }
    if (msg == WM_COMMAND && !block) {
       unsigned id = LOWORD(wp), code = HIWORD(wp);
-      if ((code == EN_CHANGE && (id==IDE_FRAME || id==IDE_LINE || id==IDE_INT || id==IDE_PAPER))
+      if ((code == EN_CHANGE && (id==IDE_FRAME || id==IDE_LINE || id==IDE_INT || id==IDE_INT_LEN || id==IDE_PAPER))
           || (code == BN_CLICKED && (id==IDC_EVENM1 || id==IDC_4TBORDER || id==IDC_FLOAT_BUS || id==IDC_FLOAT_DOS || id==IDC_PORT_FF)))
       {
          c1.ula_preset = -1;
@@ -422,7 +422,7 @@ INT_PTR CALLBACK UlaDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
       c1.border_4T = getcheck(IDC_4TBORDER);
       c1.floatbus = getcheck(IDC_FLOAT_BUS);
       c1.floatdos = getcheck(IDC_FLOAT_DOS);
-      c1.portff = getcheck(IDC_PORT_FF);
+      c1.portff = getcheck(IDC_PORT_FF) != 0;
       if(c1.mem_model == MM_PROFI)
       {
            c1.profi_monochrome = getcheck(IDC_PROFI_MONOCHROME);
@@ -547,7 +547,11 @@ void HddDlg_select_image(int device)
       return;
    }
 
-   if (code >= 8) { // physical device
+   if (code >= 8)
+   { // physical device
+      if(MessageBox(dlg, "All volumes on drive will be dismounted\n", "Warning",
+          MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+          return;
       strcpy(c1.ide[device].image, phys[code-8].viewname);
       HddDlg_show_info(device);
       return;
@@ -585,7 +589,7 @@ void HddDlg_select_image(int device)
    c1.ide[device].c = 0;
    c1.ide[device].h = 0;
    c1.ide[device].s = 0;
-   c1.ide[device].lba = sz / 512;
+   c1.ide[device].lba = unsigned(sz / 512);
    HddDlg_show_info(device);
 }
 
@@ -972,7 +976,8 @@ INT_PTR CALLBACK VideoDlg(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
    return 1;
 }
 
-struct {
+static struct
+{
    unsigned ID;
    int *value;
 } slider[] = {
@@ -1135,11 +1140,11 @@ void FillModemList(HWND box)
          MODEMDEVCAPS *mc = (MODEMDEVCAPS*)&b.comm.wcProvChar;
          char vendor[0x100], model[0x100];
 
-         unsigned vsize = mc->dwModemManufacturerSize / sizeof WCHAR;
+         unsigned vsize = mc->dwModemManufacturerSize / sizeof(WCHAR);
          WideCharToMultiByte(CP_ACP, 0, (WCHAR*)(PCHAR(mc) + mc->dwModemManufacturerOffset), vsize, vendor, sizeof vendor, 0, 0);
          vendor[vsize] = 0;
 
-         unsigned msize = mc->dwModemModelSize / sizeof WCHAR;
+         unsigned msize = mc->dwModemModelSize / sizeof(WCHAR);
          WideCharToMultiByte(CP_ACP, 0, (WCHAR*)(PCHAR(mc) + mc->dwModemModelOffset), msize, model, sizeof model, 0, 0);
          model[msize] = 0;
          char line[0x200];
@@ -1548,6 +1553,8 @@ void setup_dlg()
 
    c1 = conf; PropertySheet(&psh);
    if (dlgok) {
+           if(conf.render != c1.render)
+               temp.scale = 1;
            conf = c1;
            frametime = conf.frame; //Alone Coder 0.36.5
    };

@@ -58,6 +58,7 @@ Z80OPCODE ope_45(Z80 *cpu) { // retn
    cpu->pc = addr;
    cpu->memptr = addr;
    cpu->t += 6;
+   cpu->retn();
 }
 //#endif
 //#ifdef Z80_COMMON

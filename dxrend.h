@@ -10,3 +10,4 @@ void __fastcall render_bil(unsigned char *dst, unsigned pitch);
 void __fastcall render_scale(unsigned char *dst, unsigned pitch);
 
 void rend_dbl(unsigned char *dst, unsigned pitch);
+void rend_small(unsigned char *dst, unsigned pitch);

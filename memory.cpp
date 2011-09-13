@@ -5,7 +5,6 @@
 #include "memory.h"
 #include "util.h"
 
-
 // input: ports 7FFD,1FFD,DFFD,FFF7,FF77,EFF7, flags CF_TRDOS,CF_CACHEON
 void set_banks()
 {
@@ -31,13 +30,7 @@ void set_banks()
    {
        if(comp.p7FFD & 0x10)
        {
-           bank0 = 
-#ifdef VG_EMUL // VG эмулятор от savelij'а
-           (conf.mem_model == MM_PENTAGON) ?
-            ROM_BASE_M + (comp.p1D & temp.rom_mask) * PAGE : base_dos_rom;
-#else
-            base_dos_rom;
-#endif         
+           bank0 = base_dos_rom;
        }
        else
        {
@@ -59,10 +52,6 @@ void set_banks()
 
          if (comp.pEFF7 & EFF7_ROCACHE)
              bank0 = RAM_BASE_M + 0*PAGE; //Alone Coder 0.36.4
-
-#ifdef VG_EMUL // VG эмулятор от savelij'а
-         bankw[2] = bankr[2] = RAM_BASE_M + (comp.p3D & temp.ram_mask) * PAGE;
-#endif         
          break;
 
       case MM_PROFSCORP:
@@ -75,6 +64,9 @@ void set_banks()
          bank3 = RAM_BASE_M + (bank & temp.ram_mask) * PAGE;
 
 /*
+         // обработка памяти gmx (конфликтует со стандартным profrom)
+         // нужно сделать флаг записи в порт 7EFD, и если была хоть одна запись
+         // то обрабатывать rom по стандарту gmx
          comp.profrom_bank = ((comp.p7EFD >> 4) & 3) & temp.profrom_mask;
          {
              unsigned char *base = ROM_BASE_M + (comp.profrom_bank * 64*1024);
@@ -84,6 +76,7 @@ void set_banks()
              base_dos_rom = base + 3*PAGE;
          }
 */
+
          // Доработка из книжки gmx (включение портов dos из ОЗУ, сделано немного не так как в реальной схеме)
          if(comp.p1FFD & 4)
              comp.flags |= CF_TRDOS;
@@ -191,6 +184,9 @@ void set_banks()
             }
          }
          bank0 = bankr[0]; bank3 = bankr[3];
+
+         if(conf.mem_model == MM_ATM3 && cpu.nmi_in_progress)
+             bank0 = RAM_BASE_M + PAGE * 0xFF;
          break;
       }
 

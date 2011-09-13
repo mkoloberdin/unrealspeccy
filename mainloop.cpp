@@ -65,17 +65,17 @@ void spectrum_frame()
 
 void do_idle()
 {
-   static unsigned long long last_cpu = rdtsc();
+   static volatile unsigned long long last_cpu = rdtsc();
    for (;;)
    {
       asm_pause();
-      unsigned long long cpu = rdtsc();
+      volatile unsigned long long cpu = rdtsc();
       if ((cpu-last_cpu) >= temp.ticks_frame)
           break;
 
       if(conf.sleepidle)
       {
-          ULONG Delay = ((temp.ticks_frame - (cpu-last_cpu)) * 1000ULL) / temp.cpufq;
+          ULONG Delay = ULONG(((temp.ticks_frame - (cpu-last_cpu)) * 1000ULL) / temp.cpufq);
 
           if(Delay != 0)
           {
@@ -125,7 +125,7 @@ void mainloop()
 }
 */
 
-void __declspec(noreturn) mainloop(const bool &Exit)
+void mainloop(const bool &Exit)
 {
    unsigned char skipped = 0;
    for (;!Exit;)
@@ -166,8 +166,10 @@ void __declspec(noreturn) mainloop(const bool &Exit)
          }
          if (!temp.sndblock)
          {
+/*
              if(conf.sound.do_sound == do_sound_none)
                  do_idle();
+*/
          }
       }
 

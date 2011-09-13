@@ -1,6 +1,10 @@
 
+// Адрес может превышать 0xFFFF
+// (чтобы в каждой команде работы с регистрами не делать &= 0xFFFF)
 unsigned char rm(unsigned addr)
 {
+   addr &= 0xFFFF;
+
 #ifdef Z80_DBG
    unsigned char *membit = membits + (addr & 0xFFFF);
    *membit |= MEMBITS_R;
@@ -22,8 +26,12 @@ unsigned char rm(unsigned addr)
    return *am_r(addr);
 }
 
+// Адрес может превышать 0xFFFF
+// (чтобы в каждой команде работы с регистрами не делать &= 0xFFFF)
 void wm(unsigned addr, unsigned char val)
 {
+   addr &= 0xFFFF;
+
 #ifdef Z80_DBG
    unsigned char *membit = membits + (addr & 0xFFFF);
    *membit |= MEMBITS_W;
@@ -49,6 +57,14 @@ void wm(unsigned addr, unsigned char val)
        return;
    }
 #endif
+
+   if((conf.mem_model == MM_ATM3) && (comp.pBF & 4) && ((addr & 0xF800) == 0)) // Разрешена загрузка шрифта для ATM3
+   {
+       unsigned idx = (addr >> 3) | ((addr & 7) << 8);
+       fontatm2[idx] = val;
+       update_screen();
+       return;
+   }
 
    unsigned char *a = bankw[(addr >> 14) & 3];
 #ifndef TRASH_PAGE
@@ -153,14 +169,23 @@ void z80loop()
    // INT check separated from main Z80 loop to improve emulation speed
    while (cpu.t < conf.intlen)
    {
-#ifdef Z80_DBG
-      debug_events(&cpu);
-#endif
+      if(conf.mem_model == MM_ATM3 && nmi_pending)
+      {
+          nmi_pending = 0;
+          cpu.nmi_in_progress = true;
+          set_banks();
+          m_nmi(RM_NOCHANGE);
+          continue;
+      }
+
       if (cpu.int_pend && cpu.iff1 && cpu.t != cpu.eipos && // int enabled in CPU not issued after EI
            !((conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3) && !(comp.pFF77 & 0x20))) // int enabled by ATM hardware
       {
          handle_int(&cpu, cpu.IntVec()); // Начало обработки int (запись в стек адреса возврата и т.п.)
       }
+#ifdef Z80_DBG
+      debug_events(&cpu);
+#endif
       step();
 
       if (!cpu.int_pend)
@@ -190,14 +215,27 @@ void z80loop()
 */
       step();
 
+      if(comp.pBE)
+      {
+          if(comp.pBE == 1)
+          {
+              cpu.nmi_in_progress = false;
+              set_banks();
+          }
+          comp.pBE--;
+      }
+
       if(nmi_pending)
       {
-         nmi_pending--;
-         if(cpu.pc >= 0x4000)
+         if((conf.mem_model == MM_PROFSCORP || conf.mem_model == MM_SCORP))
          {
-//             printf("pc=%x\n", cpu.pc);
-             ::m_nmi(RM_DOS);
-             nmi_pending = 0;
+             nmi_pending--;
+             if(cpu.pc >= 0x4000)
+             {
+    //             printf("pc=%x\n", cpu.pc);
+                 ::m_nmi(RM_DOS);
+                 nmi_pending = 0;
+             }
          }
       }
    }

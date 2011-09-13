@@ -4,6 +4,7 @@
 #include "emul.h"
 #include "vars.h"
 #include "debug.h"
+#include "config.h"
 #include "util.h"
 
 enum
@@ -13,8 +14,11 @@ enum
    DB_SHORT,
    DB_PCHAR,
    DB_PSHORT,
-   DB_PINT
+   DB_PINT,
+   DB_PFUNC,
 };
+
+typedef bool (__cdecl *func_t)();
 
 unsigned calcerr;
 unsigned calc(const Z80 *cpu, unsigned *script)
@@ -52,11 +56,17 @@ unsigned calc(const Z80 *cpu, unsigned *script)
          case DB_PCHAR:        x = *(unsigned char*)*script++; goto push;
          case DB_PSHORT:       x = 0xFFFF & *(unsigned*)*script++; goto push;
          case DB_PINT:         x = *(unsigned*)*script++; goto push;
+         case DB_PFUNC:        x = ((func_t)*script++)(); goto push;
          push:                 *++sp = x; break;
       } // switch (*script)
    } // while
    if (sp != stack) calcerr = 1;
    return *sp;
+}
+
+static bool __cdecl get_dos_flag()
+{
+    return (comp.flags & CF_DOSPORTS) != 0;
 }
 
 #define DECL_REGS(var, cpu)                        \
@@ -68,6 +78,7 @@ unsigned calc(const Z80 *cpu, unsigned *script)
    } var[] =                                       \
    {                                               \
                                                    \
+      { WORD4('D','O','S',0), get_dos_flag, 0 },  \
       { WORD4('O','U','T',0), &brk_port_out, 4 },  \
       { WORD2('I','N'), &brk_port_in, 4 },         \
       { WORD4('V','A','L',0), &brk_port_val, 1 },  \
@@ -185,6 +196,7 @@ unsigned char toscript(char *script, unsigned *dst)
             script += ln;
             switch (regs[r].size)
             {
+               case 0: *dst++ = DB_PFUNC; break;
                case 1: *dst++ = DB_PCHAR; break;
                case 2: *dst++ = DB_PSHORT; break;
                case 4: *dst++ = DB_PINT; break;
@@ -254,7 +266,7 @@ void script2text(char *dst, unsigned *src)
 
    DECL_REGS(regs, cpu);
 
-   while (r = *src++)
+   while ((r = *src++))
    {
       if (r == DB_CHAR)
       {
@@ -268,7 +280,7 @@ void script2text(char *dst, unsigned *src)
          sp++;
          continue;
       }
-      if (r >= DB_PCHAR && r <= DB_PINT)
+      if (r >= DB_PCHAR && r <= DB_PFUNC)
       {
          int i; //Alone Coder 0.36.7
          for (/*int*/ i = 0; i < _countof(regs); i++)
@@ -645,4 +657,100 @@ reinit:
 void mon_watchdialog()
 {
    DialogBox(hIn, MAKEINTRESOURCE(IDD_OSW), wnd, watchdlg);
+}
+
+static void LoadBpx()
+{
+    char Line[100];
+    char BpxFileName[FILENAME_MAX];
+
+    addpath(BpxFileName, "bpx.ini");
+
+    FILE *BpxFile = fopen(BpxFileName, "rt");
+    if(!BpxFile)
+        return;
+
+    while(!feof(BpxFile))
+    {
+        fgets(Line, sizeof(Line), BpxFile);
+        Line[sizeof(Line)-1] = 0;
+        char Type = -1;
+        int Start = -1, End = -1, CpuIdx = -1;
+        int n = sscanf(Line, "%c%1d=%i-%i", &Type, &CpuIdx, &Start, &End);
+        if(n < 3 || CpuIdx < 0 || CpuIdx >= (int)CpuMgr.GetCount() || Start < 0)
+            continue;
+
+        if(End < 0)
+            End = Start;
+
+        unsigned mask = 0;
+        switch(Type)
+        {
+        case 'r': mask |= MEMBITS_BPR; break;
+        case 'w': mask |= MEMBITS_BPW; break;
+        case 'x': mask |= MEMBITS_BPX; break;
+        default: continue;
+        }
+
+        Z80 &cpu = CpuMgr.Cpu(CpuIdx);
+        for (unsigned i = unsigned(Start); i <= unsigned(End); i++)
+            cpu.membits[i] |= mask;
+        cpu.dbgchk = isbrk(cpu);
+    }
+    fclose(BpxFile);
+}
+
+static void SaveBpx()
+{
+    char BpxFileName[FILENAME_MAX];
+
+    addpath(BpxFileName, "bpx.ini");
+
+    FILE *BpxFile = fopen(BpxFileName, "wt");
+    if(!BpxFile)
+        return;
+
+    for(unsigned CpuIdx = 0; CpuIdx < CpuMgr.GetCount(); CpuIdx++)
+    {
+        Z80 &cpu = CpuMgr.Cpu(CpuIdx);
+
+        for(int i = 0; i < 3; i++)
+        {
+            for (unsigned Start = 0; Start < 0x10000; )
+            {
+               static const unsigned Mask[] = { MEMBITS_BPR, MEMBITS_BPW, MEMBITS_BPX };
+               if (!(cpu.membits[Start] & Mask[i]))
+               {
+                   Start++;
+                   continue;
+               }
+               unsigned active = cpu.membits[Start];
+               unsigned End;
+               for (End = Start; End < 0xFFFF && !((active ^ cpu.membits[End+1]) & Mask[i]); End++);
+
+               static const char Type[] = { 'r', 'w', 'x' };
+               if(active & Mask[i])
+               {
+                   if (Start == End)
+                       fprintf(BpxFile, "%c%1d=0x%04X\n", Type[i], CpuIdx, Start);
+                   else
+                       fprintf(BpxFile, "%c%1d=0x%04X-0x%04X\n", Type[i], CpuIdx, Start, End);
+               }
+
+               Start = End + 1;
+            }
+        }
+    }
+
+    fclose(BpxFile);
+}
+
+void init_bpx()
+{
+    LoadBpx();
+}
+
+void done_bpx()
+{
+    SaveBpx();
 }

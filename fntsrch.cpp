@@ -67,9 +67,9 @@ void paint_font(HWND dlg, int paint=0)
    static struct {
       BITMAPINFO header;
       RGBQUAD waste[0x100];
-   } gdibmp = { { sizeof BITMAPINFOHEADER, sz, -sz, 1, 8, BI_RGB } };
+   } gdibmp = { { sizeof(BITMAPINFOHEADER), sz, -sz, 1, 8, BI_RGB } };
    static RGBQUAD cl[] = { {0xFF,0,0},{0xC0,0xC0,0xC0},{0,0,0} };
-   memcpy(gdibmp.header.bmiColors, cl, sizeof cl);
+   memcpy(gdibmp.header.bmiColors, cl, sizeof(cl));
    memset(buf, 0, sz*sz);
 
    unsigned next_pixel, next_char;
@@ -164,11 +164,11 @@ unsigned count_lnk(unsigned mode)
    return result;
 }
 
-union { unsigned v32; unsigned char v8[4]; } c_map0[16];
-union { unsigned v32; unsigned char v8[4]; } c_map1[16];
-union { unsigned v32; unsigned char v8[4]; } c_map2[16];
-union { unsigned v32; unsigned char v8[4]; } c_map3[16];
-union { unsigned v32; unsigned char v8[4]; } c_map4[16];
+static union { unsigned v32; unsigned char v8[4]; } c_map0[16];
+static union { unsigned v32; unsigned char v8[4]; } c_map1[16];
+static union { unsigned v32; unsigned char v8[4]; } c_map2[16];
+static union { unsigned v32; unsigned char v8[4]; } c_map3[16];
+static union { unsigned v32; unsigned char v8[4]; } c_map4[16];
 
 void create_maps()
 {

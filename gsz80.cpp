@@ -78,6 +78,11 @@ void TGsZ80::out(unsigned port, unsigned char val)
     z80gs::out(port, val);
 }
 
+void TGsZ80::retn()
+{
+    nmi_in_progress = false;
+}
+
 namespace z80gs
 {
 #include "z80/op_system.h"
@@ -108,7 +113,6 @@ unsigned char gscmd, gsstat;
 
 unsigned long long mult_gs, mult_gs2;
 
-
 // ngs
 u8 ngs_mode_pg1; // page ex number
 u8 ngs_cfg0;
@@ -122,7 +126,7 @@ bool SdDataAvail = false;
 
 const int GSINTFQ = 37500; // hz
 static int GSCPUFQI;
-const int GSCPUINT = GSCPUFQ/GSINTFQ;
+const unsigned GSCPUINT = GSCPUFQ/GSINTFQ;
 const int MULT_GS_SHIFT = 12; // cpu tick -> gscpu tick precision
 void flush_gs_z80();
 void reset();
@@ -335,10 +339,10 @@ void out(unsigned port, unsigned char val)
       {
          bool ExtMem = (ngs_cfg0 & M_EXPAG) != 0;
 
-         gspage = rol8(val, 1) & (ExtMem ? 0x7F : 0x7E);
+         gspage = rol8(val, 1) & temp.gs_ram_mask & (ExtMem ? 0xFF : 0xFE);
 
          if(!ExtMem)
-             ngs_mode_pg1 = (rol8(val, 1) & 0x7F) | 1;
+             ngs_mode_pg1 = (rol8(val, 1) & temp.gs_ram_mask) | 1;
 //         printf(__FUNCTION__"->GSPG, %X, Ro=%d, NoRom=%d, Ext=%d\n", gspage, RamRo, NoRom, ExtMem);
          UpdateMemMapping();
          return;
@@ -375,7 +379,7 @@ void out(unsigned port, unsigned char val)
       case MPAGEX:
       {
 //          assert((ngs_cfg0 & M_EXPAG) != 0);
-          ngs_mode_pg1 = rol8(val, 1) & 0x7F;
+          ngs_mode_pg1 = rol8(val, 1) & temp.gs_ram_mask;
           UpdateMemMapping();
       }
       break;
@@ -558,8 +562,8 @@ void reset()
    gs_t_states = 0;
    gscpu_t_at_frame_start = 0;
    ngs_cfg0 = 0;
-   ngs_s_stat = (__rdtsc() & ~7) | _SDDET | _MPDRQ;
-   ngs_s_ctrl = (__rdtsc() & ~0xF) | _SDNCS;
+   ngs_s_stat = u8(rdtsc() & ~7) | _SDDET | _MPDRQ;
+   ngs_s_ctrl = u8(rdtsc() & ~0xF) | _SDNCS;
    SdRdVal = SdRdValNew = 0xFF;
    SdDataAvail = false;
    Vs1001.Reset();

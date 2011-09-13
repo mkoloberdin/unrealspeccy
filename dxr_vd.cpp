@@ -1,3 +1,4 @@
+#include "std.h"
 
 // SAM style video drive (only 8 bit, double-size screen)
 
@@ -12,7 +13,7 @@ void rend_vd8dbl(unsigned char *dst, unsigned pitch)
    if (conf.fast_sl) {
 
       pitch *= 2;
-      rend_frame_x2_8s (dst, pitch);
+      rend_frame_8d1(dst, pitch);
       dst = dst2;
       for (unsigned y = 0; y < 192; y++) {
          unsigned char *src = (unsigned char*)vdmem + t.scrtab[y];
@@ -30,7 +31,7 @@ void rend_vd8dbl(unsigned char *dst, unsigned pitch)
 
    } else {
 
-      rend_frame_x2_8d (dst, pitch);
+      rend_frame_8d(dst, pitch);
       dst = dst2;
       for (unsigned y = 0; y < 192; y++) {
          unsigned char *src = (unsigned char*)vdmem + t.scrtab[y];

@@ -18,7 +18,8 @@ unsigned char wavhdr[]= {
    0xa8,0xf6,0x3e,0x00
 };
 #pragma pack(1)
-struct {
+static struct
+{
    unsigned short sig;
    unsigned char stereo;
    unsigned short start;
@@ -69,12 +70,16 @@ void savesnddialog()
          STARTUPINFO si = { sizeof si };
          si.dwFlags = STARTF_USESHOWWINDOW; si.wShowWindow = SW_HIDE;
          PROCESS_INFORMATION pi;
-         if (CreateProcess(0, "lha a vtx.lzh vtx.tmp", 0, 0, 0, 0, 0, 0, &si, &pi)) {
+         char Parh[] = "lha a vtx.lzh vtx.tmp";
+         if (CreateProcess(0, Parh, 0, 0, 0, 0, 0, 0, &si, &pi))
+         {
             WaitForSingleObject(pi.hProcess, 5000);
             CloseHandle(pi.hProcess);
             CloseHandle(pi.hThread);
             DeleteFile("vtx.tmp");
-         } else {
+         }
+         else
+         {
             DeleteFile("vtx.tmp");
             MessageBox(wnd, "LHA.EXE not found in %PATH%", 0, MB_ICONERROR);
             return;

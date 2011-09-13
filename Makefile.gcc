@@ -1,0 +1,92 @@
+.SUFFIXES : .dep .cpp .res .o .rc
+PATH=p:/mingw/bin/;$(PATH)
+CXX=g++ -c
+
+LINK=gcc
+LIB=ar
+RC=windres
+
+#-RTCsu -Qtrapuv
+
+CFLAGS_COMMON=-D_CRT_SECURE_NO_DEPRECATE -DUSE_SND_EXTERNAL_BUFFER -D_PREFIX_ -DD3DVECTOR_DEFINED -Doverride="" \
+-Isdk
+# -Wall
+
+!ifdef VGEMUL
+CFLAGS_COMMON=$(CFLAGS_COMMON) -DVG_EMUL
+!endif
+
+!ifdef SSE1
+CFLAGS_COMMON=$(CFLAGS_COMMON) -msse1
+!elseifdef SSE2
+CFLAGS_COMMON=$(CFLAGS_COMMON) -msse2 -D_M_IX86_FP=2
+!else
+CFLAGS_COMMON=$(CFLAGS_COMMON) -mmmx
+!endif
+
+!ifdef DEBUG
+CFLAGS_DEBUG=-g -O0 -DDEBUG -D_DEBUG
+LFLAGS_DEBUG=-g
+!else
+CFLAGS_RELEASE=-O3 -combine
+LFLAGS_DEBUG=
+!endif
+
+CXXFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE)
+CFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE)
+
+LFLAGS=$(LFLAGS_DEBUG)
+
+LIBS=$(LIBS) sndrender/snd.a z80/z80.a
+LIBS2=-lcomctl32 -lcomdlg32 -luser32 -lkernel32 -lgdi32 -lwinmm -ldxguid \
+  -lddraw -ldsound -ldinput -ldxerr8 -lsetupapi -lgcc -lstdc++
+
+SRCS=emul.cpp std.cpp atm.cpp cheat.cpp config.cpp dbgbpx.cpp dbgcmd.cpp dbglabls.cpp \
+    dbgmem.cpp dbgoth.cpp dbgpaint.cpp dbgreg.cpp dbgrwdlg.cpp dbgtrace.cpp \
+        debug.cpp draw.cpp drawnomc.cpp draw_384.cpp dx.cpp dxerr.cpp dxovr.cpp \
+        dxrcopy.cpp dxrend.cpp dxrendch.cpp dxrframe.cpp dxr_4bpp.cpp dxr_512.cpp \
+        dxr_advm.cpp dxr_atm.cpp dxr_atm0.cpp dxr_atm2.cpp dxr_atm6.cpp dxr_atm7.cpp \
+        dxr_atmf.cpp dxr_prof.cpp dxr_rsm.cpp dxr_text.cpp dxr_vd.cpp \
+        emulkeys.cpp emul_2203.cpp fntsrch.cpp font.cpp font14.cpp font16.cpp \
+        font8.cpp fontatm2.cpp fontdata.cpp gs.cpp gshlbass.cpp gshle.cpp \
+        gsz80.cpp gui.cpp hdd.cpp hddaspi.cpp hddio.cpp iehelp.cpp init.cpp \
+        input.cpp inputpc.cpp io.cpp keydefs.cpp leds.cpp mainloop.cpp \
+        memory.cpp modem.cpp opendlg.cpp savesnd.cpp sdcard.cpp snapshot.cpp \
+        snd_bass.cpp sound.cpp sshot_png.cpp tape.cpp util.cpp vars.cpp \
+        vs1001.cpp wd93cmd.cpp wd93crc.cpp wd93dat.cpp wd93trk.cpp \
+        wldr_fdi.cpp wldr_isd.cpp wldr_pro.cpp wldr_td0.cpp wldr_trd.cpp wldr_udi.cpp \
+        z80.cpp z80asm.cpp zc.cpp
+
+OBJS=$(SRCS:.cpp=.o)
+
+all: std.h.gch settings.res x32/emul.exe
+
+dep: mk.dep
+
+mk.dep: $(SRCS)
+    $(CXX) $(CXXFLAGS) -MM $** >mk.dep
+
+.c.o::
+    $(CXX) $(CFLAGS) $<
+
+std.h.gch: std.h
+    $(CXX) $(CXXFLAGS) std.h
+
+.cpp.o::
+    $(CXX) $(CXXFLAGS)  $<
+
+.rc.res:
+    $(RC) -o$@ -i$<
+
+.res.o:
+    $(RC) -o$@ -i$<
+
+x32/emul.exe: $(OBJS) $(LIBS) settings.o
+    $(LINK) $(LFLAGS) -o$@ $** $(LIBS) $(LIBS2)
+
+clean:
+    -del *.o *.res *.map *.gch
+
+!if exist(mk.dep)
+!include mk.dep
+!endif

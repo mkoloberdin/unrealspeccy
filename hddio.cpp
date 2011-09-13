@@ -3,6 +3,7 @@
 #include "emul.h"
 #include "vars.h"
 #include "init.h"
+#include "hddio.h"
 
 #include "util.h"
 
@@ -20,32 +21,152 @@ HANDLE hASPICompletionEvent;
 DWORD ATA_PASSER::open(PHYS_DEVICE *dev)
 {
    close();
+   this->dev = dev;
+
    hDevice = CreateFile(dev->filename,
                 GENERIC_READ | GENERIC_WRITE, // R/W required!
                 (temp.win9x?0:FILE_SHARE_DELETE) /*Dexus*/ | FILE_SHARE_READ | FILE_SHARE_WRITE,
                 0, OPEN_EXISTING, 0, 0);
 
-   if (hDevice != INVALID_HANDLE_VALUE) return NO_ERROR;
-   return GetLastError();
+   if (hDevice == INVALID_HANDLE_VALUE)
+   {
+       ULONG Le = GetLastError();
+       printf("can't open: `%s', %u\n", dev->filename, Le);
+       return Le;
+   }
+
+   if(dev->type == ATA_NTHDD && dev->usage == ATA_OP_USE)
+   {
+       memset(Vols, 0, sizeof(Vols));
+
+       // lock & dismount all volumes on disk
+       char VolName[256];
+       HANDLE VolEnum = FindFirstVolume(VolName, _countof(VolName));
+       if(VolEnum == INVALID_HANDLE_VALUE)
+       {
+           ULONG Le = GetLastError();
+           printf("can't enumerate volumes: %u\n", Le);
+           return Le;
+       }
+
+       BOOL NextVol = TRUE;
+       unsigned VolIdx = 0;
+       unsigned i;
+       for(; NextVol; NextVol = FindNextVolume(VolEnum, VolName, _countof(VolName)))
+       {
+           int l = strlen(VolName);
+           if(VolName[l-1] == '\\')
+               VolName[l-1] = 0;
+
+           HANDLE Vol = CreateFile(VolName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
+           if(Vol == INVALID_HANDLE_VALUE)
+           {
+               printf("can't open volume `%s'\n", VolName);
+               continue;
+           }
+
+           UCHAR Buf[sizeof(VOLUME_DISK_EXTENTS) + 100 * sizeof(DISK_EXTENT)];
+           PVOLUME_DISK_EXTENTS DiskExt = PVOLUME_DISK_EXTENTS(Buf);
+
+           ULONG Junk;
+           if(!DeviceIoControl(Vol, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, 0, 0, Buf, sizeof(Buf), &Junk, 0))
+           {
+               Junk = GetLastError();
+               CloseHandle(Vol);
+               printf("can't get volume extents: `%s', %u\n", VolName, Junk);
+               continue;
+           }
+
+           if(DiskExt->NumberOfDiskExtents == 0)
+           {
+               // bad volume
+               CloseHandle(Vol);
+               return ERROR_ACCESS_DENIED;
+           }
+
+           if(DiskExt->NumberOfDiskExtents > 1)
+           {
+               for(i = 0; i < DiskExt->NumberOfDiskExtents; i++)
+               {
+                   if(DiskExt->Extents[i].DiskNumber == dev->spti_id)
+                   {
+                       // complex volume (volume split over several disks)
+                       CloseHandle(Vol);
+                       return ERROR_ACCESS_DENIED;
+                   }
+               }
+           }
+
+           if(DiskExt->Extents[0].DiskNumber != dev->spti_id)
+           {
+               CloseHandle(Vol);
+               continue;
+           }
+
+           Vols[VolIdx++] = Vol;
+       }
+       FindVolumeClose(VolEnum);
+
+       for(i = 0; i < VolIdx; i++)
+       {
+           ULONG Junk;
+           if(!DeviceIoControl(Vols[i], FSCTL_LOCK_VOLUME, 0, 0, 0, 0, &Junk, 0))
+           {
+               Junk = GetLastError();
+               printf("can't lock volume: %u\n", Junk);
+               return Junk;
+           }
+           if(!DeviceIoControl(Vols[i], FSCTL_DISMOUNT_VOLUME, 0, 0, 0, 0, &Junk, 0))
+           {
+               Junk = GetLastError();
+               printf("can't dismount volume: %u\n", Junk);
+               return Junk;
+           }
+       }
+   }
+   return NO_ERROR;
 }
 
 void ATA_PASSER::close()
 {
-   if (hDevice != INVALID_HANDLE_VALUE) CloseHandle(hDevice);
+   if (hDevice != INVALID_HANDLE_VALUE)
+   {
+       if(dev->type == ATA_NTHDD && dev->usage == ATA_OP_USE)
+       {
+           // unlock all volumes on disk
+           for(unsigned i = 0; i < _countof(Vols) && Vols[i]; i++)
+           {
+               ULONG Junk;
+               DeviceIoControl(Vols[i], FSCTL_UNLOCK_VOLUME, 0, 0, 0, 0, &Junk, 0);
+               CloseHandle(Vols[i]);
+               Vols[i] = 0;
+           }
+       }
+
+       CloseHandle(hDevice);
+   }
    hDevice = INVALID_HANDLE_VALUE;
+   dev = 0;
 }
 
 unsigned ATA_PASSER::identify(PHYS_DEVICE *outlist, int max)
 {
    int res = 0;
    ATA_PASSER ata;
-   for (int drive = 0; drive < MAX_PHYS_HD_DRIVES && res < max; drive++)
+
+   unsigned HddCount = get_hdd_count();
+
+   for (unsigned drive = 0; drive < MAX_PHYS_HD_DRIVES && res < max; drive++)
    {
 
       PHYS_DEVICE *dev = outlist + res;
       dev->type = ATA_NTHDD;
       dev->spti_id = drive;
+      dev->usage = ATA_OP_ENUM_ONLY;
       sprintf(dev->filename, "\\\\.\\PhysicalDrive%d", dev->spti_id);
+
+      if(drive >= HddCount)
+          continue;
 
       DWORD errcode = ata.open(dev);
       if (errcode == ERROR_FILE_NOT_FOUND)
@@ -72,8 +193,12 @@ unsigned ATA_PASSER::identify(PHYS_DEVICE *outlist, int max)
       res_buffer.out.cBufferSize = 512;
       DWORD sz;
 
-      DISK_GEOMETRY geo;
+      DISK_GEOMETRY geo = { 0 };
       int res1 = DeviceIoControl(ata.hDevice, SMART_RCV_DRIVE_DATA, &in, sizeof in, &res_buffer, sizeof res_buffer, &sz, 0);
+      if(!res1)
+      {
+          printf("cant get hdd info, %u\n", GetLastError());
+      }
       int res2 = DeviceIoControl(ata.hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, 0, 0, &geo, sizeof geo, &sz, 0);
       if (geo.BytesPerSector != 512)
       {
@@ -121,6 +246,49 @@ unsigned ATA_PASSER::identify(PHYS_DEVICE *outlist, int max)
 
    return res;
 }
+
+unsigned ATA_PASSER::get_hdd_count() // static
+{
+    HDEVINFO DeviceInfoSet;
+    ULONG MemberIndex;
+
+    // create a HDEVINFO with all present devices
+    DeviceInfoSet = SetupDiGetClassDevs(&GUID_DEVINTERFACE_DISK, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+    if (DeviceInfoSet == INVALID_HANDLE_VALUE)
+    {
+        assert(FALSE);
+        return 0;
+    }
+
+    // enumerate through all devices in the set
+    MemberIndex = 0;
+    while(true)
+    {
+        // get device interfaces
+        SP_DEVICE_INTERFACE_DATA DeviceInterfaceData;
+        DeviceInterfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
+        if (!SetupDiEnumDeviceInterfaces(DeviceInfoSet, NULL, &GUID_DEVINTERFACE_DISK, MemberIndex, &DeviceInterfaceData))
+        {
+            if (GetLastError() != ERROR_NO_MORE_ITEMS)
+            {
+                // error
+                assert(FALSE);
+            }
+
+            // ok, reached end of the device enumeration
+            break;
+        }
+
+        // process the next device next time
+        MemberIndex++;
+    }
+
+    // destroy device info list
+    SetupDiDestroyDeviceInfoList(DeviceInfoSet);
+
+    return MemberIndex;
+}
+
 
 bool ATA_PASSER::seek(unsigned nsector)
 {
@@ -170,6 +338,7 @@ void ATAPI_PASSER::close()
    if (hDevice != INVALID_HANDLE_VALUE)
        CloseHandle(hDevice);
    hDevice = INVALID_HANDLE_VALUE;
+   dev = 0;
 }
 
 unsigned ATAPI_PASSER::identify(PHYS_DEVICE *outlist, int max)
@@ -235,6 +404,7 @@ unsigned ATAPI_PASSER::identify(PHYS_DEVICE *outlist, int max)
       PHYS_DEVICE *dev = outlist + res;
       dev->type = ATA_SPTI_CD;
       dev->spti_id = drive;
+      dev->usage = ATA_OP_ENUM_ONLY;
       sprintf(dev->filename, "\\\\.\\CdRom%d", dev->spti_id);
 
       DWORD errcode = atapi.open(dev);
@@ -373,12 +543,12 @@ bool ATAPI_PASSER::read_sector(unsigned char *dst)
 bool ATAPI_PASSER::seek(unsigned nsector)
 {
    LARGE_INTEGER offset;
-   offset.QuadPart = __int64(nsector) * 2048;
+   offset.QuadPart = i64(nsector) * 2048;
    DWORD code = SetFilePointer(hDevice, offset.LowPart, &offset.HighPart, FILE_BEGIN);
    return (code != INVALID_SET_FILE_POINTER || GetLastError() == NO_ERROR);
 }
 
-void make_ata_string(unsigned char *dst, unsigned n_words, char *src)
+void make_ata_string(unsigned char *dst, unsigned n_words, const char *src)
 {
    unsigned i; //Alone Coder 0.36.7
    for (/*unsigned*/ i = 0; i < n_words*2 && src[i]; i++) dst[i] = src[i];

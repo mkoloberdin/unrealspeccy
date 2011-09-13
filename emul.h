@@ -14,11 +14,11 @@
 #define MAX_MISC_PAGES 1        // trash page
 #define MAX_ROM_PAGES 64        // 1Mb
 
-#define GS2MB //0.37.0
+#define GS4MB //0.37.0
 #ifdef MOD_GSZ80
  #define MAX_GSROM_PAGES  32U      // 512Kb
- #ifdef GS2MB
-  #define MAX_GSRAM_PAGES 128U     // for gs2mb
+ #ifdef GS4MB
+  #define MAX_GSRAM_PAGES 256U     // for gs4mb
  #else
   #define MAX_GSRAM_PAGES 30U      // for gs512 (last 32k unusable)
  #endif
@@ -72,7 +72,7 @@ const int RAM_128 = 128, RAM_256 = 256, RAM_512 = 512, RAM_1024 = 1024, RAM_4096
 
 struct TMemModel
 {
-   char *fullname, *shortname;
+   const char *fullname, *shortname;
    MEM_MODEL Model;
    unsigned defaultRAM;
    unsigned availRAMs;
@@ -83,9 +83,9 @@ typedef void (__fastcall *RENDER_FUNC)(unsigned char*,unsigned);
 
 struct RENDER
 {
-   char *name;
+   const char *name;
    RENDER_FUNC func;
-   char *nick;
+   const char *nick;
    unsigned flags;
 };
 
@@ -237,6 +237,7 @@ struct CONFIG
    char quorum_rom_path[FILENAME_MAX];
 
    #ifdef MOD_GSZ80
+   unsigned gs_ramsize;
    char gs_rom_path[FILENAME_MAX];
    #endif
 
@@ -279,6 +280,8 @@ struct TEMP
    unsigned odx, ody; // offset to border in surface, used only in flip()
    unsigned rsx, rsy; // screen resolution
    unsigned b_top, b_left, b_right, b_bottom; // border frame used to setup MCR
+   unsigned scale; // window scale (x1, x2, x3, x4)
+   unsigned mon_scale; // window scale in monitor mode(debugger)
 
    unsigned ataricolors[0x100];
    unsigned shift_mask; // for 16/32 bit modes masks low bits of color components
@@ -300,13 +303,14 @@ struct TEMP
 
    // CPU features
    unsigned char mmx, sse, sse2;
-   __int64 cpufq;        // x86 t-states per second
+   u64 cpufq;        // x86 t-states per second
    unsigned ticks_frame; // x86 t-states in frame
 
    unsigned char vidblock, sndblock, inputblock, frameskip;
    bool PngSupport;
    unsigned gsdmaaddr;
    u8 gsdmaon;
+   u8 gs_ram_mask;
 
    u8 offset_vscroll;
    u8 offset_vscroll_prev;
@@ -389,9 +393,6 @@ struct COMPUTER
 {
    unsigned char p7FFD, pFE, pEFF7, pXXXX;
    unsigned char pDFFD, pFDFD, p1FFD, pFF77;
-#ifdef VG_EMUL // VG эмулятор от savelij'а
-   u8 p1D, p3D, p5D, p7D;
-#endif
    u8 p7EFD; // gmx
    u8 p00, p80FD; // quorum
    __int64 t_states; // inc with conf.frame by each frame
@@ -400,9 +401,12 @@ struct COMPUTER
    unsigned pFFF7[8]; // ATM 7.10 / ATM3(4Mb) memory map
    // |7ffd|rom|b7b6|b5..b0| b7b6 = 0 for atm2
 
+   u8 wd_shadow[4]; // 2F, 4F, 6F, 8F
+
    unsigned aFF77;
    unsigned active_ay;
    u8 pBF; // ATM3
+   u8 pBE; // ATM3
 
    unsigned char flags;
    unsigned char border_attr;
@@ -515,6 +519,7 @@ extern TColorConverter ConvBgr24;
 #define RF_MON      0x00000004   // not-flippable surface, show mouse cursor
 #define RF_DRIVER   0x00000008   // use options from driver
 //#define RF_VSYNC    0x00000010   // force VSYNC
+#define RF_D3D      0x00000010   // use d3d for windowed mode
 #define RF_GDI      0x00000020   // output to window
 #define RF_CLIP     0x00000040   // use DirectDraw clipper for windowed mode
 #define RF_OVR      0x00000080   // output to overlay
@@ -546,5 +551,5 @@ extern unsigned frametime;
 extern int nmi_pending;
 
 bool ConfirmExit();
-void showhelp(char *anchor = 0);
 BOOL WINAPI ConsoleHandler(DWORD CtrlType);
+void showhelp(const char *anchor = 0);

@@ -14,6 +14,7 @@
 void out(unsigned port, unsigned char val)
 {
    port &= 0xFFFF;
+   u8 p1 = (port & 0xFF);
    brk_port_out = port; brk_port_val = val;
 
    // В начале дешифрация портов по полным 8бит
@@ -88,39 +89,36 @@ void out(unsigned port, unsigned char val)
        }
    }
 
-   // Порт расширений АТМ3
-   if((conf.mem_model == MM_ATM3) && ((port & 0xFF) == 0xBF))
+   if(conf.mem_model == MM_ATM3)
    {
-       comp.pBF = val;
-       set_banks();
-       return;
+       // Порт расширений АТМ3
+       if((port & 0xFF) == 0xBF)
+       {
+           if((comp.pBF ^ val) & comp.pBF & 8) // D3: 1->0
+               nmi_pending  = 1;
+           comp.pBF = val;
+           set_banks();
+           return;
+       }
+
+       // Порт разблокировки RAM0 АТМ3
+       if((port & 0xFF) == 0xBE)
+       {
+           comp.pBE = 2; // счетчик для выхода из nmi
+           return;
+       }
    }
 
    if (comp.flags & CF_DOSPORTS)
    {
-#ifdef VG_EMUL // VG эмулятор от savelij'а
-      if(conf.mem_model == MM_PENTAGON)
+      if(conf.mem_model == MM_ATM3 && (p1 & 0x1F) == 0x0F && !(((p1 >> 5) - 1) & 4))
       {
-          u8 port8 = port & 0xFF;
-          switch(port8)
-          {
-          case 0x1D: // Переключение ПЗУ
-              comp.p1D = val;
-              set_banks();
-          return;
-          case 0x3D: // Переключение ОЗУ 0x8000-0xBFFF
-              comp.p3D = val;
-              set_banks();
-          return;
-          case 0x5D:
-              comp.p5D = val;
-          return;
-          case 0x7D:
-              comp.p7D = val;
-          return;
-          }
+          // 2F = 001|01111b
+          // 4F = 010|01111b
+          // 6F = 011|01111b
+          // 8F = 100|01111b
+          comp.wd_shadow[(p1 >> 5) - 1] = val;
       }
-#endif
 
       if (conf.ide_scheme == IDE_ATM && (port & 0x1F) == 0x0F)
       {
@@ -181,7 +179,6 @@ void out(unsigned port, unsigned char val)
          }
       }
 
-      unsigned char p1 = (unsigned char)port;
       if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
       {
          if ((conf.mem_model == MM_ATM3) && ((port & 0x3FFF) == 0x37F7)) // x7f7 ATM3 4Mb memory manager
@@ -277,7 +274,7 @@ void out(unsigned port, unsigned char val)
                   return;
               }
           }
-      }
+      } // profi
 
       if(conf.mem_model == MM_QUORUM /* && !(comp.p00 & Q_TR_DOS)*/) // cpm ports
       {
@@ -300,7 +297,7 @@ void out(unsigned port, unsigned char val)
               comp.wd.out(0xFF, ((val & ~3) ^ 0x10) | drv);
               return;
           }
-      }
+      } // quorum
       else if ((p1 & 0x1F) == 0x1F) // 1F, 3F, 5F, 7F, FF
       {
           comp.wd.out(p1, val);
@@ -623,8 +620,13 @@ __inline unsigned char in1(unsigned port)
    port &= 0xFFFF;
    brk_port_in = port;
 
+   u8 p1 = (port & 0xFF);
+
 /*
    if((port & 0xFF) == 0xF0)
+       __debugbreak();
+
+   if((comp.flags & CF_DOSPORTS) && port == 0xFADF)
        __debugbreak();
 */
 
@@ -638,6 +640,45 @@ __inline unsigned char in1(unsigned port)
    // z-controller
    if (conf.zc && (port & 0xFF) == 0x57)
        return Zc.Rd(port);
+
+   if(conf.mem_model == MM_ATM3)
+   {
+       // Порт расширений АТМ3
+       if((port & 0xFF) == 0xBF)
+           return comp.pBF;
+
+       if((port & 0xFF) == 0xBE)
+       {
+           u8 port_hi = (port >> 8) & 0xFF;
+           if((port_hi & ~7) == 0) // Чтение не инвертированного номера страницы
+           {
+               unsigned PgIdx = port_hi & 7;
+               return (comp.pFFF7[PgIdx] & 0xFF) ^ 0xFF;
+           }
+
+           switch(port_hi)
+           {
+           case 0x8: // ram/rom
+           {
+               u8 RamRomMask = 0;
+               for(unsigned i = 0; i < 8; i++)
+                   RamRomMask |= ((comp.pFFF7[i] >> 8) & 1) << i;
+               return ~RamRomMask;
+           }
+           case 0x9: //dos7ffd
+           {
+               u8 RamRomMask = 0;
+               for(unsigned i = 0; i < 8; i++)
+                   RamRomMask |= ((comp.pFFF7[i] >> 9) & 1) << i;
+               return ~RamRomMask;
+           }
+           case 0xA: return comp.p7FFD;
+//           case 0xB:;
+           case 0xC: return ((comp.aFF77 >> 14) << 7) | ((comp.aFF77 >> 9) << 6) | ((comp.aFF77 >> 8) << 5) | (comp.pFF77 & 0xF);
+           case 0xD: return atm_readpal();
+           }
+       }
+   }
 
    // divide на nemo портах
    if(conf.ide_scheme == IDE_NEMO_DIVIDE)
@@ -679,23 +720,14 @@ __inline unsigned char in1(unsigned port)
 
    if (comp.flags & CF_DOSPORTS)
    {
-#ifdef VG_EMUL // VG эмулятор от savelij'а
-      if(conf.mem_model == MM_PENTAGON)
+      if(conf.mem_model == MM_ATM3 && (p1 & 0x1F) == 0x0F && !(((p1 >> 5) - 1) & 4))
       {
-          u8 port8 = port & 0xFF;
-          switch(port8)
-          {
-          case 0x1D: // Переключение ПЗУ
-          return comp.p1D;
-          case 0x3D: // Переключение ОЗУ 0x8000-0xBFFF
-          return comp.p3D;
-          case 0x5D:
-          return comp.p5D;
-          case 0x7D:
-          return comp.p7D;
-          }
+          // 2F = 001|01111b
+          // 4F = 010|01111b
+          // 6F = 011|01111b
+          // 8F = 100|01111b
+          return comp.wd_shadow[(p1 >> 5) - 1];
       }
-#endif
 
       if (conf.ide_scheme == IDE_ATM && (port & 0x1F) == 0x0F)
       {
@@ -788,7 +820,13 @@ __inline unsigned char in1(unsigned port)
               return comp.wd.in(p1);
           }
       }
-      else if ((p1 & 0x1F) == 0x1F) // 1F, 3F, 5F, 7F, FF
+          // 1F = 0001|1111b
+          // 3F = 0011|1111b
+          // 5F = 0101|1111b
+          // 7F = 0111|1111b
+          // DF = 1101|1111b порт мыши
+          // FF = 1111|1111b
+      else if ((p1 & 0x9F) == 0x1F || p1 == 0xFF) // 1F, 3F, 5F, 7F, FF
           return comp.wd.in(p1);
    }
    else // не dos

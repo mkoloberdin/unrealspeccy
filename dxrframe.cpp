@@ -17,7 +17,30 @@ void _render_black(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_frame_x2_8s(unsigned char *dst, unsigned pitch)
+void rend_frame8(unsigned char *dst, unsigned pitch)
+{
+   if (!conf.updateb) return;
+   unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < temp.b_top; y++) {
+      line8(dst, src, t.sctab8[0]); dst += pitch;
+      src += delta;
+   }
+   temp.scx = (scx-256)/2;
+   unsigned d1 = (temp.b_left+256)/4, offs = d1*8;
+   for (y = 0; y < 192; y++) {
+      line8(dst, src, t.sctab8[0]);
+      line8(dst+offs, src + d1, t.sctab8[0]);
+      dst += pitch; src += delta;
+   }
+   temp.scx = scx;
+   for (y = 0; y < temp.b_bottom; y++) {
+      line8(dst, src, t.sctab8[0]); dst += pitch;
+      src += delta;
+   }
+}
+
+void rend_frame_8d1(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -40,7 +63,7 @@ void rend_frame_x2_8s(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_frame_x2_8d(unsigned char *dst, unsigned pitch)
+void rend_frame_8d(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -69,7 +92,7 @@ void rend_frame_x2_8d(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_frame_x1_16s(unsigned char *dst, unsigned pitch)
+void rend_frame16(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -92,7 +115,7 @@ void rend_frame_x1_16s(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_frame_x2_16s(unsigned char *dst, unsigned pitch)
+void rend_frame_16d1(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -115,7 +138,7 @@ void rend_frame_x2_16s(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_frame_x2_16d(unsigned char *dst, unsigned pitch)
+void rend_frame_16d(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -144,14 +167,30 @@ void rend_frame_x2_16d(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_frame_x2_16(unsigned char *dst, unsigned pitch)
+void rend_frame32(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
-   if (!conf.fast_sl) rend_frame_x2_16d(dst, pitch);
-   else rend_frame_x2_16s(dst, pitch*2);
+   unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
+   unsigned y; //Alone Coder 0.36.7
+   for (/*unsigned*/ y = 0; y < temp.b_top; y++) {
+      line32(dst, src, t.sctab32[0]); dst += pitch;
+      src += delta;
+   }
+   temp.scx = (scx-256)/2;
+   unsigned d1 = (temp.b_left+256)/4, offs = d1*32;
+   for (y = 0; y < 192; y++) {
+      line32(dst, src, t.sctab32[0]);
+      line32(dst+offs, src + d1, t.sctab32[0]);
+      dst += pitch; src += delta;
+   }
+   temp.scx = scx;
+   for (y = 0; y < temp.b_bottom; y++) {
+      line32(dst, src, t.sctab32[0]); dst += pitch;
+      src += delta;
+   }
 }
 
-void rend_frame_x2_32s(unsigned char *dst, unsigned pitch)
+void rend_frame_32d1(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -174,7 +213,7 @@ void rend_frame_x2_32s(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_frame_x2_32d(unsigned char *dst, unsigned pitch)
+void rend_frame_32d(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -201,12 +240,6 @@ void rend_frame_x2_32d(unsigned char *dst, unsigned pitch)
       line32d(dst, src, t.sctab32[1]); dst += pitch;
       src += delta;
    }
-}
-
-void rend_frame_x2_32(unsigned char *dst, unsigned pitch)
-{
-   if (!conf.fast_sl) rend_frame_x2_32d(dst, pitch);
-   else rend_frame_x2_32s(dst, pitch*2);
 }
 
 void gdi_frame()

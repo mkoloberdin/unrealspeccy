@@ -25,7 +25,7 @@ void update_overlay()
 
    if (wnd == GetForegroundWindow() && rc_dst.left >= 0 && rc_dst.top >= 0)
    {
-      DDSURFACEDESC2 desc; desc.dwSize = sizeof desc;
+      DDSURFACEDESC desc; desc.dwSize = sizeof desc;
       if (sprim->IsLost() == DDERR_SURFACELOST)
           sprim->Restore();
       HRESULT r = sprim->Lock(0, &desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_READONLY, 0);

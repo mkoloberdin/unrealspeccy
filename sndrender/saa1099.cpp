@@ -189,7 +189,7 @@ static void saa1099_envelope(saa1099_state *saa, int ch)
 void TSaa1099::update(unsigned TimeStamp)
 {
     saa1099_state *saa = this;
-    int j, ch;
+    int ch;
 
     /* if the channels are disabled we're done */
     if (!saa->all_ch_enable)

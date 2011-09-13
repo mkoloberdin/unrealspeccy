@@ -49,7 +49,18 @@ unsigned char what_is(char *filename)
       if (snapsize >= 8192 && ext == WORD4('p','r','o',' '))
           type = snPRO;
 
-      if (!memcmp(snbuf, "SINCLAIR", 8) && (int)snapsize >= 9+(0x100+14)*snbuf[8]) type = snSCL;
+      if (!memcmp(snbuf, "SINCLAIR", 8))
+      {
+          unsigned nfiles = snbuf[8];
+          unsigned nsec = 0;
+          for(unsigned i = 0; i < nfiles; i++)
+          {
+              nsec += snbuf[9+14*i+13];
+          }
+          
+          if(snapsize >= 9 + nfiles * 14 + nsec * 0x100)
+              type = snSCL;
+      }
       if (!memcmp(snbuf, "FDI", 3) && *(unsigned short*)(snbuf+4) <= MAX_CYLS && *(unsigned short*)(snbuf+6) <= 2) type = snFDI;
       if (((*(short*)snbuf|0x2020) == WORD2('t','d')) && snbuf[4] >= 10 && snbuf[4] <= 21 && snbuf[9] <= 2) type = snTD0;
       if (*(unsigned*)snbuf == WORD4('U','D','I','!') && *(unsigned*)(snbuf+4)==snapsize-4 && snbuf[9] < MAX_CYLS && snbuf[10]<2 && !snbuf[8]) type = snUDI;
@@ -206,7 +217,7 @@ int writeSNA(FILE *ff)
    hdr->iff1 = cpu.iff1 ? 0xFF : 0;
    hdr->p7FFD = comp.p7FFD;
    hdr->pFE = comp.pFE; comp.border_attr = comp.pFE & 7;
-   unsigned savesize = sizeof hdrSNA128;
+   unsigned savesize = sizeof(hdrSNA128);
    unsigned char mapped = 0x24 | (1 << (comp.p7FFD & 7));
    if (comp.p7FFD == 0x30)
    { // save 48k
@@ -421,7 +432,7 @@ void opensnap(int index)
       x += strlen(x)+1, x += strlen(x)+1;
 
    char fline[0x400];
-   char *src = "all (sna,z80,sp,tap,tzx,csw,trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.sna;*.z80;*.sp;*.tap;*.tzx;*.csw;*.trd;*.scl;*.td0;*.udi;*.fdi;*.isd;*.pro;*.$?;*.!?<\0"
+   const char *src = "all (sna,z80,sp,tap,tzx,csw,trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.sna;*.z80;*.sp;*.tap;*.tzx;*.csw;*.trd;*.scl;*.td0;*.udi;*.fdi;*.isd;*.pro;*.$?;*.!?<\0"
                "Disk B (trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.isd;*.pro;*.$?<\0"
                "Disk C (trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.isd;*.pro;*.$?<\0"
                "Disk D (trd,scl,fdi,td0,udi,isd,pro,hobeta)\0*.trd;*.scl;*.fdi;*.udi;*.td0;*.isd;*.pro;*.$?<\0\0>";
@@ -455,7 +466,7 @@ void opensnap(int index)
 
 const int mx_typs = (1+4*6);
 unsigned char snaps[mx_typs]; unsigned exts[mx_typs], drvs[mx_typs]; int snp;
-void addref(LPSTR &ptr, unsigned char sntype, char *ref, unsigned drv, unsigned ext)
+static void addref(LPSTR &ptr, unsigned char sntype, const char *ref, unsigned drv, unsigned ext)
 {
    strcpy(ptr, ref); ptr += strlen(ptr)+1;
    strcpy(ptr, ref+strlen(ref)+1); ptr += strlen(ptr)+1;
@@ -582,7 +593,7 @@ again:
 void ConvPal8ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 {
     u8 *ds = dst;
-    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    for(unsigned i = 0; i < temp.oy; i++) // convert to BGR24 format
     {
        unsigned char *src = scrbuf + i*dx;
        for (unsigned y = 0; y < temp.ox; y++)
@@ -599,7 +610,7 @@ void ConvPal8ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 void ConvRgb15ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 {
     u8 *ds = dst;
-    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    for(unsigned i = 0; i < temp.oy; i++) // convert to BGR24 format
     {
        unsigned char *src = scrbuf + i*dx;
        for (unsigned y = 0; y < temp.ox; y++)
@@ -619,7 +630,7 @@ void ConvRgb15ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 void ConvRgb16ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 {
     u8 *ds = dst;
-    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    for(unsigned i = 0; i < temp.oy; i++) // convert to BGR24 format
     {
        unsigned char *src = scrbuf + i*dx;
        for (unsigned y = 0; y < temp.ox; y++)
@@ -639,7 +650,7 @@ void ConvRgb16ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 void ConvYuy2ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 {
     u8 *ds = dst;
-    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    for(unsigned i = 0; i < temp.oy; i++) // convert to BGR24 format
     {
         unsigned char *src = scrbuf + i*dx;
         for (unsigned y = 0; y < temp.ox; y++)
@@ -667,7 +678,7 @@ void ConvYuy2ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 void ConvBgr32ToBgr24(u8 *dst, u8 *scrbuf, int dx)
 {
     u8 *ds = dst;
-    for(int i = 0; i < temp.oy; i++) // convert to BGR24 format
+    for(unsigned i = 0; i < temp.oy; i++) // convert to BGR24 format
     {
        unsigned char *src = scrbuf + i*dx;
        for (unsigned x = 0; x < temp.ox; x++)
@@ -776,27 +787,36 @@ static void VideoFrameSaver()
 {
    char fname[FILENAME_MAX];
    static unsigned FrameNum = 0;
+   static const char *Format[] = { "scr", "bmp", "png" };
+   static const TSaver Saver[] = { SaveBmp, SavePng };
 
-   sprintf(fname, "video%06u.png", FrameNum);
+   sprintf(fname, "video%06u.%s", FrameNum, Format[conf.scrshot]);
    addpath(fname);
 
    FILE *fileShot = fopen(fname, "wb");
    if (!fileShot)
       return;
 
-   unsigned dx = temp.ox * temp.obpp / 8;
-   unsigned char *scrbuf_unaligned = (unsigned char*)malloc(dx * temp.oy + CACHE_LINE);
-   unsigned char *scrbuf = (unsigned char*)align_by(scrbuf_unaligned, CACHE_LINE);
-   memset(scrbuf, 0, dx * temp.oy);
-   renders[conf.render].func(scrbuf, dx); // render to memory buffer (PAL8, YUY2, RGB15, RGB16, RGB32)
+   if (conf.scrshot == 0)
+   {
+      fwrite(temp.base, 1, 6912, fileShot);
+   }
+   else
+   {
+       unsigned dx = temp.ox * temp.obpp / 8;
+       unsigned char *scrbuf_unaligned = (unsigned char*)malloc(dx * temp.oy + CACHE_LINE);
+       unsigned char *scrbuf = (unsigned char*)align_by(scrbuf_unaligned, CACHE_LINE);
+       memset(scrbuf, 0, dx * temp.oy);
+       renders[conf.render].func(scrbuf, dx); // render to memory buffer (PAL8, YUY2, RGB15, RGB16, RGB32)
 
-   u8 *ds = (u8 *)malloc(((temp.ox * 3 + 3) & ~3) * temp.oy);
-   ConvBgr24(ds, scrbuf, dx);
+       u8 *ds = (u8 *)malloc(((temp.ox * 3 + 3) & ~3) * temp.oy);
+       ConvBgr24(ds, scrbuf, dx);
 
-   SavePng(fileShot, ds);
+       Saver[conf.scrshot - 1](fileShot, ds);
 
-   free(ds);
-   free(scrbuf_unaligned);
+       free(ds);
+       free(scrbuf_unaligned);
+   }
    fclose(fileShot);
    FrameNum++;
 }

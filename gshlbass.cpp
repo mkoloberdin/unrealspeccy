@@ -10,7 +10,7 @@
 #include "util.h"
 
 #ifdef MOD_GSBASS
-void GSHLE::reportError(char *err)
+void GSHLE::reportError(const char *err)
 {
    color(CONSCLR_ERROR);
    printf("BASS library reports error in %s\n", err);
@@ -163,7 +163,7 @@ void GSHLE::startfx(CHANNEL *ch, float pan)
    float vol = (ch->volume * conf.sound.gs_vol) / float(8000*64);
    if (!BASS::ChannelSetAttribute(ch->bass_ch, BASS_ATTRIB_VOL, vol))
        reportError("BASS_ChannelSetAttribute() [vol]");
-   if (!BASS::ChannelSetAttribute(ch->bass_ch, BASS_ATTRIB_FREQ, ch->freq))
+   if (!BASS::ChannelSetAttribute(ch->bass_ch, BASS_ATTRIB_FREQ, float(ch->freq)))
        reportError("BASS_ChannelSetAttribute() [freq]");
    if (!BASS::ChannelSetAttribute(ch->bass_ch, BASS_ATTRIB_PAN, pan))
        reportError("BASS_ChannelSetAttribute() [pan]");

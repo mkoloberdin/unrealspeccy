@@ -123,7 +123,7 @@ void rend_atm7(unsigned char *dst, unsigned pitch)
    if (temp.scy > 200) dst2 += (temp.scy-192)/2*pitch * ((temp.oy > temp.scy)?2:1);
    if (temp.oy > temp.scy && conf.fast_sl) pitch *= 2;
 
-   if (temp.obpp == 8)  { if (conf.fast_sl) rend_frame_x2_8s (dst, pitch), r_atm7_8s (dst2, pitch); else rend_frame_x2_8d (dst, pitch), r_atm7_8d (dst2, pitch); return; }
-   if (temp.obpp == 16) { if (conf.fast_sl) rend_frame_x2_16s(dst, pitch), r_atm7_16s(dst2, pitch); else rend_frame_x2_16d(dst, pitch), r_atm7_16d(dst2, pitch); return; }
-   if (temp.obpp == 32) { if (conf.fast_sl) rend_frame_x2_32s(dst, pitch), r_atm7_32s(dst2, pitch); else rend_frame_x2_32d(dst, pitch), r_atm7_32d(dst2, pitch); return; }
+   if (temp.obpp == 8)  { if (conf.fast_sl) rend_frame_8d1(dst, pitch), r_atm7_8s (dst2, pitch); else rend_frame_8d (dst, pitch), r_atm7_8d (dst2, pitch); return; }
+   if (temp.obpp == 16) { if (conf.fast_sl) rend_frame_16d1(dst, pitch), r_atm7_16s(dst2, pitch); else rend_frame_16d(dst, pitch), r_atm7_16d(dst2, pitch); return; }
+   if (temp.obpp == 32) { if (conf.fast_sl) rend_frame_32d1(dst, pitch), r_atm7_32s(dst2, pitch); else rend_frame_32d(dst, pitch), r_atm7_32d(dst2, pitch); return; }
 }

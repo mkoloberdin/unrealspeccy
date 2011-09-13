@@ -42,7 +42,7 @@ class SNDRENDER
 
    // set of functions that fills buffer in emulation progress
    void start_frame(bufptr_t dst);
-   __inline void update(unsigned timestamp, unsigned l, unsigned r);
+   void update(unsigned timestamp, unsigned l, unsigned r);
    unsigned end_frame(unsigned clk_ticks);
    unsigned end_empty_frame(unsigned clk_ticks);
 

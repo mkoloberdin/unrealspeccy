@@ -15,8 +15,8 @@ const int text3_ofs = -4*PAGE+0x21C0;
 
 const int text0_ofs = 0x0;
 const int text1_ofs = 0x2000;
-const int text2_ofs = -4*PAGE+1;
-const int text3_ofs = -4*PAGE+0x2000;
+const int text2_ofs = -4*int(PAGE)+1;
+const int text3_ofs = -4*int(PAGE)+0x2000;
 
 
 void line_atm6_8(unsigned char *dst, unsigned char *src, unsigned *tab0, unsigned char *font, int src_offset)
@@ -162,6 +162,7 @@ void line_atm6_32(unsigned char *dst, unsigned char *src, unsigned *tab0, unsign
    }
 }
 
+// Textmode
 void rend_atm6(unsigned char *dst, unsigned pitch, int y, int Offset)
 {
    unsigned char *dst2 = dst + (temp.ox-640)*temp.obpp/16;

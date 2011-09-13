@@ -257,7 +257,7 @@ void GSHLE::start_fx(unsigned fx, unsigned ch, unsigned char vol, unsigned char 
    chan[ch].ptr = 0;
    chan[ch].freq = note2rate[note];
    // ch0,1 - left, ch2,3 - right
-   startfx(&chan[ch], (ch & 2)? 1.0 : -1.0);
+   startfx(&chan[ch], (ch & 2)? 1.0f : -1.0f);
 }
 
 DWORD CALLBACK gs_render(HSTREAM handle, void *buffer, DWORD length, void *user)

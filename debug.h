@@ -57,6 +57,7 @@
 #define W_INPUTCUR 0x60
 #define W_INPUTBG  0x40
 #define W_48K 0x20
+#define W_DOS 0x20
 
 #define W_TRACE_JINFO_CURS_FG   0x0D
 #define W_TRACE_JINFO_NOCURS_FG 0x02
@@ -81,24 +82,24 @@ enum DBGWND
    WNDNO, WNDMEM, WNDTRACE, WNDREGS
 };
 
-enum { ED_MEM, ED_PHYS, ED_LOG };
+enum { ED_MEM, ED_PHYS, ED_LOG, ED_CMOS, ED_NVRAM, ED_MAX };
 
 class TCpuMgr
 {
-    static const int Count;
+    static const unsigned Count;
     static Z80* Cpus[];
     static TZ80State PrevCpus[];
-    static int CurrentCpu;
+    static unsigned CurrentCpu;
 public:
     static Z80 &Cpu() { return *Cpus[CurrentCpu]; }
     static Z80 &Cpu(u32 Idx) { return *Cpus[Idx]; }
     static TZ80State &PrevCpu(u32 Idx) { return PrevCpus[Idx]; }
     static TZ80State &PrevCpu() { return PrevCpus[CurrentCpu]; }
     static void SwitchCpu();
-    static int GetCurrentCpu() { return CurrentCpu; }
+    static unsigned GetCurrentCpu() { return CurrentCpu; }
     static void SetCurrentCpu(u32 Idx) { CurrentCpu = Idx; }
     static void CopyToPrev();
-    static int GetCount() { return Count; }
+    static unsigned GetCount() { return Count; }
 };
 
 extern TCpuMgr CpuMgr;

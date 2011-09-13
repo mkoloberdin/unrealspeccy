@@ -6,22 +6,22 @@
 
 #ifdef EMUL_DEBUG
 #include "dxerr8.h"
-void printrdd(char *pr, HRESULT r)
+void printrdd(const char *pr, HRESULT r)
 {
    color(CONSCLR_ERROR);
    printf("%s: %s\n", pr, DXGetErrorString8(r));
 }
 
-void printrdi(char *pr, HRESULT r)
+void printrdi(const char *pr, HRESULT r)
 {
    color(CONSCLR_ERROR);
    printf("%s: %s\n", pr, DXGetErrorString8(r));
 }
 
-void printrmm(char *pr, HRESULT r)
+void printrmm(const char *pr, HRESULT r)
 {
    char buf[200]; sprintf(buf, "unknown error (%08X)", r);
-   char *str = buf;
+   const char *str = buf;
    switch (r)
    {
       case MMSYSERR_NOERROR: str = "ok"; break;
@@ -38,7 +38,7 @@ void printrmm(char *pr, HRESULT r)
    printf("%s: %s\n", pr, str);
 }
 
-void printrds(char *pr, HRESULT r)
+void printrds(const char *pr, HRESULT r)
 {
    color(CONSCLR_ERROR);
    printf("%s: %s\n", pr, DXGetErrorString8(r));

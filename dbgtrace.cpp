@@ -312,8 +312,8 @@ void center()
       }
       else
       {
-         unsigned sz;
-         if (sz = assemble_cmd((unsigned char*)str, cpu.trace_curs))
+         unsigned sz = assemble_cmd((unsigned char*)str, cpu.trace_curs);
+         if (sz)
          {
             for (unsigned i = 0; i < sz; i++)
                 cpu.DirectWm(cpu.trace_curs+i, asmresult[i]);

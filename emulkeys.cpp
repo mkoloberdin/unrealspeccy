@@ -17,6 +17,7 @@
 #include "wd93dat.h"
 #include "init.h"
 #include "z80.h"
+#include "emulkeys.h"
 #include "util.h"
 
 void main_pause()
@@ -251,7 +252,7 @@ void main_tapebrowser()
 void setup_dlg() {}
 #endif
 
-char *getrom(ROM_MODE page)
+static const char *getrom(ROM_MODE page)
 {
    switch (page) {
       case RM_128: return "Basic 128";
@@ -267,6 +268,7 @@ void m_reset(ROM_MODE page)
 {
    sprintf(statusline, "Reset to %s", getrom(page)); statcnt = 50;
    nmi_pending = 0;
+   cpu.nmi_in_progress = false;
    reset(page);
 }
 void main_reset128() { m_reset(RM_128); }
@@ -282,10 +284,21 @@ void m_nmi(ROM_MODE page)
    set_mode(page);
    sprintf(statusline, "NMI to %s", getrom(page)); statcnt = 50;
    comp.p00 = 0; // quorum
-   cpu.sp -= 2; cpu.DbgMemIf->wm(cpu.sp, cpu.pcl); cpu.DbgMemIf->wm(cpu.sp+1, cpu.pch);
+   cpu.sp -= 2;
+   if(cpu.DbgMemIf->rm(cpu.pc) == 0x76) // nmi on halt command
+       cpu.pc++;
+   cpu.DbgMemIf->wm(cpu.sp, cpu.pcl);
+   cpu.DbgMemIf->wm(cpu.sp+1, cpu.pch);
    cpu.pc = 0x66; cpu.iff1 = cpu.halted = 0;
 }
-void main_nmi() { m_nmi(RM_NOCHANGE); }
+
+void main_nmi()
+{
+    nmi_pending  = 1;
+    if(conf.mem_model != MM_ATM3)
+        m_nmi(RM_NOCHANGE);
+}
+
 void main_nmidos()
 {
  if((conf.mem_model == MM_PROFSCORP || conf.mem_model == MM_SCORP) &&
@@ -299,7 +312,7 @@ void main_nmidos()
 
 void main_nmicache() { m_nmi(RM_CACHE); }
 
-void qsave(char *fname) {
+static void qsave(const char *fname) {
    char xx[0x200]; addpath(xx, fname);
    FILE *ff = fopen(xx, "wb");
    if (ff) {
@@ -311,7 +324,7 @@ void qsave1() { qsave("qsave1.sna"); }
 void qsave2() { qsave("qsave2.sna"); }
 void qsave3() { qsave("qsave3.sna"); }
 
-void qload(char *fname) {
+static void qload(const char *fname) {
    char xx[0x200]; addpath(xx, fname);
    if (loadsnap(xx)) sprintf(statusline, "Quick load from %s", fname), statcnt = 30;
 }
@@ -400,13 +413,11 @@ void wnd_resize(int scale)
    AdjustWindowRect(&rc, style, 0);
    SetWindowPos(wnd, 0, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOCOPYBITS | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
    if(temp.rflags & RF_2X)
-       scale = 2;
+       scale *= 2;
    else if(temp.rflags & RF_3X)
-       scale = 3;
+       scale *= 3;
    else if(temp.rflags & RF_4X)
-       scale = 4;
-   else
-       scale = 1;
+       scale *= 4;
    sprintf(statusline, "scale: %dx", scale);
    statcnt = 50;
 }

@@ -98,15 +98,6 @@ TVs1001::TVs1001() : EventStreamClose(FALSE)
     SetVol(Regs[VOL]);
 }
 
-TVs1001::~TVs1001()
-{
-    if(ThreadHandle)
-    {
-        WaitForSingleObject(ThreadHandle, INFINITE);
-        CloseHandle(ThreadHandle);
-    }
-}
-
 void TVs1001::Reset()
 {
 //    printf(__FUNCTION__"\n");
@@ -296,14 +287,7 @@ void TVs1001::SoftReset()
 {
 //    printf("%s\n", __FUNCTION__);
 
-    RingBuffer.Cancel();
-
-    if(ThreadHandle)
-    {
-        WaitForSingleObject(ThreadHandle, INFINITE);
-        CloseHandle(ThreadHandle);
-        ThreadHandle = 0;
-    }
+    ShutDown();
 
     if(Mp3Stream)
     {
@@ -327,6 +311,18 @@ void TVs1001::SoftReset()
     RingBuffer.Reset();
     SkipZeroes = true;
     ThreadHandle = (HANDLE)_beginthreadex(0, 0, Thread, this, 0, 0);
+}
+
+void TVs1001::ShutDown()
+{
+    RingBuffer.Cancel();
+
+    if(ThreadHandle)
+    {
+        WaitForSingleObject(ThreadHandle, INFINITE);
+        CloseHandle(ThreadHandle);
+        ThreadHandle = 0;
+    }
 }
 
 // called from main loop priodicaly

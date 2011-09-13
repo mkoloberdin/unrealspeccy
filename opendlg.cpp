@@ -145,15 +145,15 @@ UINT_PTR CALLBACK PreviewDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
          sizeCol.fmt = LVCFMT_LEFT;
 
          sizeCol.cx = 80;
-         sizeCol.pszText = "Filename";
+         sizeCol.pszText = PSTR("Filename");
          SendMessage(FilePreviewInfo.list.h, LVM_INSERTCOLUMN, 0, (LPARAM)&sizeCol);
 
          sizeCol.cx = 40;
-         sizeCol.pszText = "Ext";
+         sizeCol.pszText = PSTR("Ext");
          SendMessage(FilePreviewInfo.list.h, LVM_INSERTCOLUMN, 1, (LPARAM)&sizeCol);
 
          sizeCol.cx = 50;
-         sizeCol.pszText = "Size";
+         sizeCol.pszText = PSTR("Size");
          SendMessage(FilePreviewInfo.list.h, LVM_INSERTCOLUMN, 2, (LPARAM)&sizeCol);
 
          HFONT fnt = (HFONT)GetStockObject(OEM_FIXED_FONT);

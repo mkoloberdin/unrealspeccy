@@ -584,7 +584,10 @@ typedef struct {
 	BYTE UMID[64];					// SMPTE UMID
 	BYTE Reserved[190];
 #ifdef __cplusplus
+#pragma warning(push)
+#pragma warning(disable: 4200)
 	char CodingHistory[];			// history
+#pragma warning(pop)
 #else
 	char CodingHistory[1];			// history
 #endif

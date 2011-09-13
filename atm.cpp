@@ -21,12 +21,6 @@ void AtmApplySideEffectsWhenChangeVideomode(unsigned char val)
 {
     int NewVideoMode = (val & 7);
     int OldVideoMode = (comp.pFF77 & 7);
-    if (OldVideoMode == 3 || NewVideoMode == 3)
-    {
-        // Переключение из/в sinclair режим не имеет полезных побочных эффектов
-        // (по словам AlCo даже синхра сбивается)
-        return;
-    }
 
     // Константы можно задать жёстко, потому что между моделями АТМ2 они не меняются.
     const int tScanlineWidth = 224;
@@ -41,11 +35,24 @@ void AtmApplySideEffectsWhenChangeVideomode(unsigned char val)
     if ( iLastLine > iRayLine )
     {
         printf("\nNew Frame Begin\n");
-        __asm int 3;
+        __debugbreak();
     }
     iLastLine = iRayLine;
     printf("%d->%d %d %d\n", OldVideoMode, NewVideoMode, iRayLine, iRayOffset);
 */
+
+    if (OldVideoMode == 3 || NewVideoMode == 3)
+    {
+        // Переключение из/в sinclair режим не имеет полезных побочных эффектов
+        // (по словам AlCo даже синхра сбивается)
+        for(unsigned y = 0; y < 200; y++)
+        {
+            AtmVideoCtrl.Scanlines[y+56].VideoMode = NewVideoMode;
+            AtmVideoCtrl.Scanlines[y+56].Offset = ((y & ~7) << 3) + 0x01C0;
+        }
+        return;
+    }
+
     if (OldVideoMode != 6 && NewVideoMode != 6)
     {
         // Нас интересуют только переключения между текстовым режимом и расширенными графическими.
@@ -284,10 +291,19 @@ void set_atm_aFE(unsigned char addr)
    if ((addr ^ old_aFE) & 0x80) set_banks();
 }
 
+static u8 atm_pal[0x10] = { 0 };
+
 void atm_writepal(unsigned char val)
 {
+   assert(comp.border_attr < 0x10);
+   atm_pal[comp.border_attr] = val;
    comp.comp_pal[comp.border_attr] = t.atm_pal_map[val];
    temp.comp_pal_changed = 1;
+}
+
+u8 atm_readpal()
+{
+   return atm_pal[comp.border_attr];
 }
 
 unsigned char atm450_z(unsigned t)

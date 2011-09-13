@@ -1,8 +1,14 @@
 #pragma once
 
-void rend_atmframe_x2_8s(unsigned char *dst, unsigned pitch);
-void rend_atmframe_x2_8d(unsigned char *dst, unsigned pitch);
-void rend_atmframe_x2_16s(unsigned char *dst, unsigned pitch);
-void rend_atmframe_x2_16d(unsigned char *dst, unsigned pitch);
-void rend_atmframe_x2_32s(unsigned char *dst, unsigned pitch);
-void rend_atmframe_x2_32d(unsigned char *dst, unsigned pitch);
+// small
+void rend_atmframe8(unsigned char *dst, unsigned pitch);
+void rend_atmframe16(unsigned char *dst, unsigned pitch);
+void rend_atmframe32(unsigned char *dst, unsigned pitch);
+
+// double
+void rend_atmframe_8d1(unsigned char *dst, unsigned pitch);
+void rend_atmframe_8d(unsigned char *dst, unsigned pitch);
+void rend_atmframe_16d1(unsigned char *dst, unsigned pitch);
+void rend_atmframe_16d(unsigned char *dst, unsigned pitch);
+void rend_atmframe_32d1(unsigned char *dst, unsigned pitch);
+void rend_atmframe_32d(unsigned char *dst, unsigned pitch);

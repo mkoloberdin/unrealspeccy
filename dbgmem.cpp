@@ -24,6 +24,8 @@ void findsector(unsigned addr)
 unsigned char *editam(unsigned addr)
 {
    Z80 &cpu = CpuMgr.Cpu();
+   if (editor == ED_CMOS) return &cmos[addr & (sizeof(cmos)-1)];
+   if (editor == ED_NVRAM) return &nvram[addr & (sizeof(nvram)-1)];
    if (editor == ED_MEM) return cpu.DirectMem(addr);
    if (!edited_track.trkd) return 0;
    if (editor == ED_PHYS) return edited_track.trkd + addr;
@@ -36,7 +38,7 @@ void editwm(unsigned addr, unsigned char byte)
    if (editrm(addr) == byte) return;
    unsigned char *ptr = editam(addr);
    if (!ptr) return; *ptr = byte;
-   if (editor == ED_MEM) return;
+   if (editor == ED_MEM || editor == ED_CMOS || editor == ED_NVRAM) return;
    if (editor == ED_PHYS) { comp.wd.fdd[mem_disk].optype |= 2; return; }
    comp.wd.fdd[mem_disk].optype |= 1;
    // recalc sector checksum
@@ -48,6 +50,8 @@ void editwm(unsigned addr, unsigned char byte)
 unsigned memadr(unsigned addr)
 {
    if (editor == ED_MEM) return (addr & 0xFFFF);
+   if (editor == ED_CMOS) return (addr & (sizeof(cmos)-1));
+   if (editor == ED_NVRAM) return (addr & (sizeof(nvram)-1));
    // else if (editor == ED_PHYS || editor == ED_LOG)
    if (!mem_max) return 0;
    while ((int)addr < 0) addr += mem_max;
@@ -62,7 +66,8 @@ void showmem()
    unsigned cursor_found = 0;
    if (mem_dump) mem_ascii = 1, mem_sz = 32; else mem_sz = 8;
 
-   if (editor != ED_MEM) {
+   if (editor == ED_LOG || editor == ED_PHYS)
+   {
       edited_track.clear();
       edited_track.seek(comp.wd.fdd+mem_disk, mem_track/2, mem_track & 1, (editor == ED_LOG)? LOAD_SECTORS : JUST_SEEK);
       if (!edited_track.trkd) { // no track
@@ -79,7 +84,14 @@ void showmem()
       if (editor == ED_LOG)
          for (mem_max = ii = 0; ii < edited_track.s; ii++)
             mem_max += edited_track.hdr[ii].datlen;
-   } else mem_max = 0x10000;
+   }
+   else if(editor == ED_MEM)
+       mem_max = 0x10000;
+   else if(editor == ED_CMOS)
+       mem_max = sizeof(cmos);
+   else if(editor == ED_NVRAM)
+       mem_max = sizeof(nvram);
+
 redraw:
    cpu.mem_curs = memadr(cpu.mem_curs);
    cpu.mem_top = memadr(cpu.mem_top);
@@ -115,9 +127,17 @@ redraw:
    }
    if (!cursor_found) { cursor_found=1; cpu.mem_top=cpu.mem_curs & ~(mem_sz-1); goto redraw; }
 title:
+   const char *MemName = 0;
    if (editor == ED_MEM)
+       MemName = "memory";
+   else if (editor == ED_CMOS)
+       MemName = "cmos";
+   else if (editor == ED_NVRAM)
+       MemName = "nvram";
+
+   if(editor == ED_MEM || editor == ED_CMOS || editor == ED_NVRAM)
    {
-       sprintf(line, "memory: %04X gsdma: %06X", cpu.mem_curs & 0xFFFF, temp.gsdmaaddr);
+       sprintf(line, "%s: %04X gsdma: %06X", MemName, cpu.mem_curs & 0xFFFF, temp.gsdmaaddr);
    }
    else if (editor == ED_PHYS)
        sprintf(line, "disk %c, trk %02X, offs %04X", mem_disk+'A', mem_track, cpu.mem_curs);

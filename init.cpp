@@ -16,6 +16,7 @@
 #include "savesnd.h"
 #include "wd93dat.h"
 #include "z80/tables.h"
+#include "dbgbpx.h"
 
 #include "util.h"
 
@@ -24,16 +25,16 @@ void cpu_info()
    char idstr[64];
    idstr[0] = 0;
 
-#ifdef _M_IX86
    fillCpuString(idstr);
 
    trim(idstr);
+
    unsigned cpuver = cpuid(1,0);
    unsigned features = cpuid(1,1);
    temp.mmx = (features >> 23) & 1;
    temp.sse = (features >> 25) & 1;
    temp.sse2 = (features >> 26) & 1;
-#endif
+
    temp.cpufq = GetCPUFrequency();
 
    color(CONSCLR_HARDITEM); printf("cpu: ");
@@ -41,14 +42,12 @@ void cpu_info()
    color(CONSCLR_HARDINFO);
    printf("%s ", idstr);
 
-#ifdef _M_IX86
    color(CONSCLR_HARDITEM);
    printf("%d.%d.%d [MMX:%s,SSE:%s,SSE2:%s] ",
       (cpuver>>8) & 0x0F, (cpuver>>4) & 0x0F, cpuver & 0x0F,
       temp.mmx ? "YES" : "NO",
       temp.sse ? "YES" : "NO",
       temp.sse2 ? "YES" : "NO");
-#endif
 
    color(CONSCLR_HARDINFO);
    printf("at %d MHz\n", (unsigned)(temp.cpufq/1000000));
@@ -123,6 +122,7 @@ void init_all(int argc, char **argv)
    applyconfig();
    main_reset();
    autoload();
+   init_bpx();
    temp.PngSupport = PngInit();
    if(!temp.PngSupport)
    {
@@ -134,8 +134,10 @@ void init_all(int argc, char **argv)
    trd_toload = 0;
    *(DWORD*)trd_loaded = 0; // clear loaded flags, don't see autoload'ed images
 
-   for (; argc; argc--, argv++) {
-      if (**argv == '-' || **argv == '/') {
+   for (; argc; argc--, argv++)
+   {
+      if (**argv == '-' || **argv == '/')
+      {
          if (argc > 1 && !stricmp(argv[0]+1, "i")) argc--, argv++;
          continue;
       }
@@ -143,7 +145,7 @@ void init_all(int argc, char **argv)
       char fname[0x200], *temp;
       GetFullPathName(*argv, sizeof fname, fname, &temp);
 
-      trd_toload = -1; // auto-select
+      trd_toload = DefaultDrive; // auto-select
       if (!loadsnap(fname)) errmsg("error loading <%s>", *argv), load_errors = 1;
    }
 
@@ -172,6 +174,7 @@ void __declspec(noreturn) exit()
    save_nv();
    modem.close();
    done_ie_help();
+   done_bpx();
    PngDone();
 
 //   timeEndPeriod(1);
@@ -187,5 +190,5 @@ void __declspec(noreturn) exit()
    }
    fflush(stdout);
    SetConsoleCtrlHandler(ConsoleHandler, FALSE);
-   ExitProcess(0);
+   exit(0);
 }

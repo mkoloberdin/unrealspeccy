@@ -34,7 +34,7 @@ void SNDRENDER::start_frame(bufptr_t dst_start)
    firstsmp = 4; //Alone Coder
 }
 
-inline void SNDRENDER::update(unsigned timestamp, unsigned l, unsigned r)
+void SNDRENDER::update(unsigned timestamp, unsigned l, unsigned r)
 {
    if (!((l ^ mix_l) | (r ^ mix_r)))
        return;

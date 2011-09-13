@@ -4,6 +4,7 @@
 #include "vars.h"
 #include "gs.h"
 #include "gsz80.h"
+#include "vs1001.h"
 
 #ifdef MOD_GS
 
@@ -107,6 +108,7 @@ void init_gs()
 void done_gs()
 {
 #ifdef MOD_GS
+   Vs1001.ShutDown();
    if (conf.gs_type != 0)
        BASS::Unload();
 #endif

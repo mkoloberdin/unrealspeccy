@@ -120,6 +120,7 @@ action ac_main_xt[] =
    { "mon.setbank", editbank },                         \
    { "mon.sethimem", editextbank },                     \
    { "mon.dump", mon_dump },                            \
+   { "mon.switchdump", mon_switch_dump },               \
    { "mon.next", mon_nxt },                             \
    { "mon.prev", mon_prv },                             \
    { "mon.rip", mon_tool },                             \

@@ -13,7 +13,7 @@ void WD1793::process()
    if (time > seldrive->motor && (system & 0x08)) seldrive->motor = 0;
    if (seldrive->rawdata) status &= ~WDS_NOTRDY; else status |= WDS_NOTRDY;
 
-   if (!(cmd & 0x80)) { // seek / step commands
+   if (!(cmd & 0x80) || (cmd & 0xF0) == 0xD0) { // seek / step commands
       unsigned old_idx_status = idx_status;
 
       idx_status &= ~WDS_INDEX;
@@ -196,6 +196,8 @@ void WD1793::process()
                status |= WDS_DRQ;
                if (!conf.wd93_nodelay)
                    next += seldrive->t.ts_byte;
+               else
+                   next = time + 1;
                state = S_WAIT;
                state2 = S_READ;
             }
@@ -524,6 +526,8 @@ void WD1793::out(unsigned char port, unsigned char val)
       {
          u8 Cond = (val & 0xF);
          next = comp.t_states + cpu.t;
+         idx_cnt = 0;
+         idx_tmo = next + 15 * Z80FQ/FDD_RPS; // 15 disk turns
          cmd = val;
 
          if(Cond == 0)
@@ -533,28 +537,28 @@ void WD1793::out(unsigned char port, unsigned char val)
              return;
          }
 
-         if(Cond & 1) // unconditional int
+         if(Cond & 8) // unconditional int
          {
              state = S_IDLE; rqs = INTRQ;
              status &= ~WDS_BUSY;
              return;
          }
 
-         if(Cond & 2) // int by idam (unimplemented yet)
+         if(Cond & 4) // int by idam (unimplemented yet)
          {
              state = S_IDLE; rqs = INTRQ;
              status &= ~WDS_BUSY;
              return;
          }
 
-         if(Cond & 4) // int 1->0 rdy (unimplemented yet)
+         if(Cond & 2) // int 1->0 rdy (unimplemented yet)
          {
              state = S_IDLE; rqs = INTRQ;
              status &= ~WDS_BUSY;
              return;
          }
 
-         if(Cond & 8) // int 0->1 rdy (unimplemented yet)
+         if(Cond & 1) // int 0->1 rdy (unimplemented yet)
          {
              state = S_IDLE; rqs = INTRQ;
              status &= ~WDS_BUSY;

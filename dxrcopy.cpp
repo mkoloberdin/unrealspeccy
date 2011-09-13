@@ -660,10 +660,10 @@ void line8t_nf(unsigned char *dst, unsigned char *src, unsigned *tab)
       u32 byte2 = src[i+rb2_offs+0];
       unsigned *t1 = tab + src[i+1];
       unsigned *t2 = tab + src[i+rb2_offs+1];
-      u32 ink1 = t1[0x100] & 0x0F0F0F0F;
-      u32 ink2 = t2[0x100] & 0xF0F0F0F0;
-      u32 paper1 = t1[0] & 0x0F0F0F0F;
-      u32 paper2 = t2[0] & 0xF0F0F0F0;
+      u8 ink1 = u8(t1[0x100] & 0x0F);
+      u8 ink2 = u8(t2[0x100] & 0xF0);
+      u8 paper1 = u8(t1[0] & 0x0F);
+      u8 paper2 = u8(t2[0] & 0xF0);
 
       dst[x+0]  = dst[x+1]  = dst[x+2]  = ((byte1 & 0x80) ? ink1 : paper1) + ((byte2 & 0x80) ? ink2 : paper2);
       dst[x+3]  = dst[x+4]  = dst[x+5]  = ((byte1 & 0x40) ? ink1 : paper1) + ((byte2 & 0x40) ? ink2 : paper2);

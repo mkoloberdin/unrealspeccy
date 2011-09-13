@@ -2,6 +2,8 @@
 #define VS1001_H
 #include "util.h"
 
+#undef SD_SEND
+
 // S_CTRL bits
 const u8 _MPNCS  = 2;
 const u8 _MPXRS  = 4;
@@ -34,7 +36,7 @@ class TRingBuffer
     bool Dreq;
     bool Cancelled;
 public:
-    TRingBuffer() : Size(4*1024), NotEmpty(FALSE)
+    TRingBuffer() : NotEmpty(FALSE), Size(4*1024)
     {
         Cancelled = false;
         Reset();
@@ -90,8 +92,8 @@ class TVs1001
     static BASS_FILEPROCS Procs;
 public:
     TVs1001();
-    ~TVs1001();
     void Reset();
+    void ShutDown();
     void SetNcs(bool nCs);
     void Wr(u8 Val); // sdi mpeg data write
     void WrCmd(u8 Val); // sci write

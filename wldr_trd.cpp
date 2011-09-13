@@ -53,7 +53,10 @@ struct TSclHdr
 {
     u8 Sig[8];  // SINCLAIR
     u8 FileCnt;
+#pragma warning(push)
+#pragma warning(disable: 4200)
     TTrdDirEntryBase Files[];
+#pragma warning(pop)
 };
 #pragma pack(pop)
 
@@ -108,6 +111,9 @@ int FDD::addfile(unsigned char *hdr, unsigned char *data)
 
     TTrdSec9 *Sec9 = (TTrdSec9 *)Sec9Hdr->data;
 
+    if(Sec9->FileCnt >= 128) // Каталог заполнен полностью
+        return 0;
+
     unsigned len = ((TTrdDirEntry *)hdr)->SecCnt;
     unsigned pos = Sec9->FileCnt * sizeof(TTrdDirEntry);
     const SECHDR *dir = t.get_sector(1 + pos / 0x100);
@@ -116,7 +122,7 @@ int FDD::addfile(unsigned char *hdr, unsigned char *data)
         return 0;
 
     if (Sec9->FreeSecCnt < len)
-        return 0; // disk full
+        return 0; // На диске нет места
 
     TTrdDirEntry *TrdDirEntry = (TTrdDirEntry *)(dir->data + (pos & 0xFF));
     memcpy(TrdDirEntry, hdr, 14);
@@ -183,15 +189,17 @@ void FDD::addboot()
 
    for (unsigned s = 0; s < 8; s++)
    {
-      const SECHDR *sc = t.get_sector(s+1);
+      const SECHDR *sc = t.get_sector(1 + s);
       if (!sc)
           return;
-      for (unsigned p = 0; p < 0x100; p += 0x10)
+      TTrdDirEntry *TrdDirEntry = (TTrdDirEntry *)sc->data;
+      for (unsigned i = 0; i < 16; i++)
       {
-         if (memcmp(sc->data + p, "boot    B", 9) == 0)
+         if (memcmp(TrdDirEntry[i].Name, "boot    B", 9) == 0)
              return;
       }
    }
+
    FILE *f = fopen(conf.appendboot, "rb");
    if (!f)
        return;

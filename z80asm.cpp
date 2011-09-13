@@ -302,7 +302,9 @@ unsigned char *disasm(unsigned char *cmd, unsigned current, char labels)
       *asmbuf = 0;
       unsigned char *pt;
       for (pt = ptr + (2 * *ptr) + 1; *pt; pt++) { // scan all commands
-         char ln[/*32*/64], *l1 = ln; *l1 = 0; //Alone Coder 0.36.6
+         char ln[/*32*/64];
+         const char *l1 = ln;
+         ln[0] = 0; //Alone Coder 0.36.6
          switch (*pt) {
             case _zr16: // in rcmd & 0x30
                l1 = z80r16+3*((*rcmd>>4) & 3);
@@ -367,7 +369,8 @@ unsigned char *disasm(unsigned char *cmd, unsigned current, char labels)
             case _ld:
                l1 = "ld "; break;
             case _shrt: // short jump
-               disasm_address(ln, current+cm-st + *(signed char*)cm++ + 1, labels);
+               disasm_address(ln, current+cm-st + *(signed char*)cm + 1, labels);
+               cm++;
                break;
             case _ib: // immediate byte at cm
                sprintf(ln, "%02X", *cm++);
@@ -439,7 +442,7 @@ int z80scanr8(unsigned char **ptr, unsigned char **cm) {
    if (*(unsigned short*)(*ptr) != WORD2('(','i')) return in;
    (*ptr) += 3;
    char c = *(*ptr - 1);
-   if ((z80p == 0xDD && c != 'x') || z80p == 0xFD && c != 'y') return -1;
+   if ((z80p == 0xDD && c != 'x') || (z80p == 0xFD && c != 'y')) return -1;
    int ofs = (**ptr == ')') ? 0 : scanhex(ptr);
    if (ofs > 127 || ofs < -128) return -1;
    if (*((*ptr)++) != ')') return -1;
@@ -580,9 +583,9 @@ int assemble_cmd(unsigned char *cmd, unsigned addr)
    for (res = a_command; *res; res++) if (!(*res-1)) *res = ' ';
 
    unsigned r;
-   z80p = 0;    if (r = assemble(addr)) goto inspref1;
-   z80p = 0xDD; if (r = assemble(addr)) goto inspref1;
-   z80p = 0xFD; if (r = assemble(addr)) goto inspref1;
+   z80p = 0;    if ((r = assemble(addr))) goto inspref1;
+   z80p = 0xDD; if ((r = assemble(addr))) goto inspref1;
+   z80p = 0xFD; if ((r = assemble(addr))) goto inspref1;
    return 0;
 inspref1:
    unsigned char *p = asmresult;

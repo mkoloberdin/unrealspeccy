@@ -1,0 +1,37 @@
+.SUFFIXES : .o .cpp .a
+PATH=p:/mingw/bin/;$(PATH)
+CXX=gcc -c
+CFLAGS_COMMON=-D_CRT_SECURE_NO_DEPRECATE -DUSE_SND_EXTERNAL_BUFFER -D_PREFIX_ -DD3DVECTOR_DEFINED -Doverride="" \
+-I../sdk
+
+!ifdef SSE1
+CFLAGS_COMMON=$(CFLAGS_COMMON) -msse1
+!elseifdef SSE2
+CFLAGS_COMMON=$(CFLAGS_COMMON) -msse2 -D_M_IX86_FP=2
+!else
+CFLAGS_COMMON=$(CFLAGS_COMMON) -mmmx
+!endif
+
+!ifdef DEBUG
+CFLAGS_DEBUG=-O0 -g -DDEBUG -D_DEBUG
+!else
+CFLAGS_RELEASE=-O3
+!endif
+
+CXXFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE)
+CFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE)
+LIBFLAGS=q
+LIB=ar
+
+all: snd.a
+
+.c.o::
+    $(CXX) $(CFLAGS) $<
+
+.cpp.o::
+    $(CXX) $(CXXFLAGS) $<
+
+snd.a: sndbuffer.o sndchip.o saa1099.o sndcounter.o sndrender.o
+    $(LIB) $(LIBFLAGS) $@ $**
+clean:
+    -del *.o *.a

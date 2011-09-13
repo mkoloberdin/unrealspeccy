@@ -137,7 +137,8 @@ void Unload()
 {
     if(Bass)
     {
-        Free();
+        if(Free)
+            Free();
         FreeLibrary(Bass);
     }
 }

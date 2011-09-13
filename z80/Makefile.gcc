@@ -1,0 +1,37 @@
+PATH=p:/mingw/bin/;$(PATH)
+CXX=gcc -c
+
+CFLAGS_COMMON=-D_CRT_SECURE_NO_DEPRECATE -DUSE_SND_EXTERNAL_BUFFER -D_PREFIX_
+
+!ifdef SSE1
+CFLAGS_COMMON=$(CFLAGS_COMMON) -msse1
+!elseifdef SSE2
+CFLAGS_COMMON=$(CFLAGS_COMMON) -msse2 -D_M_IX86_FP=2
+!else
+CFLAGS_COMMON=$(CFLAGS_COMMON) -mmmx
+!endif
+
+!ifdef DEBUG
+CFLAGS_DEBUG=-O0 -g -DDEBUG -D_DEBUG
+!else
+CFLAGS_RELEASE=-O3
+!endif
+
+CXXFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE)
+CFLAGS=$(CFLAGS_COMMON) $(CFLAGS_DEBUG) $(CFLAGS_RELEASE)
+LIBFLAGS=q
+LIB=ar
+
+all: z80.a
+
+.c.o::
+	$(CXX) $(CFLAGS) $<
+
+.cpp.o::
+	$(CXX) $(CXXFLAGS) $<
+
+z80.a: daa_tabs.o op_cb.o op_dd.o op_ddcb.o op_ed.o \
+	op_fd.o op_noprefix.o tables.o
+	$(LIB) $(LIBFLAGS) $@ $**
+clean:
+	-del *.o *.a

@@ -56,7 +56,7 @@ const int FILEDLG_X = 6;
 const int FILEDLG_Y = 10;
 const int FILEDLG_DX = 25;
 
-void rw_err(char *msg)
+static void rw_err(const char *msg)
 {
    MessageBox(wnd, msg, "Error", MB_OK | MB_ICONERROR);
 }
@@ -137,7 +137,7 @@ char rw_select_drive()
 char rw_trdos_sectors(FILEDLG_MODE mode)
 {
    filledframe(FILEDLG_X, FILEDLG_Y, FILEDLG_DX, 7);
-   char *title = (mode == FDM_LOAD)? " Read from TR-DOS sectors" :
+   const char *title = (mode == FDM_LOAD)? " Read from TR-DOS sectors" :
                                      " Write to TR-DOS sectors ";
    tprint(FILEDLG_X, FILEDLG_Y, title, FRM_HEADER);
 
@@ -212,12 +212,12 @@ char rw_trdos_sectors(FILEDLG_MODE mode)
 char wr_trdos_file()
 {
    filledframe(FILEDLG_X, FILEDLG_Y, FILEDLG_DX, 6);
-   char *title = " Write to TR-DOS file    ";
+   const char *title = " Write to TR-DOS file    ";
    tprint(FILEDLG_X, FILEDLG_Y, title, FRM_HEADER);
 
    char ln[64]; unsigned t;
 
-   sprintf(ln, "file:  %-08s %s", trdname, trdext);
+   sprintf(ln, "file:  %-8s %s", trdname, trdext);
    tprint(FILEDLG_X+1, FILEDLG_Y+3, ln, FFRAME_INSIDE);
 
    sprintf(ln, "start: %04X end: %04X", addr, end);
@@ -260,7 +260,7 @@ char wr_trdos_file()
    unsigned sz = end-addr+1;
    *(unsigned short*)(hdr+9) = addr;
    *(unsigned short*)(hdr+11) = sz;
-   hdr[13] = align_by(sz, 0x100) / 0x100; // sector size
+   hdr[13] = u8(align_by(sz, 0x100) / 0x100); // sector size
 
    fdd->optype |= 1;
    if (!fdd->addfile(hdr, memdata)) { rw_err("write error"); return 0; }

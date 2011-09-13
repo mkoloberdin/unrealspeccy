@@ -1,5 +1,8 @@
+// Адрес может превышать 0xFFFF
+// (чтобы в каждой команде работы с регистрами не делать &= 0xFFFF)
 Z80INLINE unsigned char rm(unsigned addr)
 {
+   addr &= 0xFFFF;
 #ifdef Z80_DBG
    unsigned char *membit = z80gs::membits + (addr & 0xFFFF);
    *membit |= MEMBITS_R;
@@ -13,8 +16,11 @@ Z80INLINE unsigned char rm(unsigned addr)
    return byte;
 }
 
+// Адрес может превышать 0xFFFF
+// (чтобы в каждой команде работы с регистрами не делать &= 0xFFFF)
 Z80INLINE void wm(unsigned addr, unsigned char val)
 {
+   addr &= 0xFFFF;
 #ifdef Z80_DBG
    unsigned char *membit = z80gs::membits + (addr & 0xFFFF);
    *membit |= MEMBITS_W;
@@ -32,7 +38,7 @@ Z80INLINE void wm(unsigned addr, unsigned char val)
 
 void z80loop()
 {
-   unsigned __int64 end = (float(cpu.t) * float(GSCPUFQI)) / float(conf.frame) + 0.5f;//((cpu.t * mult_gs2) >> MULT_GS_SHIFT); //; // t*GSCPUFQI/conf.frame;
+   u64 end = u64((float(cpu.t) * float(GSCPUFQI)) / float(conf.frame) + 0.5f);//((cpu.t * mult_gs2) >> MULT_GS_SHIFT); //; // t*GSCPUFQI/conf.frame;
    end += gscpu_t_at_frame_start;
    for (;;)
    { // while (gs_t_states+gscpu.t < end)

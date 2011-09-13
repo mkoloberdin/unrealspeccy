@@ -7,72 +7,60 @@
 
 #include "util.h"
 
-
-
-#ifdef _M_IX86
-void __cdecl fillCpuString(char *dst)
+static void cpuid(unsigned CpuInfo[4], unsigned _eax)
 {
-   __asm {
-      push esi
-      push edi
-      push ebx
-      mov esi, [dst]
-      mov edi, 80000000h
-      mov eax, edi
-      mov byte ptr [esi], al
-      mov byte ptr [esi+12], al
-      mov byte ptr [esi+48], al
-      cpuid
-      cmp eax, 80000004h
-      jb simple
-      lea eax,[edi+2]
-      cpuid
-      mov dword ptr [esi+0],eax
-      mov dword ptr [esi+4],ebx
-      mov dword ptr [esi+8],ecx
-      mov dword ptr [esi+12],edx
-      lea eax,[edi+3]
-      cpuid
-      mov dword ptr [esi+16],eax
-      mov dword ptr [esi+20],ebx
-      mov dword ptr [esi+24],ecx
-      mov dword ptr [esi+28],edx
-      lea eax,[edi+4]
-      cpuid
-      mov dword ptr [esi+32],eax
-      mov dword ptr [esi+36],ebx
-      mov dword ptr [esi+40],ecx
-      mov dword ptr [esi+44],edx
-      jmp done
-  simple:
-      xor eax,eax
-      cpuid
-      mov dword ptr [esi+0],ebx
-      mov dword ptr [esi+4],edx
-      mov dword ptr [esi+8],ecx
-  done:
-      pop ebx
-      pop edi
-      pop esi
+#ifdef _MSC_VER
+   __cpuid((int *)CpuInfo, _eax);
+#endif
+
+#ifdef __GNUC__
+   __cpuid(_eax, CpuInfo[0], CpuInfo[1], CpuInfo[2], CpuInfo[3]);
+#endif
+}
+
+void fillCpuString(char dst[49])
+{
+   dst[0] = dst[12] = dst[48] = 0;
+   unsigned CpuInfo[4];
+   unsigned *d = (unsigned *)dst;
+
+   cpuid(CpuInfo, 0x80000000);
+   if(CpuInfo[0] < 0x80000004)
+   {
+       cpuid(CpuInfo, 0);
+       d[0] = CpuInfo[1];
+       d[1] = CpuInfo[3];
+       d[2] = CpuInfo[2];
+       return;
    }
+
+   cpuid(CpuInfo, 0x80000002);
+   d[0] = CpuInfo[0];
+   d[1] = CpuInfo[1];
+   d[2] = CpuInfo[2];
+   d[3] = CpuInfo[3];
+
+   cpuid(CpuInfo, 0x80000003);
+   d[4] = CpuInfo[0];
+   d[5] = CpuInfo[1];
+   d[6] = CpuInfo[2];
+   d[7] = CpuInfo[3];
+
+   cpuid(CpuInfo, 0x80000004);
+   d[ 8] = CpuInfo[0];
+   d[ 9] = CpuInfo[1];
+   d[10] = CpuInfo[2];
+   d[11] = CpuInfo[3];
 }
 
 unsigned cpuid(unsigned _eax, int ext)
 {
-   __asm {
-      push ebx
-      mov eax, _eax
-      cpuid
-      pop ebx
-      cmp [ext],0
-      jz noext
-      mov eax, edx
-   noext:
-      mov _eax, eax
-   }
-   return _eax;
+   unsigned CpuInfo[4];
+
+   cpuid(CpuInfo, _eax);
+
+   return ext ? CpuInfo[3] : CpuInfo[0];
 }
-#endif
 
 unsigned __int64 GetCPUFrequency()
 {
@@ -181,12 +169,12 @@ unsigned process_msgs()
              input.atm51.setkey(msg.lParam >> 16, 1);
          switch (( msg.lParam>>16)&0x1FF)
          {
-            case 0x02a: kbdpcEX[0]=kbdpcEX[0]^0x01|0x80; break;
-            case 0x036: kbdpcEX[1]=kbdpcEX[1]^0x01|0x80; break;
-            case 0x01d: kbdpcEX[2]=kbdpcEX[2]^0x01|0x80; break;
-            case 0x11d: kbdpcEX[3]=kbdpcEX[3]^0x01|0x80; break;
-            case 0x038: kbdpcEX[4]=kbdpcEX[4]^0x01|0x80; break;
-            case 0x138: kbdpcEX[5]=kbdpcEX[5]^0x01|0x80; break;
+            case 0x02a: kbdpcEX[0]=(kbdpcEX[0]^0x01)|0x80; break;
+            case 0x036: kbdpcEX[1]=(kbdpcEX[1]^0x01)|0x80; break;
+            case 0x01d: kbdpcEX[2]=(kbdpcEX[2]^0x01)|0x80; break;
+            case 0x11d: kbdpcEX[3]=(kbdpcEX[3]^0x01)|0x80; break;
+            case 0x038: kbdpcEX[4]=(kbdpcEX[4]^0x01)|0x80; break;
+            case 0x138: kbdpcEX[5]=(kbdpcEX[5]^0x01)|0x80; break;
          } //Dexus
 //         printf("%s, WM_KEYDOWN, WM_SYSKEYDOWN\n", __FUNCTION__);
          key = msg.wParam;
@@ -264,7 +252,7 @@ char dispatch(action *table)
 {
    if (*droppedFile)
    {
-       trd_toload = 0;
+       trd_toload = DefaultDrive;
        loadsnap(droppedFile);
        *droppedFile = 0;
    }

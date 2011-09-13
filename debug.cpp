@@ -144,7 +144,7 @@ void handle_mouse()
 
 void TCpuMgr::CopyToPrev()
 {
-    for(int i = 0; i < Count; i++)
+    for(unsigned i = 0; i < Count; i++)
         PrevCpus[i] = *Cpus[i];
 }
 
@@ -152,6 +152,8 @@ void TCpuMgr::CopyToPrev()
 void debug(Z80 *cpu)
 {
    sound_stop();
+   temp.mon_scale = temp.scale;
+   temp.scale = 1;
    temp.rflags = RF_MONITOR;
    needclr = 1;
    dbgbreak = 1;
@@ -231,6 +233,7 @@ sleep:
    *prevcpu = *cpu;
 //   CpuMgr.CopyToPrev();
    cpu->SetLastT();
+   temp.scale = temp.mon_scale;
    apply_video();
    sound_play();
 }

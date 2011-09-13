@@ -63,7 +63,7 @@ void TMainZ80::out(unsigned port, unsigned char val) { ::out(port, val); }
 
 u8 TMainZ80::IntVec()
 {
-    return (comp.flags & CF_Z80FBUS)? (rdtsc() & 0xFF) : 0xFF;
+    return (comp.flags & CF_Z80FBUS)? u8(rdtsc() & 0xFF) : 0xFF;
 }
 
 void TMainZ80::CheckNextFrame()
@@ -76,6 +76,12 @@ void TMainZ80::CheckNextFrame()
        comp.frame_counter++;
        int_pend = true;
    }
+}
+
+void TMainZ80::retn()
+{
+    nmi_in_progress = false;
+    set_banks();
 }
 
 static const TMemIf FastMemIf = { Rm, Wm };
@@ -140,9 +146,9 @@ Z80 *TCpuMgr::Cpus[] =
 };
 
 
-const int TCpuMgr::Count = _countof(Cpus);
+const unsigned TCpuMgr::Count = _countof(Cpus);
 TZ80State TCpuMgr::PrevCpus[TCpuMgr::Count];
-int TCpuMgr::CurrentCpu = 0;
+unsigned TCpuMgr::CurrentCpu = 0;
 
 #ifdef MOD_GSBASS
 GSHLE gs;
@@ -165,9 +171,9 @@ SNDCOUNTER sndcounter;
 
 unsigned char *base_sos_rom, *base_dos_rom, *base_128_rom, *base_sys_rom;
 
-
 #ifdef CACHE_ALIGNED
-CACHE_ALIGNED unsigned char memory[PAGE*MAX_PAGES];
+ATTR_ALIGN(4096)
+unsigned char memory[PAGE*MAX_PAGES];
 #else // __declspec(align) not available, force QWORD align with old method
 __int64 memory__[PAGE*MAX_PAGES/sizeof(__int64)];
 unsigned char * const memory = (unsigned char*)memory__;
@@ -225,6 +231,8 @@ unsigned char exitflag = 0; // avoid call exit() twice
 
 // beta128 vars
 unsigned trd_toload = 0; // drive to load
+unsigned DefaultDrive = -1; // Дисковод по умолчанию в который грузятся образы дисков при старте
+
 char trd_loaded[4]; // used to get first free drive with no account of autoloaded images
 char ininame[0x200];
 char helpname[0x200];
@@ -564,7 +572,7 @@ const size_t zxk_maps_count = _countof(zxk_maps);
 
 PALETTEENTRY syspalette[0x100];
 
-GDIBMP gdibmp = { { { sizeof BITMAPINFOHEADER, 320, -240, 1, 8, BI_RGB, 0 } } };
+GDIBMP gdibmp = { { { sizeof(BITMAPINFOHEADER), 320, -240, 1, 8, BI_RGB, 0 } } };
 
 PALETTE_OPTIONS pals[32] = {{"default",0x00,0x80,0xC0,0xE0,0xFF,0xC8,0xFF,0x00,0x00,0x00,0xFF,0x00,0x00,0x00,0xFF}};
 

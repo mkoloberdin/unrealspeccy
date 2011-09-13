@@ -45,7 +45,7 @@ BOOL WINAPI ConsoleHandler(DWORD CtrlType);
 #include "util.h"
 
 void m_nmi(ROM_MODE page);
-void showhelp(char *anchor)
+void showhelp(const char *anchor)
 {
    sound_stop(); //Alone Coder 0.36.6
    showhelppp(anchor); //Alone Coder 0.36.6
@@ -101,7 +101,6 @@ BOOL WINAPI ConsoleHandler(DWORD CtrlType)
     return FALSE;
 }
 
-__declspec(noreturn)
 int __cdecl main(int argc, char **argv)
 {
 

@@ -117,6 +117,7 @@ void mon_emul()
 
 void mon_scr(char alt)
 {
+   temp.scale = temp.mon_scale;
    apply_video();
 
    memcpy(save_buf, rbuf, rb2_offs);
@@ -126,6 +127,8 @@ void mon_scr(char alt)
 
    while (!process_msgs()) Sleep(20);
    temp.rflags = RF_MONITOR;
+   temp.mon_scale = temp.scale;
+   temp.scale = 1;
    set_video();
 }
 
@@ -154,7 +157,7 @@ void editbank()
 
 void editextbank()
 {
-   if(dbg_extport != -1)
+   if(dbg_extport == -1)
        return;
    unsigned x = input2(ports_x+5, ports_y+2, dgb_extval);
    if (x != -1)
@@ -170,6 +173,15 @@ void mon_nxt()
 
 void mon_prv() { mon_nxt(); mon_nxt(); }
 void mon_dump() { mem_dump ^= 1; mem_sz = mem_dump ? 32:8; }
+
+void mon_switch_dump()
+{
+    static const unsigned DumpModes[] = { ED_MEM, ED_PHYS, ED_LOG, ED_CMOS, ED_NVRAM };
+    static unsigned Idx = 0;
+    ++Idx;
+    Idx %= ED_MAX;
+    editor = DumpModes[Idx];
+}
 
 #define tool_x 18
 #define tool_y 12

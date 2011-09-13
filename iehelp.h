@@ -2,4 +2,4 @@
 
 void init_ie_help();
 void done_ie_help();
-void showhelppp(char *anchor = 0);
+void showhelppp(const char *anchor = 0);

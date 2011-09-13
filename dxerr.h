@@ -1,6 +1,6 @@
 #pragma once
 
-void printrdd(char *pr, HRESULT r);
-void printrmm(char *pr, HRESULT r);
-void printrds(char *pr, HRESULT r);
-void printrdi(char *pr, HRESULT r);
+void printrdd(const char *pr, HRESULT r);
+void printrmm(const char *pr, HRESULT r);
+void printrds(const char *pr, HRESULT r);
+void printrdi(const char *pr, HRESULT r);

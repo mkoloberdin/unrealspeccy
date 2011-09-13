@@ -12,9 +12,11 @@
 
 unsigned char txtscr[80*30*2];
 
-struct {
+static struct
+{
    unsigned char x,y,dx,dy,c;
 } frames[20];
+
 unsigned nfr;
 
 void debugflip()

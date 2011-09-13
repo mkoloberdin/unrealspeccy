@@ -13,9 +13,9 @@
 
 #include "util.h"
 
-unsigned led_updtime, pitch;
+unsigned pitch;
 
-void text_i(unsigned char *dst, char *text, unsigned char ink, unsigned off = 0)
+void text_i(unsigned char *dst, const char *text, unsigned char ink, unsigned off = 0)
 {
    unsigned char mask = 0xF0; ink &= 0x0F;
    for (unsigned char *x = (unsigned char*)text; *x; x++) {
@@ -34,7 +34,7 @@ void text_i(unsigned char *dst, char *text, unsigned char ink, unsigned off = 0)
    }
 }
 
-void text_16(unsigned char *dst, char *text, unsigned char attr)
+static void text_16(unsigned char *dst, const char *text, unsigned char attr)
 {
    for (; *text; text++, dst += 2)
       for (unsigned y = 0; y < 16; y++)
@@ -245,13 +245,17 @@ void load_led()
    }
 }
 
-unsigned p_frames, p_time, p_fps;
+static unsigned p_frames = 1;
+static u64 led_updtime, p_time;
+double p_fps;
 __inline void update_perf_led()
 {
-   unsigned now = led_updtime - p_time;
-   if (now > 500) {
-      p_fps = (int)((double)p_frames*1000/now + 0.5);
-      p_frames = 0; p_time = led_updtime;
+   u64 now = led_updtime - p_time;
+   if (now >= temp.cpufq) // усреднение за секунду
+   {
+      p_fps = (p_frames * temp.cpufq) / double(now) + 0.005;
+      p_frames = 0;
+      p_time = led_updtime;
    }
    p_frames++;
 }
@@ -260,8 +264,9 @@ void perf_led()
 {
    char bf[0x20]; unsigned PSZ;
    if (conf.led.perf_t)
-      sprintf(bf, "%6d*%d", cpu.haltpos ? cpu.haltpos : cpu.t, p_fps), PSZ = 7;
-   else sprintf(bf, "%2d fps", p_fps), PSZ = 5;
+      sprintf(bf, "%6d*%2.2f", cpu.haltpos ? cpu.haltpos : cpu.t, p_fps), PSZ = 7;
+   else
+      sprintf(bf, "%2.2f fps", p_fps), PSZ = 5;
    text_i(temp.led.perf, bf, 0x0E);
    if (cpu.haltpos) {
       unsigned char *ptr = temp.led.perf + pitch*8;
@@ -464,7 +469,7 @@ void key_led()
 
 void time_led()
 {
-   static unsigned prev_time;
+   static u64 prev_time;
    static char bf[8];
    if (led_updtime - prev_time > 5000) {
       prev_time = led_updtime;
@@ -474,9 +479,10 @@ void time_led()
    text_i(temp.led.time, bf, 0x0D);
 }
 
+// Вызывается раз в кадр
 void showleds()
 {
-   led_updtime = GetTickCount();
+   led_updtime = rdtsc();
    update_perf_led();
 
    if (temp.vidblock) return;

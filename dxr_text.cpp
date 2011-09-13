@@ -11,207 +11,32 @@
 #include "init.h"
 #include "util.h"
 
-unsigned *root_tab;
+static void *root_tab;
 const unsigned char *fontdata = fontdata1;
 
-#ifdef _M_IX86
-#if 1
-__declspec(naked) void __fastcall recognize_text(unsigned char *start, unsigned char *dst[])
+static void recognize_text(const unsigned char *st, unsigned char *d[])
 {
-   // ecx=start, edx=dst
-   __asm {
-      push ebx
-      push esi
-      push edi
-      push ebp
+    void **dst = (void **)d;
+    const u32 *start = (u32 *)st;
+    for(unsigned i = 0; i < 64; i++)
+    {
+        dst[i] = root_tab;
+    }
 
-      mov edi,edx
-      mov eax,[root_tab]
-      mov ebp,ecx
-      mov ecx,64
-      rep stosd
-      mov ecx,edx
-
-      mov eax,[temp.scx]
-      shr eax,2
-      push eax
-      push [conf.fontsize]
-m1:
-      xor esi,esi
-m2:
-      mov eax,[ebp+esi*2]
-
-      mov ebx,eax
-      mov edx,eax
-      shr ebx,2
-      and edx,0x0F
-      and ebx,0x3C
-      mov edi,[ecx+esi*8]
-      mov ebx,[edi+ebx]
-      mov edi,[ecx+esi*8+4]
-      mov [ecx+esi*8],ebx
-      mov edx,[edi+edx*4]
-      mov [ecx+esi*8+4],edx
-      mov ebx,eax
-      mov edx,eax
-      shr ebx,18
-      shr edx,14
-      and ebx,0x3C
-      mov edi,[ecx+esi*8+8]
-      and edx,0x3C
-      mov ebx,[edi+ebx]
-      mov edi,[ecx+esi*8+12]
-      mov [ecx+esi*8+8],ebx
-      mov eax,[ebp+esi*2+4]
-      mov edx,[edi+edx]
-      mov ebx,eax
-      mov [ecx+esi*8+12],edx
-      shr ebx,2
-      mov edx,eax
-      and ebx,0x3C
-      mov edi,[ecx+esi*8+16]
-      and edx,0x0F
-      mov ebx,[edi+ebx]
-      mov edi,[ecx+esi*8+20]
-      mov [ecx+esi*8+16],ebx
-      mov edx,[edi+edx*4]
-      mov ebx,eax
-      mov [ecx+esi*8+20],edx
-      mov edx,eax
-      shr ebx,18
-      shr edx,14
-      and ebx,0x3C
-      and edx,0x3C
-      mov edi,[ecx+esi*8+24]
-      mov ebx,[edi+ebx]
-      mov edi,[ecx+esi*8+28]
-      mov [ecx+esi*8+24],ebx
-      mov edx,[edi+edx]
-      mov [ecx+esi*8+28],edx
-
-      add esi,4
-      cmp esi,32
-      jnz m2
-
-      add ebp,dword ptr [esp+4]
-      dec dword ptr [esp]
-      jnz m1
-      add esp,8
-
-      pop ebp
-      pop edi
-      pop esi
-      pop ebx
-
-      ret
-   }
+    for(unsigned j = conf.fontsize; j != 0; j--, start += temp.scx >> 4)
+    {
+        for(unsigned i = 0; i < 64 / 4; i++)
+        {
+            dst[4*i+0] = ((void **)dst[4*i+0])[(start[i] >> 4) & 0xF];
+            dst[4*i+1] = ((void **)dst[4*i+1])[(start[i] & 0xF)];
+            dst[4*i+2] = ((void **)dst[4*i+2])[(start[i] >> 20) & 0xF];
+            dst[4*i+3] = ((void **)dst[4*i+3])[(start[i] >> 16) & 0xF];
+        }
+    }
 }
-#else // unpipelined (debug) version
-__declspec(naked) void __fastcall recognize_text(unsigned char *start, unsigned char *dst[])
-{
-   // ecx=start, edx=dst
-   __asm {
-      push ebx
-      push esi
-      push edi
-      push ebp
 
-      mov edi,edx
-      mov eax,[root_tab]
-      mov ebp,ecx
-      mov ecx,64
-      rep stosd
-      mov ecx,edx
-
-      mov eax,[temp.scx]
-      shr eax,2
-      push eax
-      push [conf.fontsize]
-m1:
-      xor esi,esi
-m2:
-      mov eax,[ebp+esi*2]
-
-      mov ebx,eax
-      shr ebx,2
-      and ebx,0x3C
-      mov edi,[ecx+esi*8]
-      mov ebx,[edi+ebx]
-      mov [ecx+esi*8],ebx
-
-      mov edx,eax
-      and edx,0x0F
-      mov edi,[ecx+esi*8+4]
-      mov edx,[edi+edx*4]
-      mov [ecx+esi*8+4],edx
-
-      mov ebx,eax
-      shr ebx,18
-      and ebx,0x3C
-      mov edi,[ecx+esi*8+8]
-      mov ebx,[edi+ebx]
-      mov [ecx+esi*8+8],ebx
-
-      mov edx,eax
-      shr edx,14
-      and edx,0x3C
-      mov edi,[ecx+esi*8+12]
-      mov edx,[edi+edx]
-      mov [ecx+esi*8+12],edx
-
-      mov eax,[ebp+esi*2+4]
-
-      mov ebx,eax
-      shr ebx,2
-      and ebx,0x3C
-      mov edi,[ecx+esi*8+16]
-      mov ebx,[edi+ebx]
-      mov [ecx+esi*8+16],ebx
-
-      mov edx,eax
-      and edx,0x0F
-      mov edi,[ecx+esi*8+20]
-      mov edx,[edi+edx*4]
-      mov [ecx+esi*8+20],edx
-
-      mov ebx,eax
-      shr ebx,18
-      and ebx,0x3C
-      mov edi,[ecx+esi*8+24]
-      mov ebx,[edi+ebx]
-      mov [ecx+esi*8+24],ebx
-
-      mov edx,eax
-      shr edx,14
-      and edx,0x3C
-      mov edi,[ecx+esi*8+28]
-      mov edx,[edi+edx]
-      mov [ecx+esi*8+28],edx
-
-      add esi,4
-      cmp esi,32
-      jnz m2
-
-      add ebp,dword ptr [esp+4]
-      dec dword ptr [esp]
-      jnz m1
-      add esp,8
-
-      pop ebp
-      pop edi
-      pop esi
-      pop ebx
-
-      ret
-   }
-}
-#endif
-
-
-#define newchars(x)
-//#define newchars(x) x
-#define line_a64_8_2 line_a64_8 // scanlines ¢ë£«ï¤¨â ®ç¥­ì ¯«®å® á èà¨äâ®¬ 8x16
-#define line_a64_8_1 line_a64_8 // ¯®íâ®¬ã scanlines ­¥ ¯®¤¤¥p¦ ­
+#define line_a64_8_2 line_a64_8 // scanlines âûãëÿäèò î÷åíü ïëîõî ñ øðèôòîì 8x16
+#define line_a64_8_1 line_a64_8 // ïîýòîìó scanlines íå ïîääåpæàí
 #define line_a64_16_2 line_a64_16
 #define line_a64_16_1 line_a64_16
 #define line_a64_32_2 line_a64_32
@@ -227,7 +52,7 @@ void line_a64_8(unsigned char *dst, unsigned char *src, unsigned char *chars[], 
          *(unsigned*)(dst+x+ 0) = t.sctab8d[0][((s >> 6) & 3) + attr];
          *(unsigned*)(dst+x+ 4) = t.sctab8d[0][((s >> 4) & 3) + attr];
       } else {
-         newchars(unsigned attr = 0xF0*4);
+         unsigned attr = 0xF0*4;
          *(unsigned*)(dst+x+ 0) = t.sctab8[0][((ptr[line] >> 4) & 0xF) + attr*4];
          *(unsigned*)(dst+x+ 4) = t.sctab8[0][((ptr[line]     ) & 0xF) + attr*4];
       }
@@ -236,7 +61,7 @@ void line_a64_8(unsigned char *dst, unsigned char *src, unsigned char *chars[], 
          *(unsigned*)(dst+x+ 8) = t.sctab8d[0][((s >> 2) & 3) + attr];
          *(unsigned*)(dst+x+12) = t.sctab8d[0][((s >> 0) & 3) + attr];
       } else {
-         newchars(unsigned attr = 0xF0*4);
+         unsigned attr = 0xF0*4;
          *(unsigned*)(dst+x+ 8) = t.sctab8[0][((ptr[line] >> 4) & 0xF) + attr*4];
          *(unsigned*)(dst+x+12) = t.sctab8[0][((ptr[line]     ) & 0xF) + attr*4];
       }
@@ -246,7 +71,7 @@ void line_a64_8(unsigned char *dst, unsigned char *src, unsigned char *chars[], 
          *(unsigned*)(dst+x+16) = t.sctab8d[0][((s >>22) & 3) + attr];
          *(unsigned*)(dst+x+20) = t.sctab8d[0][((s >>20) & 3) + attr];
       } else {
-         newchars(unsigned attr = 0xF0*4);
+         unsigned attr = 0xF0*4;
          *(unsigned*)(dst+x+16) = t.sctab8[0][((ptr[line] >> 4) & 0xF) + attr*4];
          *(unsigned*)(dst+x+20) = t.sctab8[0][((ptr[line]     ) & 0xF) + attr*4];
       }
@@ -255,7 +80,7 @@ void line_a64_8(unsigned char *dst, unsigned char *src, unsigned char *chars[], 
          *(unsigned*)(dst+x+24) = t.sctab8d[0][((s >>18) & 3) + attr];
          *(unsigned*)(dst+x+28) = t.sctab8d[0][((s >>16) & 3) + attr];
       } else {
-         newchars(unsigned attr = 0xF0*4);
+         unsigned attr = 0xF0*4;
          *(unsigned*)(dst+x+24) = t.sctab8[0][((ptr[line] >> 4) & 0xF) + attr*4];
          *(unsigned*)(dst+x+28) = t.sctab8[0][((ptr[line]     ) & 0xF) + attr*4];
       }
@@ -355,7 +180,8 @@ static unsigned char *zero64[64] = { 0 };
 
 void rend_anti64_8s(unsigned char *dst, unsigned pitch, unsigned char *src, unsigned scroll = 0)
 {
-   unsigned char *chars[64];
+   ATTR_ALIGN(16) unsigned char *chars[64];
+
    unsigned delta = temp.scx/4;
    if (scroll) for (unsigned y = 0; y < 64; y++) chars[y] = 0;
    else recognize_text(src, chars), scroll = conf.fontsize;
@@ -378,7 +204,7 @@ void rend_anti64_8s(unsigned char *dst, unsigned pitch, unsigned char *src, unsi
 
 void rend_anti64_8d(unsigned char *dst, unsigned pitch, unsigned char *src, unsigned scroll = 0)
 {
-   unsigned char *chars[64];
+   ATTR_ALIGN(16) unsigned char *chars[64];
    unsigned delta = temp.scx/4;
    if (scroll) for (unsigned y = 0; y < 64; y++) chars[y] = 0;
    else recognize_text(src, chars), scroll = conf.fontsize;
@@ -404,7 +230,7 @@ void rend_anti64_8d(unsigned char *dst, unsigned pitch, unsigned char *src, unsi
 
 void rend_anti64_16s(unsigned char *dst, unsigned pitch, unsigned char *src, unsigned scroll = 0)
 {
-   unsigned char *chars[64];
+   ATTR_ALIGN(16) unsigned char *chars[64];
    unsigned delta = temp.scx/4;
    if (scroll) for (unsigned y = 0; y < 64; y++) chars[y] = 0;
    else recognize_text(src, chars), scroll = conf.fontsize;
@@ -427,7 +253,7 @@ void rend_anti64_16s(unsigned char *dst, unsigned pitch, unsigned char *src, uns
 
 void rend_anti64_16d(unsigned char *dst, unsigned pitch, unsigned char *src, unsigned scroll = 0)
 {
-   unsigned char *chars[64];
+   ATTR_ALIGN(16) unsigned char *chars[64];
    unsigned delta = temp.scx/4;
    if (scroll) for (unsigned y = 0; y < 64; y++) chars[y] = 0;
    else recognize_text(src, chars), scroll = conf.fontsize;
@@ -453,7 +279,7 @@ void rend_anti64_16d(unsigned char *dst, unsigned pitch, unsigned char *src, uns
 
 void rend_anti64_32s(unsigned char *dst, unsigned pitch, unsigned char *src, unsigned scroll = 0)
 {
-   unsigned char *chars[64];
+   ATTR_ALIGN(16) unsigned char *chars[64];
    unsigned delta = temp.scx/4;
    if (scroll) for (unsigned y = 0; y < 64; y++) chars[y] = 0;
    else recognize_text(src, chars), scroll = conf.fontsize;
@@ -476,7 +302,7 @@ void rend_anti64_32s(unsigned char *dst, unsigned pitch, unsigned char *src, uns
 
 void rend_anti64_32d(unsigned char *dst, unsigned pitch, unsigned char *src, unsigned scroll = 0)
 {
-   unsigned char *chars[64];
+   ATTR_ALIGN(16) unsigned char *chars[64];
    unsigned delta = temp.scx/4;
    if (scroll) for (unsigned y = 0; y < 64; y++) chars[y] = 0;
    else recognize_text(src, chars), scroll = conf.fontsize;
@@ -529,27 +355,48 @@ void __fastcall render_text(unsigned char *dst, unsigned pitch)
    unsigned char *src = rbuf + (temp.b_top*temp.scx+temp.b_left)/4;
    unsigned scroll = conf.pixelscroll? detect_scroll(src) : 0;
 
-   if (temp.obpp == 8)  { if (conf.fast_sl) rend_frame_x2_8s (dst, pitch), rend_anti64_8s (dst2, pitch, src, scroll); else rend_frame_x2_8d (dst, pitch), rend_anti64_8d (dst2, pitch, src, scroll); return; }
-   if (temp.obpp == 16) { if (conf.fast_sl) rend_frame_x2_16s(dst, pitch), rend_anti64_16s(dst2, pitch, src, scroll); else rend_frame_x2_16d(dst, pitch), rend_anti64_16d(dst2, pitch, src, scroll); return; }
-   if (temp.obpp == 32) { if (conf.fast_sl) rend_frame_x2_32s(dst, pitch), rend_anti64_32s(dst2, pitch, src, scroll); else rend_frame_x2_32d(dst, pitch), rend_anti64_32d(dst2, pitch, src, scroll); return; }
+   if (temp.obpp == 8)  { if (conf.fast_sl) rend_frame_8d1(dst, pitch), rend_anti64_8s (dst2, pitch, src, scroll); else rend_frame_8d(dst, pitch), rend_anti64_8d (dst2, pitch, src, scroll); return; }
+   if (temp.obpp == 16) { if (conf.fast_sl) rend_frame_16d1(dst, pitch), rend_anti64_16s(dst2, pitch, src, scroll); else rend_frame_16d(dst, pitch), rend_anti64_16d(dst2, pitch, src, scroll); return; }
+   if (temp.obpp == 32) { if (conf.fast_sl) rend_frame_32d1(dst, pitch), rend_anti64_32s(dst2, pitch, src, scroll); else rend_frame_32d(dst, pitch), rend_anti64_32d(dst2, pitch, src, scroll); return; }
 
 }
 
-unsigned *alloc_table(unsigned *&tptr, unsigned *startval)
+void *alloc_table(void **&tptr, void *startval)
 {
-   unsigned *res = tptr;
-   for (unsigned i = 0; i < 16; i++) *tptr++ = (unsigned)startval;
+   void *res = (void *)tptr;
+   for (unsigned i = 0; i < 16; i++)
+       tptr[i] = startval;
+   tptr += 16;
    return res;
 }
 
+//
+//    dt[i-1] -> dt[i] -> dt[i+1]
+//               |        dt[i+1]
+//               |
+//               dt[i] -> dt[i+1]
+//               |        dt[i+1]
+//               |
+//               dt[i] -> dt[i+1]
+//                        dt[i+1]
+
+// l1[] = { 0, 0, 0 };
+// l2[] = { l1, l1, l1 };
+// l3[] = { l2, l2, l2 };
+
 void create_font_tables()
 {
-   const unsigned char *fontbase = conf.fast_sl? font8 : font16;
-   unsigned fonth = conf.fast_sl? 8 : 16;
-   if (conf.fontsize < 8) fontbase = conf.fast_sl? font8 : font14, fonth = conf.fast_sl? 8 : 14;
+   const unsigned char *fontbase = conf.fast_sl ? font8 : font16;
+   unsigned fonth = conf.fast_sl ? 8 : 16;
 
-   unsigned *dummy_tab[8];
-   unsigned *ts = (unsigned*)t.font_tables;
+   if (conf.fontsize < 8)
+   {
+       fontbase = conf.fast_sl ? font8 : font14;
+       fonth = conf.fast_sl ? 8 : 14;
+   }
+
+   void *dummy_tab[8];
+   void **ts = (void **)t.font_tables;
    dummy_tab[conf.fontsize-1] = alloc_table(ts, 0);
    for (unsigned i = conf.fontsize-1; i; i--)
       dummy_tab[i-1] = alloc_table(ts, dummy_tab[i]);
@@ -558,43 +405,59 @@ void create_font_tables()
    // todo: collapse tree to graph
    // (last bytes of same char with
    // different first bytes may be same)
-   for (unsigned invert = 0; invert < 0x100; invert += 0xFF) {
-      for (const unsigned char *ptr = fontdata; *ptr; ptr += 8) {
-         unsigned code = *ptr++; unsigned *tab = root_tab;
-         for (unsigned level = 0; ; level++) {
+   for (unsigned invert = 0; invert < 0x100; invert += 0xFF)
+   {
+      for (const unsigned char *ptr = fontdata; *ptr; ptr += 8)
+      {
+         unsigned code = *ptr++;
+         void **tab = (void **)root_tab;
+
+         for (unsigned level = 0; ; level++)
+         {
             unsigned bits = (ptr[level] ^ (unsigned char)invert) & 0x0F;
-            if (level == conf.fontsize-1) {
-               if (tab[bits]) {
+            if (level == conf.fontsize-1)
+            {
+               if (tab[bits])
+               {
 #if 0 // 1 - debug
                   color(CONSCLR_ERROR);
                   printf("duplicate char %d (%02X)! - font table may corrupt\n", (ptr-1-fontdata)/9, code);
                   exit();
 #endif
-               } else {
-                  unsigned *newchar, *basechar = (unsigned*)(fontbase + fonth*code);
-                  if (invert) {
-                     newchar = ts; ts += 4;
+               }
+               else
+               {
+                  unsigned *newchar;
+                  unsigned *basechar = (unsigned*)(fontbase + fonth*code); // Øðèôò 8xh, h=8,14,16
+                  if (invert)
+                  {
+                     newchar = (unsigned *)ts;
+                     ts += 4;
                      newchar[0] = ~basechar[0];
                      newchar[1] = ~basechar[1];
                      newchar[2] = ~basechar[2];
                      newchar[3] = ~basechar[3];
-                  } else newchar = basechar;
-                  tab[bits] = (unsigned)newchar;
+                  }
+                  else
+                     newchar = basechar;
+
+                  tab[bits] = newchar;
                }
                break;
             }
-            unsigned *next = (unsigned*)tab[bits];
+            void *next = tab[bits];
             if (next == dummy_tab[level+1])
-               tab[bits] = (unsigned)(next = alloc_table(ts, (level==conf.fontsize-2)? 0 : dummy_tab[level+2]));
-            tab = next;
+               tab[bits] = next = alloc_table(ts, (level==conf.fontsize-2)? 0 : dummy_tab[level+2]);
+            tab = (void **)next;
          }
       }
    }
-   unsigned usedsize = (int)ts - (int)t.font_tables;
-   if (usedsize > sizeof(t.font_tables)) {
+
+   size_t usedsize = ((u8 *)ts) - ((u8 *)t.font_tables);
+   if (usedsize > sizeof(t.font_tables))
+   {
       color(CONSCLR_ERROR);
       printf("font table overflow: size=%u (0x%X) of 0x%X\n", usedsize, usedsize, sizeof t.font_tables);
       exit();
    }
 }
-#endif // _M_IX86

@@ -18,10 +18,10 @@ extern size_t renders_count;
 extern unsigned char active;
 extern unsigned char pause;
 
-extern LPDIRECTDRAW7 dd;
-extern LPDIRECTDRAWSURFACE7 sprim;
-extern LPDIRECTDRAWSURFACE7 surf0;
-extern LPDIRECTDRAWSURFACE7 surf1;
+extern LPDIRECTDRAW2 dd;
+extern LPDIRECTDRAWSURFACE sprim;
+extern LPDIRECTDRAWSURFACE surf0;
+extern LPDIRECTDRAWSURFACE surf1;
 
 extern LPDIRECTINPUTDEVICE2 dijoyst;
 

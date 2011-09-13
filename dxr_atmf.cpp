@@ -7,7 +7,108 @@
 #include "dxrcopy.h"
 #include "dxr_atmf.h"
 
-void rend_atmframe_x2_8s(unsigned char *dst, unsigned pitch)
+// small
+void rend_atmframe8(unsigned char *dst, unsigned pitch)
+{
+   if (!conf.updateb)
+       return;
+   unsigned char *src = rbuf;
+   unsigned scx = temp.scx, delta = scx/4;
+   unsigned top = (temp.scy-200)/2;
+   unsigned y;
+   for (y = 0; y < top; y++)
+   {
+      line8(dst, src, t.sctab8[0]); dst += pitch;
+      src += delta;
+   }
+   temp.scx = (scx-320)/2;
+   unsigned r_start = scx - temp.scx;
+   unsigned scr_offs = r_start*2;
+   unsigned atr_offs = r_start/4;
+   for (y = 0; y < 200; y++)
+   {
+      line8(dst, src, t.sctab8[0]);
+      line8(dst+scr_offs, src + atr_offs, t.sctab8[0]);
+      dst += pitch,
+      src += delta;
+   }
+   temp.scx = scx;
+   for (y = 0; y < top; y++)
+   {
+      line8(dst, src, t.sctab8[0]); dst += pitch;
+      src += delta;
+   }
+}
+
+void rend_atmframe16(unsigned char *dst, unsigned pitch)
+{
+   if (!conf.updateb)
+       return;
+   unsigned char *src = rbuf;
+   unsigned scx = temp.scx, delta = scx/4;
+   unsigned top = (temp.scy-200)/2;
+   unsigned y;
+   for (y = 0; y < top; y++)
+   {
+      line16(dst, src, t.sctab16d[0]); dst += pitch;
+      src += delta;
+   }
+   temp.scx = (scx-320)/2;
+   unsigned r_start = scx - temp.scx;
+   unsigned scr_offs = r_start*4;
+   unsigned atr_offs = r_start/4;
+
+   for (y = 0; y < 200; y++)
+   {
+      line16(dst, src, t.sctab16[0]);
+      line16(dst+scr_offs, src + atr_offs, t.sctab16d[0]);
+      dst += pitch,
+      src += delta;
+   }
+
+   temp.scx = scx;
+   for (y = 0; y < top; y++)
+   {
+      line16(dst, src, t.sctab16[0]); dst += pitch;
+      src += delta;
+   }
+}
+
+void rend_atmframe32(unsigned char *dst, unsigned pitch)
+{
+   if (!conf.updateb)
+       return;
+   unsigned char *src = rbuf;
+   unsigned scx = temp.scx, delta = scx/4;
+   unsigned top = (temp.scy-200)/2;
+   unsigned y;
+   for (y = 0; y < top; y++)
+   {
+      line32(dst, src, t.sctab32[0]); dst += pitch;
+      src += delta;
+   }
+   temp.scx = (scx-320)/2;
+   unsigned r_start = scx - temp.scx;
+   unsigned scr_offs = r_start*8;
+   unsigned atr_offs = r_start/4;
+   for (y = 0; y < 200; y++)
+   {
+      line32(dst, src, t.sctab32[0]);
+      line32(dst+scr_offs, src + atr_offs, t.sctab32[0]);
+      dst += pitch,
+      src += delta;
+   }
+   temp.scx = scx;
+   for (y = 0; y < top; y++)
+   {
+      line32(dst, src, t.sctab32[0]); dst += pitch;
+      src += delta;
+   }
+}
+
+
+// double
+void rend_atmframe_8d1(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -33,7 +134,7 @@ void rend_atmframe_x2_8s(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_atmframe_x2_8d(unsigned char *dst, unsigned pitch)
+void rend_atmframe_8d(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -65,7 +166,7 @@ void rend_atmframe_x2_8d(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_atmframe_x2_16s(unsigned char *dst, unsigned pitch)
+void rend_atmframe_16d1(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -91,7 +192,7 @@ void rend_atmframe_x2_16s(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_atmframe_x2_16d(unsigned char *dst, unsigned pitch)
+void rend_atmframe_16d(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -123,16 +224,7 @@ void rend_atmframe_x2_16d(unsigned char *dst, unsigned pitch)
    }
 }
 
-/*
-void rend_atmframe_x2_16(unsigned char *dst, unsigned pitch)
-{
-   if (!conf.updateb) return;
-   if (!conf.fast_sl) rend_atmframe_x2_16d(dst, pitch);
-   else rend_atmframe_x2_16s(dst, pitch*2);
-}
-*/
-
-void rend_atmframe_x2_32s(unsigned char *dst, unsigned pitch)
+void rend_atmframe_32d1(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -158,7 +250,7 @@ void rend_atmframe_x2_32s(unsigned char *dst, unsigned pitch)
    }
 }
 
-void rend_atmframe_x2_32d(unsigned char *dst, unsigned pitch)
+void rend_atmframe_32d(unsigned char *dst, unsigned pitch)
 {
    if (!conf.updateb) return;
    unsigned char *src = rbuf; unsigned scx = temp.scx, delta = scx/4;
@@ -189,11 +281,3 @@ void rend_atmframe_x2_32d(unsigned char *dst, unsigned pitch)
       src += delta;
    }
 }
-
-/*
-void rend_atmframe_x2_32(unsigned char *dst, unsigned pitch)
-{
-   if (!conf.fast_sl) rend_atmframe_x2_32d(dst, pitch);
-   else rend_atmframe_x2_32s(dst, pitch*2);
-}
-*/

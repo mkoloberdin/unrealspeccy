@@ -198,7 +198,7 @@ void ISA_MODEM::write(unsigned nreg, unsigned char value)
 
    if (nreg == 4)
    {
-      // MCR set, renew DTR/CTS
+      // MCR set, renew DTR/RTS
       EscapeCommFunction(hPort, (reg[4] & 1)? SETDTR : CLRDTR);
       EscapeCommFunction(hPort, (reg[4] & 2)? SETRTS : CLRRTS);
    }
@@ -232,5 +232,16 @@ unsigned char ISA_MODEM::read(unsigned nreg)
        setup_int();
    }
 
+   if (nreg == 6)
+   {
+       DWORD ModemStatus;
+       GetCommModemStatus(hPort, &ModemStatus);
+       u8 r6 = reg[6];
+       reg[6] &= ~(1 << 4);
+       reg[6] |= (ModemStatus & MS_CTS_ON) ? (1 << 4): 0;
+       reg[6] &= ~1;
+       reg[6] |= ((r6 ^ reg[6]) & (1 << 4)) >> 4;
+       result = reg[6];
+   }
    return result;
 }

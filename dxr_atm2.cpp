@@ -8,8 +8,8 @@
 
 const int atmh0_ofs = 0;
 const int atmh1_ofs = 0x2000;
-const int atmh2_ofs = -4*PAGE;
-const int atmh3_ofs = -4*PAGE+0x2000;
+const int atmh2_ofs = -4*int(PAGE);
+const int atmh3_ofs = -4*int(PAGE)+0x2000;
 
 
 void line_atm2_8(unsigned char *dst, unsigned char *src, unsigned *tab0, int src_offset)
@@ -135,6 +135,7 @@ void line_atm2_32(unsigned char *dst, unsigned char *src, unsigned *tab0, int sr
     }
 }
 
+// Hardware Multicolor
 void rend_atm2(unsigned char *dst, unsigned pitch, int y, int Offset)
 {
     unsigned char *dst2 = dst + (temp.ox-640)*temp.obpp/16;

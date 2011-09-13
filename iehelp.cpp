@@ -20,7 +20,7 @@ void done_ie_help()
    if (hURLMON) FreeLibrary(hURLMON), hURLMON = 0;
 }
 
-void showhelppp(char *anchor = 0) //Alone Coder 0.36.6
+void showhelppp(const char *anchor = 0) //Alone Coder 0.36.6
 {
    if (!hMSHTML) hMSHTML = LoadLibrary("MSHTML.DLL");
    if (!hURLMON) hURLMON = LoadLibrary("URLMON.DLL");
@@ -73,7 +73,7 @@ void showhelppp(char *anchor = 0) //Alone Coder 0.36.6
    char url[0x200];
    sprintf(url, "file://%s%s%s", dst, anchor?"#":nil, anchor?anchor:nil);
    WCHAR urlw[0x200];
-   MultiByteToWideChar(AreFileApisANSI()? CP_ACP : CP_OEMCP, MB_USEGLYPHCHARS, url, -1, urlw, sizeof urlw / sizeof WCHAR);
+   MultiByteToWideChar(AreFileApisANSI()? CP_ACP : CP_OEMCP, MB_USEGLYPHCHARS, url, -1, urlw, _countof(urlw));
    IMoniker *pmk = 0;
    CreateMoniker(0, urlw, &pmk);
 

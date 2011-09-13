@@ -12,6 +12,7 @@
 #include "emulkeys.h"
 #include "z80/op_system.h"
 #include "z80/op_noprefix.h"
+#include "fontatm2.h"
 
 #include "util.h"
 
@@ -79,6 +80,7 @@ void reset(ROM_MODE mode)
    comp.p00 = comp.p80FD = 0; // quorum
 
    comp.pBF = 0; // ATM3
+   comp.pBE = 0; // ATM3
 
    if (conf.mem_model == MM_ATM710 || conf.mem_model == MM_ATM3)
    {
@@ -88,15 +90,15 @@ void reset(ROM_MODE mode)
            // Запрет палитры, запрет cpm, включение диспетчера памяти
            // Включение механической клавиатуры, разрешение кадровых прерываний
            set_atm_FF77(0x4000 | 0x200 | 0x100, 0x80 | 0x40 | 0x20 | 3);
-           comp.pFFF7[0] = 0x40 | 5; // trdos
-           comp.pFFF7[1] = 0x80 | 5; // ram 5
-           comp.pFFF7[2] = 0x80 | 2; // ram 2
-           comp.pFFF7[3] = 0;        // ram 0
+           comp.pFFF7[0] = 0x100 | 1; // trdos
+           comp.pFFF7[1] = 0x200 | 5; // ram 5
+           comp.pFFF7[2] = 0x200 | 2; // ram 2
+           comp.pFFF7[3] = 0x200;     // ram 0
 
-           comp.pFFF7[4] = 0x40 | 5; // trdos
-           comp.pFFF7[5] = 0x80 | 5; // ram 5
-           comp.pFFF7[6] = 0x80 | 2; // ram 2
-           comp.pFFF7[7] = 0;        // ram 0
+           comp.pFFF7[4] = 0x100 | 1; // trdos
+           comp.pFFF7[5] = 0x200 | 5; // ram 5
+           comp.pFFF7[6] = 0x200 | 2; // ram 2
+           comp.pFFF7[7] = 0x200;     // ram 0
        break;
        default:
            set_atm_FF77(0,0);
@@ -156,21 +158,6 @@ void reset(ROM_MODE mode)
    if ((!conf.trdos_present && mode == RM_DOS) ||
        (!conf.cache && mode == RM_CACHE))
        mode = RM_SOS;
-
-#ifdef VG_EMUL // VG эмулятор от savelij'а
-   u8 *base_rom = base_128_rom;
-   switch(mode)
-   {
-   case RM_DOS: base_rom = base_dos_rom; break;
-   case RM_SOS: base_rom = base_dos_rom; break;
-   case RM_SYS: base_rom = base_sys_rom; break;
-   case RM_128: base_rom = base_dos_rom; break;
-   }
-   comp.p1D = (base_rom - ROM_BASE_M) / PAGE;
-   comp.p3D = 2; // RAM2
-   comp.p5D = 0;
-   comp.p7D = 0;
-#endif
 
    set_mode(mode);
 }
