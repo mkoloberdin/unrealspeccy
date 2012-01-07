@@ -78,7 +78,7 @@ static bool __cdecl get_dos_flag()
    } var[] =                                       \
    {                                               \
                                                    \
-      { WORD4('D','O','S',0), get_dos_flag, 0 },  \
+      { WORD4('D','O','S',0), (const void *)get_dos_flag, 0 },  \
       { WORD4('O','U','T',0), &brk_port_out, 4 },  \
       { WORD2('I','N'), &brk_port_in, 4 },         \
       { WORD4('V','A','L',0), &brk_port_val, 1 },  \
